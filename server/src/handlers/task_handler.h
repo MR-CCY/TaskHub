@@ -4,11 +4,16 @@
 
 #ifndef TASKHUB_TASK_HANDLER_H
 #define TASKHUB_TASK_HANDLER_H
+#include "httplib.h"
+namespace taskhub {
+    class TaskHandler {
+    public:
+        static void create(const httplib::Request& req, httplib::Response& res);
+        static void list(const httplib::Request& req, httplib::Response& res);
+        static void detail(const httplib::Request& req, httplib::Response& res);
+    };
 
-
-class task_handler {
-
-};
+}
 
 
 #endif //TASKHUB_TASK_HANDLER_H

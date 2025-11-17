@@ -5,7 +5,10 @@
 #include "system_handler.h"
 #include "httplib.h"
 #include "json.hpp"
+#include <chrono>
 #include "core/logger.h"
+#include <iomanip>
+#include <sstream>
 
 namespace taskhub {
     void SystemHandler::health(const httplib::Request &, httplib::Response &res) {
@@ -13,8 +16,14 @@ namespace taskhub {
 
         nlohmann::json data;
         data["status"] = "healthy";
-        data["time"]   = "2025-11-14T12:00:00Z";  // TODO: 换成真实时间
-        data["uptime_sec"] = 0;                  // TODO: 用启动时间算
+        auto now = std::chrono::system_clock::now();
+        auto ms  = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+        std::time_t tt = std::chrono::system_clock::to_time_t(now);
+        std::ostringstream time_stream;
+        time_stream << std::put_time(std::localtime(&tt), "%Y-%m-%d %H:%M:%S")
+                    << '.' << std::setw(3) << std::setfill('0') << ms.count();
+        data["time"] = time_stream.str();
+        data["uptime_sec"] = 1; // TODO: Replace with actual uptime calculation
 
         nlohmann::json resp;
         resp["code"]    = 0;
