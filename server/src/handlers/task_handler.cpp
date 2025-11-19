@@ -74,6 +74,9 @@ namespace taskhub {
             t["create_time"] = task.create_time;
             t["update_time"] = task.update_time;
             t["params"] = task.params;
+            t["exit_code"] = task.exit_code;
+            t["last_output"] = task.last_output;
+            t["last_error"] = task.last_error;
             data.push_back(t);
         }
         resp["data"] = data;
@@ -85,7 +88,7 @@ namespace taskhub {
     void TaskHandler::detail(const httplib::Request &req, httplib::Response &res)
     {
 
-        Logger::info("GET R(/api/tasks/(\d+)");
+        Logger::info("GET R(/api/tasks/:id)");
         if (req.matches.size() < 2) {
             res.status = 400;
             return;
@@ -115,8 +118,10 @@ namespace taskhub {
         data["create_time"] = task.create_time;
         data["update_time"] = task.update_time;
         data["params"] = task.params;
+        data["exit_code"] = task.exit_code;
+        data["last_output"] = task.last_output;
+        data["last_error"] = task.last_error;
         resp["data"] = data;
-
         res.status = 200;
         res.set_content(resp.dump(), "application/json");
     }

@@ -4,7 +4,7 @@
 #include <array>
 #include <cstdio>
 namespace taskhub {
-    
+
 static std::pair<int, std::string> run_command(const std::string& cmd) {
     std::array<char, 256> buffer{};
     std::string result;
@@ -88,10 +88,11 @@ static std::pair<int, std::string> run_command(const std::string& cmd) {
                 TaskManager::instance().set_finished(task_id, false, -1, "", "missing cmd in params");
                 continue;
             }
-    
+            Logger::info("Task " + std::to_string(task_id) + " start: " + cmd);
             // 3. 执行命令
             auto [exit_code, output] = run_command(cmd);
-    
+            
+            Logger::info("Task " + std::to_string(task_id) + " finished, exit=" + std::to_string(exit_code));
             bool success = (exit_code == 0);
             TaskManager::instance().set_finished( task_id, success, exit_code, output, success ? "" : "command failed");
         }
