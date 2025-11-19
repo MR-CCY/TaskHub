@@ -7,6 +7,7 @@
 #include "httplib.h"
 #include "json.hpp"
 #include "core/logger.h"
+#include "core/task_runner.h"
 
 namespace taskhub {
 
@@ -31,6 +32,9 @@ namespace taskhub {
             int type = req_json.value("type", 0);
             nlohmann::json params = req_json.value("params", nlohmann::json::object());
             Task::IdType task_id = TaskManager::instance().add_task(name, type, params);  
+            // ★ 如果有 cmd，就丢到 TaskRunner
+            TaskRunner::instance().enqueue(task_id);
+
             nlohmann::json resp;
             resp["code"]    = 0;
             resp["message"] = "ok";

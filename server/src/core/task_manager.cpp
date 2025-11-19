@@ -1,5 +1,6 @@
 #include "task_manager.h"
 #include <sstream>
+#include "utils.h"
 namespace taskhub {
     TaskManager &TaskManager::instance()
     {
@@ -9,18 +10,13 @@ namespace taskhub {
 
     Task::IdType taskhub::TaskManager::add_task(const std::string &name, int type, const nlohmann::json &params)
     {
+        std::lock_guard<std::mutex> lock(m_mutex);
         Task task;
         task.id = m_next_id++;
         task.name = name;
         task.type = type;
         task.params = params;
-        auto now = std::chrono::system_clock::now();
-        auto ms  = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
-        std::time_t tt = std::chrono::system_clock::to_time_t(now);
-        std::ostringstream time_stream;
-        time_stream << std::put_time(std::localtime(&tt), "%Y-%m-%d %H:%M:%S")
-                    << '.' << std::setw(3) << std::setfill('0') << ms.count();
-        task.create_time =  time_stream.str();
+        task.create_time =  utils::now_string();
         task.update_time =  task.create_time;
     
         m_tasks.push_back(task);
@@ -40,5 +36,32 @@ namespace taskhub {
             }
         }
         return std::optional<Task>();
+    }
+    bool TaskManager::set_running(Task::IdType id)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        for (auto& t : m_tasks) {
+            if (t.id == id) {
+                t.status = TaskStatus::Running;
+                t.update_time = utils::now_string();
+                return true;
+            }
+        }
+        return false;
+    }
+    bool TaskManager::set_finished(Task::IdType id, bool success, int exit_code, const std::string &output, const std::string &error_msg)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        for (auto& t : m_tasks) {
+            if (t.id == id) {
+                t.status     = success ? TaskStatus::Success : TaskStatus::Failed;
+                t.exit_code  = exit_code;
+                t.last_output = output;
+                t.last_error  = error_msg;
+                t.update_time = utils::now_string();
+                return true;
+            }
+        }
+        return false;
     }
 } // namespace taskhub

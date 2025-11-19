@@ -6,6 +6,7 @@
 #include "core/config.h"
 #include "core/logger.h"
 #include "router.h"
+#include "core/task_runner.h"
 
 namespace taskhub {
 
@@ -29,8 +30,11 @@ namespace taskhub {
         // 4. 注册路由
         setup_routes();
         Logger::info("Routes registered");
-
-        // 5. 启动监听（阻塞）
+        // 5. 启动后台任务执行线程
+        TaskRunner::instance().start();
+        Logger::info("TaskRunner started");
+        
+        // 6. 启动监听（阻塞）
         Logger::info("Listening at " + m_host + ":" + std::to_string(m_port));
         m_server->listen(m_host.c_str(), m_port);
 

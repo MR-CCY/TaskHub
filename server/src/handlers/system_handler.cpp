@@ -9,20 +9,15 @@
 #include "core/logger.h"
 #include <iomanip>
 #include <sstream>
-
+#include "core/utils.h"
 namespace taskhub {
     void SystemHandler::health(const httplib::Request &, httplib::Response &res) {
         Logger::info("GET /api/health");
 
         nlohmann::json data;
         data["status"] = "healthy";
-        auto now = std::chrono::system_clock::now();
-        auto ms  = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
-        std::time_t tt = std::chrono::system_clock::to_time_t(now);
-        std::ostringstream time_stream;
-        time_stream << std::put_time(std::localtime(&tt), "%Y-%m-%d %H:%M:%S")
-                    << '.' << std::setw(3) << std::setfill('0') << ms.count();
-        data["time"] = time_stream.str();
+
+        data["time"] = utils::now_string();
         data["uptime_sec"] = 1; // TODO: Replace with actual uptime calculation
 
         nlohmann::json resp;

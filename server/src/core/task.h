@@ -45,7 +45,9 @@ struct Task {
                "}";
     };
 
-  
+    int         exit_code{0};        // 命令返回码
+    std::string last_output;         // 命令输出（stdout）
+    std::string last_error;          // 执行失败的错误信息（如 cmd 缺失）
 };
 
 } // namespace taskhub
