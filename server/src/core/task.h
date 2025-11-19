@@ -4,12 +4,12 @@
 
 namespace taskhub {
 
-enum class TaskStatus {
-    Pending,   // 已创建，待执行
-    Running,   // （M3 用）
-    Success,   // （M3 用）
-    Failed     // （M3 用）
-};
+    enum class TaskStatus {
+        Pending = 0,
+        Running = 1,
+        Success = 2,
+        Failed  = 3
+    };
 
 struct Task {
     using IdType = std::uint64_t;
@@ -24,16 +24,28 @@ struct Task {
 
     // 任意参数，由前端/客户端传进来
     nlohmann::json params;
-    std::string to_string() const{
+   static std::string status_to_string(TaskStatus s) {
+        switch (s) {
+            case TaskStatus::Pending: return "pending";
+            case TaskStatus::Running: return "running";
+            case TaskStatus::Success: return "success";
+            case TaskStatus::Failed:  return "failed";
+        }
+        return "unknown";
+    }
+
+    std::string to_string() {
         return "Task{id=" + std::to_string(id) +
                ", name=" + name +
                ", type=" + std::to_string(type) +
-               ", status=" + std::to_string(static_cast<int>(status)) +
+               ", status=" + status_to_string(status) +
                ", create_time=" + create_time +
                ", update_time=" + update_time +
                ", params=" + params.dump() +
                "}";
     };
+
+  
 };
 
 } // namespace taskhub

@@ -12,14 +12,6 @@ namespace taskhub {
 
     void TaskHandler::create(const httplib::Request &req, httplib::Response &res)
     {
-        // {
-        //     "name": "Test Task",
-        //     "type": 1,
-        //     "params": {
-        //       "cmd": "echo hello"
-        //     }
-        //   }
-
 
         Logger::info("GET /api/tasks");
 
@@ -74,7 +66,7 @@ namespace taskhub {
             t["id"] = task.id;
             t["name"] = task.name;
             t["type"] = task.type;      
-            t["status"] = static_cast<int>(task.status);
+            t["status"] = Task::status_to_string(task.status);
             t["create_time"] = task.create_time;
             t["update_time"] = task.update_time;
             t["params"] = task.params;
@@ -115,7 +107,7 @@ namespace taskhub {
         data["id"] = task.id;
         data["name"] = task.name;
         data["type"] = task.type;      
-        data["status"] = static_cast<int>(task.status);
+        data["status"] = Task::status_to_string(task.status);
         data["create_time"] = task.create_time;
         data["update_time"] = task.update_time;
         data["params"] = task.params;

@@ -1,4 +1,5 @@
 #include "task_manager.h"
+#include <sstream>
 namespace taskhub {
     TaskManager &TaskManager::instance()
     {
@@ -13,6 +14,15 @@ namespace taskhub {
         task.name = name;
         task.type = type;
         task.params = params;
+        auto now = std::chrono::system_clock::now();
+        auto ms  = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+        std::time_t tt = std::chrono::system_clock::to_time_t(now);
+        std::ostringstream time_stream;
+        time_stream << std::put_time(std::localtime(&tt), "%Y-%m-%d %H:%M:%S")
+                    << '.' << std::setw(3) << std::setfill('0') << ms.count();
+        task.create_time =  time_stream.str();
+        task.update_time =  task.create_time;
+    
         m_tasks.push_back(task);
         return task.id;
     }
