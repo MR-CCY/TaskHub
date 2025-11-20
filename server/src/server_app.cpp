@@ -7,7 +7,7 @@
 #include "core/logger.h"
 #include "router.h"
 #include "core/task_runner.h"
-
+#include "core/auth_manager.h"
 namespace taskhub {
 
     ServerApp::ServerApp() {
@@ -33,7 +33,8 @@ namespace taskhub {
         // 5. 启动后台任务执行线程
         TaskRunner::instance().start();
         Logger::info("TaskRunner started");
-        
+        AuthManager::instance().init();
+        Logger::info("AuthManager initialized");
         // 6. 启动监听（阻塞）
         Logger::info("Listening at " + m_host + ":" + std::to_string(m_port));
         m_server->listen(m_host.c_str(), m_port);

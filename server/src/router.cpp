@@ -12,6 +12,7 @@ namespace taskhub {
         server.Get("/api/info",   SystemHandler::info);
         server.Post("/api/tasks", TaskHandler::create);
         server.Get("/api/tasks",  TaskHandler::list);
+        server.Post("/api/login", AuthHandler::login);
         // 正则匹配数字 ID
         server.Get(R"(/api/tasks/(\d+))", TaskHandler::detail);
     }

@@ -8,12 +8,24 @@
 #include "json.hpp"
 #include "core/logger.h"
 #include "core/task_runner.h"
+#include "core/auth_manager.h"
 
 namespace taskhub {
 
     void TaskHandler::create(const httplib::Request &req, httplib::Response &res)
     {
-
+        auto user_opt = AuthManager::instance().user_from_request(req);
+        if (!user_opt) {
+            nlohmann::json resp;
+            resp["code"] = 401;
+            resp["message"] = "unauthorized";
+            resp["data"] = nullptr;
+    
+            res.status = 401;
+            res.set_content(resp.dump(), "application/json");
+            return;
+        }
+    
         Logger::info("GET /api/tasks");
 
         nlohmann::json req_json;
@@ -58,6 +70,18 @@ namespace taskhub {
 
     void TaskHandler::list(const httplib::Request &req, httplib::Response &res)
     {
+        auto user_opt = AuthManager::instance().user_from_request(req);
+        if (!user_opt) {
+            nlohmann::json resp;
+            resp["code"] = 401;
+            resp["message"] = "unauthorized";
+            resp["data"] = nullptr;
+    
+            res.status = 401;
+            res.set_content(resp.dump(), "application/json");
+            return;
+        }
+    
         Logger::info("GET /api/tasks");
         auto tasks = TaskManager::instance().list_tasks();
 
@@ -87,7 +111,18 @@ namespace taskhub {
 
     void TaskHandler::detail(const httplib::Request &req, httplib::Response &res)
     {
-
+        auto user_opt = AuthManager::instance().user_from_request(req);
+        if (!user_opt) {
+            nlohmann::json resp;
+            resp["code"] = 401;
+            resp["message"] = "unauthorized";
+            resp["data"] = nullptr;
+    
+            res.status = 401;
+            res.set_content(resp.dump(), "application/json");
+            return;
+        }
+    
         Logger::info("GET R(/api/tasks/:id)");
         if (req.matches.size() < 2) {
             res.status = 400;
