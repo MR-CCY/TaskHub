@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.21)
 project(TaskHub)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -12,4 +12,13 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-add_subdirectory(server)
+option(BUILD_TASKHUB_SERVER "Build the TaskHub server backend" ON)
+option(BUILD_TASKHUB_CLIENT "Build the Qt TaskHubClient front-end" ON)
+
+if(BUILD_TASKHUB_SERVER)
+    add_subdirectory(server)
+endif()
+
+if(BUILD_TASKHUB_CLIENT)
+    add_subdirectory(client)
+endif()

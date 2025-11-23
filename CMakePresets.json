@@ -1,0 +1,41 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 21,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "server-debug",
+            "displayName": "Server Debug",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build",
+            "cacheVariables": {
+                "BUILD_TASKHUB_SERVER": "ON",
+                "BUILD_TASKHUB_CLIENT": "OFF"
+            }
+        },
+        {
+            "name": "client-debug",
+            "displayName": "Client Debug (Qt)",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/cmake-build-Debug",
+            "cacheVariables": {
+                "BUILD_TASKHUB_SERVER": "OFF",
+                "BUILD_TASKHUB_CLIENT": "ON",
+                "CMAKE_PREFIX_PATH": "/Users/ccy/Developer/QT/6.9.3/macos/lib/cmake"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "server-debug",
+            "configurePreset": "server-debug"
+        },
+        {
+            "name": "client-debug",
+            "configurePreset": "client-debug"
+        }
+    ]
+}
