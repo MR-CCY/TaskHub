@@ -6,7 +6,10 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
+find_package(Qt6 REQUIRED COMPONENTS 
+        Core
+        Widgets
+        Network)
 
 # 收集所有 cpp/h 文件
 file(GLOB CLIENT_SOURCES
@@ -36,8 +39,16 @@ add_executable(TaskHubClient
     ${SCLIENT_UI}
 )
 
+target_include_directories(TaskHubClient PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/models
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui
+)
+
 
 target_link_libraries(TaskHubClient PRIVATE
+    Qt6::Core
     Qt6::Widgets
     Qt6::Network
 )
