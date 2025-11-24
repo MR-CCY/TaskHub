@@ -16,6 +16,5 @@ private:
     QLineEdit* m_editUsername;
     QLineEdit* m_editPassword;
     QLabel*    m_labelError;
-    QPushButton* m_button_login;
-    HttpClient m_http;
+    HttpClient* m_http;
 };

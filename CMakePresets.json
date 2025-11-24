@@ -13,18 +13,20 @@
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "BUILD_TASKHUB_SERVER": "ON",
-                "BUILD_TASKHUB_CLIENT": "OFF"
+                "BUILD_TASKHUB_CLIENT": "OFF",
+                "CMAKE_BUILD_TYPE": "Debug"
             }
         },
         {
             "name": "client-debug",
             "displayName": "Client Debug (Qt)",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/cmake-build-Debug",
+            "binaryDir": "${sourceDir}/cmake-build-debug",
             "cacheVariables": {
                 "BUILD_TASKHUB_SERVER": "OFF",
                 "BUILD_TASKHUB_CLIENT": "ON",
-                "CMAKE_PREFIX_PATH": "/Users/ccy/Developer/QT/6.9.3/macos/lib/cmake"
+                "CMAKE_PREFIX_PATH": "/Users/ccy/Developer/QT/6.9.3/macos/lib/cmake",
+                "CMAKE_BUILD_TYPE": "Debug"
             }
         }
     ],
