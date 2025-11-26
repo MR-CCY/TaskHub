@@ -30,3 +30,23 @@ bool AppContext::isLoggedIn() const
 {
     return !m_token.isEmpty();
 }
+
+QString AppContext::username() const
+{
+    return m_username;
+}
+
+void AppContext::setUsername(const QString &username)
+{
+    m_username = username;
+}
+
+QString AppContext::loginTime() const
+{
+    return m_loginTime.toString("yyyy-MM-dd HH:mm:ss");
+}
+
+void AppContext::setLoginTime()
+{
+    m_loginTime = QDateTime::currentDateTime();
+}

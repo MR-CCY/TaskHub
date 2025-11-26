@@ -2,7 +2,14 @@
 #include <QPushButton>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QHeaderView>
+#include <QToolBar>
+#include <QMouseEvent>
 #include "new_task_dialog.h"
+#include "taskdetaildialog.h"
+#include <QMessageBox>
+#include "app_context.h"
+
 MainWindow::MainWindow(QWidget *parent):
     QMainWindow(parent),
     m_http(this)
@@ -12,13 +19,37 @@ MainWindow::MainWindow(QWidget *parent):
     m_view= new QTableView(this);
     ui=new Ui::MainWindowUi();
     ui->setupUi(this);
+    ui->centralwidget->installEventFilter(this);
+    ui->widget->installEventFilter(this);
+    ui->centralwidget->setMouseTracking(true);
+    ui->widget->setMouseTracking(true);
     m_view=new QTableView(this);
     ui->widget->layout()->addWidget(m_view); 
     m_model=new TaskListModel(this);
     m_view->setModel(m_model);
+    m_view->verticalHeader()->setVisible(false); // hide row numbers column
+    m_view->setCornerButtonEnabled(false);       // hide top-left square corner
+    m_view->setStyleSheet("QTableCornerButton::section { background: transparent; border: none; padding:0px; margin:0px; }");
+
     connect(ui->pushButton, &QPushButton::clicked, this, &MainWindow::onRefreshTasks);
     connect(ui->pushButton_2, &QPushButton::clicked, this, &MainWindow::onNewTask);
+    connect(m_view, &QTableView::doubleClicked, [this](const QModelIndex & index){
+        if(!index.isValid()){
+            return;
+        }
+        TaskDetailDialog dlg(this);
+        dlg.setTaskDetail( m_model->taskAt(index.row()) );
+        dlg.exec();
+    });
+    connect(&m_http, &HttpClient::unauthorized, this, &MainWindow::onUnauthorized);
     onRefreshTasks();
+    QString info = QString("用户：%1   服务器：%2   登陆时间：%3")
+    .arg(AppContext::instance().username())
+    .arg(AppContext::instance().baseUrl())
+    .arg(AppContext::instance().loginTime());
+
+    auto label = new QLabel(info, this);
+    statusBar()->addPermanentWidget(label);
 }
 
 
@@ -30,7 +61,7 @@ void MainWindow::onNewTask()
     }
     QJsonObject body;
     body["name"]=dlg.taskName();
-    body["cmd"]=dlg.cmd();
+    body["params"]= QJsonObject{{"cmd", dlg.cmd()}};
 
     m_http.postJson("/api/tasks", body, [this](bool ok, QJsonObject resp){
         if(!ok||resp["code"] != 0){
@@ -41,8 +72,22 @@ void MainWindow::onNewTask()
         onRefreshTasks();
     });
 }
-void MainWindow::onRefreshTasks(){
+void MainWindow::onUnauthorized()
+{
+    QMessageBox::warning(this, "登录失效", "登录已过期，请重新登录。");
+    AppContext::instance().setToken("");
+    close();   // 关闭主窗口
+    emit logoutRequested(); // 通知应用程序显示登录对话框
+}
+void MainWindow::onRefreshTasks()
+{
+    ui->pushButton->setEnabled(false);
+    statusBar()->showMessage("正在加载任务列表...");
+
+        
     m_http.getJson("/api/tasks", [this](bool ok, QJsonObject resp){
+        ui->pushButton->setEnabled(true);
+        statusBar()->clearMessage();
         if(!ok||resp["code"] != 0){
             ui->statusbar->showMessage("获取任务列表失败："+resp["message"].toString(), 5000);
             return;
@@ -55,15 +100,37 @@ void MainWindow::onRefreshTasks(){
             item.id=obj["id"].toInt();
             item.name=obj["name"].toString();
             item.status=obj["status"].toString();
+            item.cmd=obj["params"].toObject()["cmd"].toString();
             item.createTime=obj["create_time"].toString();
             item.updateTime=obj["update_time"].toString();
-            // item.params=obj["params"].toString();
+            item.exitCode=obj["exit_code"].toInt();
+            item.output=obj["last_output"].toString();
+            item.errorMsg=obj["last_error"].toString();
             items.append(item);
         }
         m_model->setTasks(items);
         ui->statusbar->showMessage(QString("获取到 %1 个任务").arg(items.size()), 5000);
     });
+}
 
+bool MainWindow::eventFilter(QObject* obj, QEvent* event)
+{
+    if (event->type() == QEvent::MouseButtonPress) {
+        auto* me = static_cast<QMouseEvent*>(event);
+        QWidget* target = nullptr;
 
+        if (obj == ui->centralwidget) {
+            target = ui->centralwidget->childAt(me->pos());
+        } else if (obj == ui->widget) {
+            target = ui->widget->childAt(me->pos());
+        } else if (auto* w = qobject_cast<QWidget*>(obj)) {
+            target = w->childAt(w->mapFromGlobal(me->globalPos()));
+        }
 
+        QString cls = target ? target->metaObject()->className() : QStringLiteral("<none>");
+        QString name = target ? target->objectName() : QStringLiteral("<none>");
+        statusBar()->showMessage(QString("Clicked widget: %1 (objectName=%2)").arg(cls, name), 5000);
+    }
+
+    return QMainWindow::eventFilter(obj, event);
 }

@@ -1,5 +1,5 @@
 #pragma once
-#include   "ui_new_task_dialog.h"
+#include "ui_new_task_dialog.h"
 #include <QDialog>
 class NewTaskDialog : public QDialog{
     Q_OBJECT

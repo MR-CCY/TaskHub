@@ -8,4 +8,7 @@ struct TaskItem {
     QString     createTime;
     QString     updateTime;
     QString     cmd;          // 从 params.cmd 中取
+    int         exitCode;
+    QString     output;
+    QString     errorMsg;
 };

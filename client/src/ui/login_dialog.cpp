@@ -2,7 +2,7 @@
 #include <QGridLayout>
 #include <QJsonObject>
 #include <app_context.h>
-
+#include <QSettings>
 LoginDialog::LoginDialog(QWidget *parent)
     :QDialog(parent)
 {
@@ -37,6 +37,9 @@ LoginDialog::LoginDialog(QWidget *parent)
     connect(loginButton, &QPushButton::clicked, this, &LoginDialog::onLoginClicked);
     connect(cancelButton, &QPushButton::clicked, this, &LoginDialog::reject);
     m_http=new HttpClient(this);
+    QSettings s("TaskHub", "Client");
+    m_editBaseUrl->setText(s.value("baseUrl", "http://localhost:8082").toString());
+    m_editUsername->setText(s.value("username", "admin").toString());
 }
 void LoginDialog::onLoginClicked(){
     AppContext &appcontext = AppContext::instance();
@@ -55,6 +58,11 @@ void LoginDialog::onLoginClicked(){
         QString token=data["token"].toString();
         AppContext &appcontext = AppContext::instance();
         appcontext.setToken(token);
+        appcontext.setUsername(m_editUsername->text());
+        appcontext.setLoginTime();
+        QSettings s("TaskHub", "Client");
+        s.setValue("baseUrl", m_editBaseUrl->text());
+        s.setValue("username", m_editUsername->text());
         accept();
         return;
     });

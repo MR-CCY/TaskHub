@@ -17,18 +17,8 @@ void HttpClient::postJson(const QString &path, const QJsonObject &body, JsonCall
     QNetworkAccessManager *manager = new QNetworkAccessManager(this);
     QNetworkReply *reply = manager->post(request, QJsonDocument(body).toJson());
 
-    connect(reply, &QNetworkReply::finished, this, [reply, cb]() {
-        // qDebug() << "err:" << reply->error() << reply->errorString()
-        //      << "status:" << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
-        QByteArray response_data = reply->readAll();
-        QJsonDocument jsonResponse = QJsonDocument::fromJson(response_data);
-        auto code=reply->error();
-        if ( code== QNetworkReply::NoError) {
-            cb(true, jsonResponse.object());
-        } else {
-            cb(false, jsonResponse.object());
-        }
-        reply->deleteLater();
+    connect(reply, &QNetworkReply::finished, this, [this, reply, cb]() {
+        handleReply(reply, cb);
     });
 }
 
@@ -40,16 +30,30 @@ void HttpClient::getJson(const QString &path, JsonCallback cb)
     QNetworkAccessManager *manager = new QNetworkAccessManager(this);
     QNetworkReply *reply = manager->get(request);
 
-    connect(reply, &QNetworkReply::finished, this, [reply, cb]() {
-        QByteArray response_data = reply->readAll();
-        QJsonDocument jsonResponse = QJsonDocument::fromJson(response_data);
-        if (reply->error() == QNetworkReply::NoError) {
-            cb(true, jsonResponse.object());
-        } else {
-            cb(false, jsonResponse.object());
-        }
-        reply->deleteLater();
+    connect(reply, &QNetworkReply::finished, this, [this, reply, cb]() {
+        handleReply(reply, cb);
     });
+}
+
+void HttpClient::handleReply(QNetworkReply *reply, JsonCallback cb)
+{
+    QByteArray data = reply->readAll();
+    int httpStatus = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+
+    QJsonObject obj;
+    QJsonDocument doc = QJsonDocument::fromJson(data);
+    if (doc.isObject())
+        obj = doc.object();
+
+    if (httpStatus == 401 || obj["code"].toInt() == 401) {
+        emit unauthorized();
+        cb(false, obj);
+        return;
+    }
+
+    bool ok = (httpStatus >= 200 && httpStatus < 300);
+    cb(ok, obj);
+    reply->deleteLater();
 }
 
 void HttpClient::applyAuthHeader(QNetworkRequest &req)

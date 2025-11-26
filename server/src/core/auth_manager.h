@@ -42,8 +42,8 @@ private:
     std::unordered_map<std::string, Session> m_sessions;
 
     // token 有效期（秒）
-    int m_token_ttl_sec{2 * 60 * 60}; // 默认两小时
-    // int m_token_ttl_sec{30}; // 默认30秒
+    // int m_token_ttl_sec{2 * 60 * 60}; // 默认两小时
+    int m_token_ttl_sec{30}; // 默认30秒
 };
 
 template <typename Request>

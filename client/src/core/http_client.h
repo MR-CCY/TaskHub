@@ -14,9 +14,11 @@ public:
 
     void postJson(const QString& path, const QJsonObject& body, JsonCallback cb);
     void getJson(const QString& path, JsonCallback cb);
-
+signals:
+    void unauthorized();  // 401 时发出
+private slots:
+    void handleReply(QNetworkReply* reply, JsonCallback cb);
 private:
     QNetworkAccessManager m_mgr;
-
     void applyAuthHeader(QNetworkRequest& req);
 };
