@@ -56,6 +56,6 @@ void LoginDialog::onLoginClicked(){
         AppContext &appcontext = AppContext::instance();
         appcontext.setToken(token);
         accept();
-
+        return;
     });
 }
