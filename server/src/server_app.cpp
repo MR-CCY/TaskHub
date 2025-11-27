@@ -8,6 +8,7 @@
 #include "router.h"
 #include "core/task_runner.h"
 #include "core/auth_manager.h"
+#include "core/db.h"
 namespace taskhub {
 
     ServerApp::ServerApp() {
@@ -29,6 +30,7 @@ namespace taskhub {
 
         // 4. 注册路由
         setup_routes();
+        init_db();
         Logger::info("Routes registered");
         // 5. 启动后台任务执行线程
         TaskRunner::instance().start();
@@ -68,7 +70,7 @@ namespace taskhub {
 
     void ServerApp::init_logger() {
         auto& cfg = Config::instance();
-        Logger::init(cfg.log_path());
+        // Logger::init(cfg.log_path());
         Logger::info("Logger initialized");
     }
 
@@ -81,5 +83,35 @@ namespace taskhub {
     }
     void ServerApp::setup_routes() {
         Router::setup_routes(*m_server);
+    }
+    void ServerApp::init_db()
+    {
+        auto& cfg = Config::instance();
+        bool ok = Db::instance().open(cfg.db_path());
+        if (!ok) {
+            Logger::error("Failed to open database, exiting");
+            exit(1);
+        }
+         // 建表：tasks
+        const char* sql = R"(
+            CREATE TABLE IF NOT EXISTS tasks (
+                id          INTEGER PRIMARY KEY,
+                name        TEXT NOT NULL,
+                type        INTEGER NOT NULL,
+                status      TEXT NOT NULL,
+                params      TEXT,
+                create_time TEXT,
+                update_time TEXT,
+                exit_code   INTEGER,
+                last_output TEXT,
+                last_error  TEXT
+            );
+        )";
+
+        if (! Db::instance().exec(sql)) {
+            Logger::error("Create table tasks failed, exit.");
+            std::exit(1);
+        }
+        Logger::info("Database initialized");
     }
 }

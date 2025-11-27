@@ -42,9 +42,18 @@ bool Config::load(const std::string& path) {
         // database 部分
         if (j.contains("database") && j["database"].is_object()) {
             const auto& d = j["database"];
-            if (d.contains("path") && d["path"].is_string()) {
-                m_db_path = d["path"].get<std::string>();
+            if (d.contains("db_path") && d["db_path"].is_string()) {
+                m_db_path = d["db_path"].get<std::string>();
             }
+            if (d.contains("host") && d["host"].is_string()) {
+                m_db_host = d["host"].get<std::string>();
+            }
+            if (d.contains("port") && d["port"].is_number_integer()) {
+                m_db_port = d["port"].get<int>();
+            }
+            // if(d.contains("db_log_path") && d["db_log_path"].is_string()) {
+            //     m_db_log_path = d["db_log_path"].get<std::string>();
+            // }
         }
 
         // log 部分
@@ -81,10 +90,5 @@ void Config::load_from_env() {
     }
 }
 
-// =================== getters ===================
-std::string Config::host() const { return m_host; }
-int Config::port() const { return m_port; }
-std::string Config::db_path() const { return m_db_path; }
-std::string Config::log_path() const { return m_log_path; }
 
 } // namespace taskhub

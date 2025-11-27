@@ -19,17 +19,16 @@ MainWindow::MainWindow(QWidget *parent):
     m_view= new QTableView(this);
     ui=new Ui::MainWindowUi();
     ui->setupUi(this);
-    ui->centralwidget->installEventFilter(this);
-    ui->widget->installEventFilter(this);
-    ui->centralwidget->setMouseTracking(true);
-    ui->widget->setMouseTracking(true);
+    // ui->centralwidget->installEventFilter(this);
+    // ui->widget->installEventFilter(this);
+    // ui->centralwidget->setMouseTracking(true);
+    // ui->widget->setMouseTracking(true);
     m_view=new QTableView(this);
     ui->widget->layout()->addWidget(m_view); 
     m_model=new TaskListModel(this);
     m_view->setModel(m_model);
     m_view->verticalHeader()->setVisible(false); // hide row numbers column
     m_view->setCornerButtonEnabled(false);       // hide top-left square corner
-    m_view->setStyleSheet("QTableCornerButton::section { background: transparent; border: none; padding:0px; margin:0px; }");
 
     connect(ui->pushButton, &QPushButton::clicked, this, &MainWindow::onRefreshTasks);
     connect(ui->pushButton_2, &QPushButton::clicked, this, &MainWindow::onNewTask);

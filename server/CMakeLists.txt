@@ -19,11 +19,20 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/third_party/nlohmann_json
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
+# 查找 SQLite3 库
+find_package(SQLite3 REQUIRED)
+
 
 # 创建可执行文件
 add_executable(taskhub_server
     ${SERVER_SOURCES}
     ${SERVER_HEADERS}
+)
+
+#链接 SQLite3 库
+target_link_libraries(taskhub_server
+    PRIVATE
+    SQLite::SQLite3
 )
 
 configure_file(

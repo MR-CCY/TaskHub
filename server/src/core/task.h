@@ -24,7 +24,7 @@ struct Task {
 
     // 任意参数，由前端/客户端传进来
     nlohmann::json params;
-   static std::string status_to_string(TaskStatus s) {
+    static std::string status_to_string(TaskStatus s) {
         switch (s) {
             case TaskStatus::Pending: return "pending";
             case TaskStatus::Running: return "running";
@@ -32,8 +32,22 @@ struct Task {
             case TaskStatus::Failed:  return "failed";
         }
         return "unknown";
-    }
+     }
 
+    static  TaskStatus  string_to_status(const std::string s){  
+      if(s=="pending"){
+        return TaskStatus::Pending;
+
+      }else if(s=="running"){
+        return TaskStatus::Running;
+
+      }else if(s=="success"){
+        return TaskStatus::Success;
+      }else{
+        return TaskStatus::Failed;
+      }
+
+    }
     std::string to_string() {
         return "Task{id=" + std::to_string(id) +
                ", name=" + name +

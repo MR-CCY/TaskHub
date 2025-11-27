@@ -15,15 +15,18 @@ public:
                           const nlohmann::json& params);
 
     std::vector<Task> list_tasks() const;
-
+    void load_from_db();
     std::optional<Task> get_task(Task::IdType id) const;
     bool set_running(Task::IdType id);
     bool set_finished(Task::IdType id, bool success,
                     int exit_code,
                     const std::string& output,
                     const std::string& error_msg);
+                    
 private:
-    TaskManager() = default;
+    TaskManager(){
+        load_from_db();
+    };
     TaskManager(const TaskManager&) = delete;
     TaskManager& operator=(const TaskManager&) = delete;
 

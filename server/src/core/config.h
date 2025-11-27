@@ -15,10 +15,12 @@ public:
     void load_from_env();
 
     // 配置访问接口
-    std::string host() const;
-    int port() const;
-    std::string db_path() const;
-    std::string log_path() const;
+    std::string host() const{ return m_host; };
+    int port() const{ return m_port; };
+    std::string db_host() const{ return m_db_host; };
+    int db_port() const{    return m_db_port; };
+    std::string db_path() const{ return m_db_path; };
+    std::string log_path() const{ return m_log_path; };
 
 private:
     Config();                           // 私有构造
@@ -28,7 +30,8 @@ private:
 private:
     std::string m_host = "0.0.0.0";
     int m_port = 8080;
-
+    int m_db_port = 8082;
+    std::string m_db_host = "0.0.0.0";
     std::string m_db_path = "taskhub.db";
     std::string m_log_path = "./logs";
 };

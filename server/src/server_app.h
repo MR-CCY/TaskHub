@@ -21,7 +21,7 @@ private:
     void init_logger();
     void init_http_server();
     void setup_routes();
-
+    void init_db(); 
 private:
     // HTTP 服务对象
     std::unique_ptr<httplib::Server> m_server;
