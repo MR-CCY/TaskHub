@@ -19,10 +19,15 @@ MainWindow::MainWindow(QWidget *parent):
     m_view= new QTableView(this);
     ui=new Ui::MainWindowUi();
     ui->setupUi(this);
-    // ui->centralwidget->installEventFilter(this);
-    // ui->widget->installEventFilter(this);
-    // ui->centralwidget->setMouseTracking(true);
-    // ui->widget->setMouseTracking(true);
+    ui->centralwidget->installEventFilter(this);
+    ui->widget->installEventFilter(this);
+    ui->centralwidget->setMouseTracking(true);
+    ui->widget->setMouseTracking(true);
+    ui->centralwidget->setAutoFillBackground(true);
+    
+    QPalette pal = ui->centralwidget->palette();
+    pal.setColor(QPalette::Window, Qt::white);
+    ui->centralwidget->setPalette(pal);
     m_view=new QTableView(this);
     ui->widget->layout()->addWidget(m_view); 
     m_model=new TaskListModel(this);
@@ -49,6 +54,10 @@ MainWindow::MainWindow(QWidget *parent):
 
     auto label = new QLabel(info, this);
     statusBar()->addPermanentWidget(label);
+
+    for (auto child : centralWidget()->children()) {
+        qDebug() << "Child:" << child << child->metaObject()->className();
+    }
 }
 
 
