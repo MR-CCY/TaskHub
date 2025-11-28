@@ -5,6 +5,9 @@
 #include "router.h"
 #include "httplib.h"
 #include "handlers/handlers.h"
+#include "core/ws_hub.h"
+#include  "core/http_response.h"
+#include   "core/logger.h"
 namespace taskhub {
     void Router::setup_routes(httplib::Server& server){
         // 系统信息类接口
@@ -15,5 +18,16 @@ namespace taskhub {
         server.Post("/api/login", AuthHandler::login);
         // 正则匹配数字 ID
         server.Get(R"(/api/tasks/(\d+))", TaskHandler::detail);
+        server.Get("/api/debug/broadcast", [](const httplib::Request& req, httplib::Response& res) {
+            using nlohmann::json;
+            json j;
+            j["event"] = "debug";
+            j["data"]  = { {"msg", "hello from TaskHub WS"} };
+            Logger::info("HTTP /api/debug/broadcast called");
+            Logger::info("Broadcasting: " + j.dump());
+            WsHub::instance().broadcast(j.dump());
+        
+            resp::ok(res);  // 走你已封装的统一响应
+        });
     }
 }

@@ -5,7 +5,7 @@
 #pragma once
 #include <memory>
 #include "httplib.h"
-
+#include "core/ws_server_beast.h"
 namespace taskhub {
 
 class ServerApp {
@@ -25,6 +25,7 @@ private:
 private:
     // HTTP 服务对象
     std::unique_ptr<httplib::Server> m_server;
+    std::unique_ptr<taskhub::WsServer> m_wsServer;
     // 服务运行参数
     std::string m_host;
     int m_port;

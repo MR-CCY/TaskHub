@@ -37,6 +37,10 @@ namespace taskhub {
         Logger::info("TaskRunner started");
         AuthManager::instance().init();
         Logger::info("AuthManager initialized");
+        //7.监听8090 端口启动ws服务
+        m_wsServer = std::make_unique<WsServer>("0.0.0.0", 8090);
+        m_wsServer->start();
+        Logger::info("WsServer started at 0.0.0.0:8090");
         // 6. 启动监听（阻塞）
         Logger::info("Listening at " + m_host + ":" + std::to_string(m_port));
         m_server->listen(m_host.c_str(), m_port);

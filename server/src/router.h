@@ -14,6 +14,7 @@ namespace taskhub {
         Router() = delete;
         ~Router() = delete;
         static void setup_routes(httplib::Server& server);
+        static void setup_ws(httplib::Server& server);   // ★ 新增
     private:
 
     };
