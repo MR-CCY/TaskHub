@@ -3,6 +3,8 @@
 #include "task_manager.h"
 #include <array>
 #include <cstdio>
+#include "core/ws_task_events.h"
+#include "core/http_response.h"
 namespace taskhub {
 
 static std::pair<int, std::string> run_command(const std::string& cmd) {
@@ -72,7 +74,8 @@ static std::pair<int, std::string> run_command(const std::string& cmd) {
               // 这里开始处理任务 id
             // 1. 标记为 running
             TaskManager::instance().set_running(task_id);
-
+            // ★ 广播任务更新事件
+            taskhub::broadcast_task_event("task_updated", TaskManager::instance().get_task(task_id).value()); 
             // 2. 取任务，提取 cmd
             auto opt = TaskManager::instance().get_task(task_id);
             if (!opt) {
@@ -95,6 +98,8 @@ static std::pair<int, std::string> run_command(const std::string& cmd) {
             Logger::info("Task " + std::to_string(task_id) + " finished, exit=" + std::to_string(exit_code));
             bool success = (exit_code == 0);
             TaskManager::instance().set_finished( task_id, success, exit_code, output, success ? "" : "command failed");
+            // ★ 广播任务更新事件
+            taskhub::broadcast_task_event("task_updated", TaskManager::instance().get_task(task_id).value());
         }
 
     }

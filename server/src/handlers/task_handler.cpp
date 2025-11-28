@@ -9,7 +9,11 @@
 #include "core/logger.h"
 #include "core/task_runner.h"
 #include "core/auth_manager.h"
+#include "core/ws_task_events.h"
+#include "core/http_response.h"
 
+// using taskhub::resp;
+// using taskhub::broadcast_task_event;
 namespace taskhub {
 
     void TaskHandler::create(const httplib::Request &req, httplib::Response &res)
@@ -46,6 +50,8 @@ namespace taskhub {
             Task::IdType task_id = TaskManager::instance().add_task(name, type, params);  
             // ★ 如果有 cmd，就丢到 TaskRunner
             TaskRunner::instance().enqueue(task_id);
+            // ★ 广播任务创建事件
+            broadcast_task_event("task_created", TaskManager::instance().get_task(task_id).value());
 
             nlohmann::json resp;
             resp["code"]    = 0;
