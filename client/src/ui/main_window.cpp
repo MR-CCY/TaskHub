@@ -9,6 +9,7 @@
 #include "taskdetaildialog.h"
 #include <QMessageBox>
 #include "app_context.h"
+#include "core/task_ws_client.h"
 
 MainWindow::MainWindow(QWidget *parent):
     QMainWindow(parent),
@@ -58,6 +59,8 @@ MainWindow::MainWindow(QWidget *parent):
     for (auto child : centralWidget()->children()) {
         qDebug() << "Child:" << child << child->metaObject()->className();
     }
+    m_wsClient = new TaskWsClient(this);
+    setupWs();
 }
 
 
@@ -141,4 +144,22 @@ bool MainWindow::eventFilter(QObject* obj, QEvent* event)
     }
 
     return QMainWindow::eventFilter(obj, event);
+}
+
+void MainWindow::setupWs()
+{
+    connect(m_wsClient, &TaskWsClient::taskCreated, m_model, &TaskListModel::upsertFromJson);
+    connect(m_wsClient, &TaskWsClient::taskUpdated, m_model, &TaskListModel::upsertFromJson);
+    connect(m_wsClient, &TaskWsClient::connected, this, []{
+        qDebug() << "[UI] WS connected";
+    });
+    connect(m_wsClient, &TaskWsClient::disconnected, this, []{
+        qDebug() << "[UI] WS disconnected";
+    });
+    connect(m_wsClient, &TaskWsClient::errorOccurred, this, [](const QString &msg){
+        qWarning() << "[UI] WS error:" << msg;
+    });
+
+// 暂时先在启动时直接连本机，后面你可以改成根据配置 / 登录信息拼 URL
+m_wsClient->connectToServer(QUrl(QStringLiteral("ws://127.0.0.1:8090/ws/tasks")));
 }

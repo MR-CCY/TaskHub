@@ -1,5 +1,6 @@
 #include "task_list_model.h"
 #include <QBrush>
+#include <QJsonObject>
 TaskListModel::TaskListModel(QObject *parent)
     : QAbstractTableModel(parent)
 {}
@@ -88,5 +89,46 @@ QVariant TaskListModel::headerData(int section, Qt::Orientation orientation, int
         return "错误信息";
     default:
         return QVariant();
+    }
+}
+
+int TaskListModel::rowById(int id) const
+{
+    for (int i = 0; i < m_tasks.size(); ++i) {
+        if (m_tasks[i].id == id) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void TaskListModel::upsertFromJson(const QJsonObject &obj)
+{
+    TaskItem item;
+    item.id=obj["id"].toInt();
+    item.type = obj["type"].toInt();
+    item.name=obj["name"].toString();
+    item.status=obj["status"].toString();
+    item.cmd=obj["params"].toObject()["cmd"].toString();
+    item.createTime=obj["create_time"].toString();
+    item.updateTime=obj["update_time"].toString();
+    item.exitCode=obj["exit_code"].toInt();
+    item.output=obj["last_output"].toString();
+    item.errorMsg=obj["last_error"].toString();
+
+    
+    int row = rowById(item.id);
+    if (row < 0) {
+        // 新任务：插入
+        const int insertRow = m_tasks.size();
+        beginInsertRows(QModelIndex(), insertRow, insertRow);
+        m_tasks.push_back(item);
+        endInsertRows();
+    } else {
+        // 已存在：更新
+        m_tasks[row] = item;
+        QModelIndex left  = index(row, 0);
+        QModelIndex right = index(row, columnCount() - 1);
+        emit dataChanged(left, right);
     }
 }

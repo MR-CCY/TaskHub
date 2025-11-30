@@ -9,6 +9,7 @@ set(CMAKE_AUTOUIC ON)
 find_package(Qt6 REQUIRED COMPONENTS 
         Core
         Widgets
+        WebSockets
         Network)
 
 # 收集所有 cpp/h 文件
@@ -51,4 +52,5 @@ target_link_libraries(TaskHubClient PRIVATE
     Qt6::Core
     Qt6::Widgets
     Qt6::Network
+    Qt6::WebSockets
 )
