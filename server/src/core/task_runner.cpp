@@ -7,25 +7,6 @@
 #include "core/http_response.h"
 namespace taskhub {
 
-static std::pair<int, std::string> run_command(const std::string& cmd) {
-    std::array<char, 256> buffer{};
-    std::string result;
-
-    FILE* pipe = popen(cmd.c_str(), "r");
-    if (!pipe) {
-        return { -1, "popen() failed" };
-    }
-
-    while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
-        result += buffer.data();
-    }
-
-    int rc = pclose(pipe);  // rc 一般是进程返回码 << 8，不用太纠结
-
-    return { rc, result };
-}
-
-
     TaskRunner &taskhub::TaskRunner::instance()
     {
         static TaskRunner instance;
@@ -93,7 +74,7 @@ static std::pair<int, std::string> run_command(const std::string& cmd) {
             }
             Logger::info("Task " + std::to_string(task_id) + " start: " + cmd);
             // 3. 执行命令
-            auto [exit_code, output] = run_command(cmd);
+            auto [exit_code, output] = utils::run_command(cmd);
             
             Logger::info("Task " + std::to_string(task_id) + " finished, exit=" + std::to_string(exit_code));
             bool success = (exit_code == 0);

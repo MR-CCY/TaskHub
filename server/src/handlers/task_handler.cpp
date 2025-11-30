@@ -11,7 +11,7 @@
 #include "core/auth_manager.h"
 #include "core/ws_task_events.h"
 #include "core/http_response.h"
-
+#include "core/worker_pool.h"
 // using taskhub::resp;
 // using taskhub::broadcast_task_event;
 namespace taskhub {
@@ -49,7 +49,10 @@ namespace taskhub {
             nlohmann::json params = req_json.value("params", nlohmann::json::object());
             Task::IdType task_id = TaskManager::instance().add_task(name, type, params);  
             // ★ 如果有 cmd，就丢到 TaskRunner
-            TaskRunner::instance().enqueue(task_id);
+            // TaskRunner::instance().enqueue(task_id);
+            WorkerPool::instance()->submit(task_id);
+            Logger::info("Submitted task id " +  std::to_string(task_id) + " to WorkerPool");
+            
             // ★ 广播任务创建事件
             broadcast_task_event("task_created", TaskManager::instance().get_task(task_id).value());
 

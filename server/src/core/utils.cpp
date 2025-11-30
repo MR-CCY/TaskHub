@@ -39,5 +39,25 @@ long long now_millis() {
            ).count();
 }
 
+std::pair<int, std::string> run_command(const std::string &cmd)
+{
+    std::array<char, 256> buffer{};
+    std::string result;
+
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if (!pipe) {
+        return { -1, "popen() failed" };
+    }
+
+    while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+        result += buffer.data();
+    }
+
+    int rc = pclose(pipe);  // rc 一般是进程返回码 << 8，不用太纠结
+
+    return { rc, result };
+
+}
+
 } // namespace utils
 } // namespace taskhub

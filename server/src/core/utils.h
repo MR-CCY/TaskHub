@@ -11,5 +11,6 @@ std::string now_string();
 // 当前时间戳（毫秒）
 long long now_millis();
 
+std::pair<int, std::string> run_command(const std::string& cmd);
 } // namespace utils
 } // namespace taskhub
