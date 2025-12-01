@@ -29,5 +29,7 @@ namespace taskhub {
         
             resp::ok(res);  // 走你已封装的统一响应
         });
+        //M7
+        server.Post(R"(/api/tasks/(\d+)/cancel)", TaskHandler::cancel_task);
     }
 }

@@ -1,0 +1,313 @@
+ccy@caochenyuandeMacBook-Pro TaskHub % ./m7.sh
+>>> RUNNING SCRIPT: ./m7.sh
+=> 登录获取 TOKEN ...
+{
+  "code": 0,
+  "data": {
+    "token": "90xy4M5BqgbhnRZi7e7C7Y5CaHFUsMDP",
+    "username": "admin"
+  },
+  "message": "ok"
+}
+=> TOKEN = 90xy4M5BqgbhnRZi7e7C7Y5CaHFUsMDP
+
+===== 开始 M7 测试 =====
+
+============================
+TEST 1: 任务超时 (timeout)
+============================
+DEBUG: before create_task
+
+=> 创建任务: name=TimeoutTest max_retries=0 timeout_sec=2
+Payload:
+{
+  "name": "TimeoutTest",
+  "type": 1,
+  "params": {
+    "cmd": "sleep 5 && echo done_timeout",
+    "max_retries": 0,
+    "timeout_sec": 2
+  }
+}
+Response:
+{
+  "code": 0,
+  "data": {
+    "id": 76
+  },
+  "message": "ok"
+}
+=> 新任务 ID = 76
+DEBUG: after create_task, id=76
+
+=> 轮询任务 76 状态...
+[RAW] {"code":0,"data":{"cancel_flag":false,"create_time":"2025-12-01 23:49:45.889","exit_code":0,"id":76,"last_error":"","last_output":"","max_retries":0,"name":"TimeoutTest","params":{"cmd":"sleep 5 && echo done_timeout","max_retries":0,"timeout_sec":2},"retry_count":0,"status":"running","timeout_sec":2,"type":1,"update_time":"2025-12-01 23:49:45.891"},"message":"ok"}
+[23:49:45] task 76 status=running exit=0
+[RAW] {"code":0,"data":{"cancel_flag":false,"create_time":"2025-12-01 23:49:45.889","exit_code":0,"id":76,"last_error":"","last_output":"","max_retries":0,"name":"TimeoutTest","params":{"cmd":"sleep 5 && echo done_timeout","max_retries":0,"timeout_sec":2},"retry_count":0,"status":"running","timeout_sec":2,"type":1,"update_time":"2025-12-01 23:49:45.891"},"message":"ok"}
+[23:49:46] task 76 status=running exit=0
+[RAW] {"code":0,"data":{"cancel_flag":false,"create_time":"2025-12-01 23:49:45.889","exit_code":0,"id":76,"last_error":"","last_output":"","max_retries":0,"name":"TimeoutTest","params":{"cmd":"sleep 5 && echo done_timeout","max_retries":0,"timeout_sec":2},"retry_count":0,"status":"running","timeout_sec":2,"type":1,"update_time":"2025-12-01 23:49:45.891"},"message":"ok"}
+[23:49:47] task 76 status=running exit=0
+[RAW] {"code":0,"data":{"cancel_flag":false,"create_time":"2025-12-01 23:49:45.889","exit_code":0,"id":76,"last_error":"","last_output":"","max_retries":0,"name":"TimeoutTest","params":{"cmd":"sleep 5 && echo done_timeout","max_retries":0,"timeout_sec":2},"retry_count":0,"status":"running","timeout_sec":2,"type":1,"update_time":"2025-12-01 23:49:45.891"},"message":"ok"}
+[23:49:49] task 76 status=running exit=0
+[RAW] {"code":0,"data":{"cancel_flag":false,"create_time":"2025-12-01 23:49:45.889","exit_code":0,"id":76,"last_error":"","last_output":"","max_retries":0,"name":"TimeoutTest","params":{"cmd":"sleep 5 && echo done_timeout","max_retries":0,"timeout_sec":2},"retry_count":0,"status":"running","timeout_sec":2,"type":1,"update_time":"2025-12-01 23:49:45.891"},"message":"ok"}
+[23:49:50] task 76 status=running exit=0
+[RAW] {"code":0,"data":{"cancel_flag":false,"create_time":"2025-12-01 23:49:45.889","exit_code":-1,"id":76,"last_error":"Task timeout after 2 seconds","last_output":"","max_retries":0,"name":"TimeoutTest","params":{"cmd":"sleep 5 && echo done_timeout","max_retries":0,"timeout_sec":2},"retry_count":0,"status":"timeout","timeout_sec":2,"type":1,"update_time":"2025-12-01 23:49:50.910"},"message":"ok"}
+[23:49:51] task 76 status=timeout exit=-1
+最终任务信息:
+{
+  "code": 0,
+  "data": {
+    "cancel_flag": false,
+    "create_time": "2025-12-01 23:49:45.889",
+    "exit_code": -1,
+    "id": 76,
+    "last_error": "Task timeout after 2 seconds",
+    "last_output": "",
+    "max_retries": 0,
+    "name": "TimeoutTest",
+    "params": {
+      "cmd": "sleep 5 && echo done_timeout",
+      "max_retries": 0,
+      "timeout_sec": 2
+    },
+    "retry_count": 0,
+    "status": "timeout",
+    "timeout_sec": 2,
+    "type": 1,
+    "update_time": "2025-12-01 23:49:50.910"
+  },
+  "message": "ok"
+}
+
+============================
+TEST 2: 自动重试 (retry)
+============================
+
+=> 创建任务: name=RetryTest max_retries=3 timeout_sec=10
+Payload:
+{
+  "name": "RetryTest",
+  "type": 1,
+  "params": {
+    "cmd": "bash -c \"if [ ! -f /tmp/taskhub_retry_demo ]; then echo first_fail >&2; touch /tmp/taskhub_retry_demo; exit 1; else echo success_retry; rm -f /tmp/taskhub_retry_demo; exit 0; fi\"",
+    "max_retries": 3,
+    "timeout_sec": 10
+  }
+}
+Response:
+{
+  "code": 0,
+  "data": {
+    "id": 77
+  },
+  "message": "ok"
+}
+=> 新任务 ID = 77
+
+=> 轮询任务 77 状态...
+[RAW] {"code":0,"data":{"cancel_flag":false,"create_time":"2025-12-01 23:49:51.133","exit_code":0,"id":77,"last_error":"","last_output":"","max_retries":3,"name":"RetryTest","params":{"cmd":"bash -c \"if [ ! -f /tmp/taskhub_retry_demo ]; then echo first_fail >&2; touch /tmp/taskhub_retry_demo; exit 1; else echo success_retry; rm -f /tmp/taskhub_retry_demo; exit 0; fi\"","max_retries":3,"timeout_sec":10},"retry_count":1,"status":"running","timeout_sec":10,"type":1,"update_time":"2025-12-01 23:49:51.133"},"message":"ok"}
+[23:49:51] task 77 status=running exit=0
+[RAW] {"code":0,"data":{"cancel_flag":false,"create_time":"2025-12-01 23:49:51.133","exit_code":0,"id":77,"last_error":"","last_output":"success_retry\n","max_retries":3,"name":"RetryTest","params":{"cmd":"bash -c \"if [ ! -f /tmp/taskhub_retry_demo ]; then echo first_fail >&2; touch /tmp/taskhub_retry_demo; exit 1; else echo success_retry; rm -f /tmp/taskhub_retry_demo; exit 0; fi\"","max_retries":3,"timeout_sec":10},"retry_count":1,"status":"success","timeout_sec":10,"type":1,"update_time":"2025-12-01 23:49:52.175"},"message":"ok"}
+[23:49:52] task 77 status=success exit=0
+最终任务信息:
+{
+  "code": 0,
+  "data": {
+    "cancel_flag": false,
+    "create_time": "2025-12-01 23:49:51.133",
+    "exit_code": 0,
+    "id": 77,
+    "last_error": "",
+    "last_output": "success_retry\n",
+    "max_retries": 3,
+    "name": "RetryTest",
+    "params": {
+      "cmd": "bash -c \"if [ ! -f /tmp/taskhub_retry_demo ]; then echo first_fail >&2; touch /tmp/taskhub_retry_demo; exit 1; else echo success_retry; rm -f /tmp/taskhub_retry_demo; exit 0; fi\"",
+      "max_retries": 3,
+      "timeout_sec": 10
+    },
+    "retry_count": 1,
+    "status": "success",
+    "timeout_sec": 10,
+    "type": 1,
+    "update_time": "2025-12-01 23:49:52.175"
+  },
+  "message": "ok"
+}
+
+============================
+TEST 3: 取消排队中的任务 (cancel queued)
+============================
+!!! 建议 WorkerPool 暂时改成 start(1) 更好观察队列行为
+
+=> 创建任务: name=LongTask1 max_retries=0 timeout_sec=0
+Payload:
+{
+  "name": "LongTask1",
+  "type": 1,
+  "params": {
+    "cmd": "sleep 30 && echo LONG_TASK_DONE",
+    "max_retries": 0,
+    "timeout_sec": 0
+  }
+}
+Response:
+{
+  "code": 0,
+  "data": {
+    "id": 78
+  },
+  "message": "ok"
+}
+=> 新任务 ID = 78
+
+=> 创建任务: name=LongTask2 max_retries=0 timeout_sec=0
+Payload:
+{
+  "name": "LongTask2",
+  "type": 1,
+  "params": {
+    "cmd": "sleep 30 && echo LONG_TASK_DONE",
+    "max_retries": 0,
+    "timeout_sec": 0
+  }
+}
+Response:
+{
+  "code": 0,
+  "data": {
+    "id": 79
+  },
+  "message": "ok"
+}
+=> 新任务 ID = 79
+
+=> 发送取消任务请求: 79
+{
+  "code": 0,
+  "data": null,
+  "message": "ok"
+}
+
+=> 等待 T2 最终状态：
+
+=> 轮询任务 79 状态...
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:49:52] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:49:53] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:49:54] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:49:55] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:49:56] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:49:57] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:49:58] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:49:59] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:50:00] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:50:01] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:50:02] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:50:03] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:50:04] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:50:05] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:50:06] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:50:07] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:50:09] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:50:10] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:50:11] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:50:12] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:50:13] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:50:14] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:50:15] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:50:16] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:50:17] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:50:18] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:50:19] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:50:20] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"pending","timeout_sec":0,"type":1,"update_time":"\u0007"},"message":"ok"}
+[23:50:21] task 79 status=pending exit=0
+[RAW] {"code":0,"data":{"cancel_flag":true,"create_time":"2025-12-01 23:49:52.245","exit_code":0,"id":79,"last_error":"","last_output":"","max_retries":0,"name":"LongTask2","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"canceled","timeout_sec":0,"type":1,"update_time":"2025-12-01 23:50:25.140"},"message":"ok"}
+[23:50:25] task 79 status=canceled exit=0
+最终任务信息:
+{
+  "code": 0,
+  "data": {
+    "cancel_flag": true,
+    "create_time": "2025-12-01 23:49:52.245",
+    "exit_code": 0,
+    "id": 79,
+    "last_error": "",
+    "last_output": "",
+    "max_retries": 0,
+    "name": "LongTask2",
+    "params": {
+      "cmd": "sleep 30 && echo LONG_TASK_DONE",
+      "max_retries": 0,
+      "timeout_sec": 0
+    },
+    "retry_count": 0,
+    "status": "canceled",
+    "timeout_sec": 0,
+    "type": 1,
+    "update_time": "2025-12-01 23:50:25.140"
+  },
+  "message": "ok"
+}
+
+=> 等待 T1 最终状态：
+
+=> 轮询任务 78 状态...
+[RAW] {"code":0,"data":{"cancel_flag":false,"create_time":"2025-12-01 23:49:52.220","exit_code":0,"id":78,"last_error":"","last_output":"LONG_TASK_DONE\n","max_retries":0,"name":"LongTask1","params":{"cmd":"sleep 30 && echo LONG_TASK_DONE","max_retries":0,"timeout_sec":0},"retry_count":0,"status":"success","timeout_sec":0,"type":1,"update_time":"2025-12-01 23:50:22.239"},"message":"ok"}
+[23:50:25] task 78 status=success exit=0
+最终任务信息:
+{
+  "code": 0,
+  "data": {
+    "cancel_flag": false,
+    "create_time": "2025-12-01 23:49:52.220",
+    "exit_code": 0,
+    "id": 78,
+    "last_error": "",
+    "last_output": "LONG_TASK_DONE\n",
+    "max_retries": 0,
+    "name": "LongTask1",
+    "params": {
+      "cmd": "sleep 30 && echo LONG_TASK_DONE",
+      "max_retries": 0,
+      "timeout_sec": 0
+    },
+    "retry_count": 0,
+    "status": "success",
+    "timeout_sec": 0,
+    "type": 1,
+    "update_time": "2025-12-01 23:50:22.239"
+  },
+  "message": "ok"
+}
+
+===== M7 测试完成 =====
+ccy@caochenyuandeMacBook-Pro TaskHub % 

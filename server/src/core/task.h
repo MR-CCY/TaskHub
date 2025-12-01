@@ -8,7 +8,9 @@ namespace taskhub {
         Pending = 0,
         Running = 1,
         Success = 2,
-        Failed  = 3
+        Failed  = 3,
+        Canceled =4,
+        Timeout =5
     };
 
 struct Task {
@@ -30,6 +32,8 @@ struct Task {
             case TaskStatus::Running: return "running";
             case TaskStatus::Success: return "success";
             case TaskStatus::Failed:  return "failed";
+            case TaskStatus::Canceled: return "canceled";
+            case TaskStatus::Timeout: return "timeout";
         }
         return "unknown";
      }
@@ -37,12 +41,14 @@ struct Task {
     static  TaskStatus  string_to_status(const std::string s){  
       if(s=="pending"){
         return TaskStatus::Pending;
-
       }else if(s=="running"){
         return TaskStatus::Running;
-
       }else if(s=="success"){
         return TaskStatus::Success;
+      }else if(s=="canceled"){
+        return TaskStatus::Canceled;
+      }else if(s=="timeout"){
+        return TaskStatus::Timeout;
       }else{
         return TaskStatus::Failed;
       }
@@ -62,6 +68,11 @@ struct Task {
     int         exit_code{0};        // 命令返回码
     std::string last_output;         // 命令输出（stdout）
     std::string last_error;          // 执行失败的错误信息（如 cmd 缺失）
+    
+    int         max_retries   = 0;   // 最大重试次数，比如 0 表示不重试
+    int         retry_count   = 0;   // 已重试次数
+    int         timeout_sec   = 0;   // 超时时间，0 表示不限制
+    bool        cancel_flag   = false; // 是否请求取消
 };
 
 } // namespace taskhub

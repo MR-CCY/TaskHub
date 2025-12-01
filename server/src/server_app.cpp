@@ -25,7 +25,7 @@ namespace taskhub {
         init_logger();
         Logger::info("===== TaskHub Server Starting =====");
 
-        WorkerPool::instance()->start(4);
+        WorkerPool::instance()->start(1);
         
         Logger::info("WorkerPool started with 4 workers");
         // 3. 创建 HTTP Server

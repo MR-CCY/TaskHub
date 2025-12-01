@@ -48,6 +48,7 @@ namespace taskhub {
             int type = req_json.value("type", 0);
             nlohmann::json params = req_json.value("params", nlohmann::json::object());
             Task::IdType task_id = TaskManager::instance().add_task(name, type, params);  
+            
             // ★ 如果有 cmd，就丢到 TaskRunner
             // TaskRunner::instance().enqueue(task_id);
             WorkerPool::instance()->submit(task_id);
@@ -110,6 +111,10 @@ namespace taskhub {
             t["exit_code"] = task.exit_code;
             t["last_output"] = task.last_output;
             t["last_error"] = task.last_error;
+            t["max_retries"] = task.max_retries;
+            t["retry_count"] =task.retry_count;
+            t["timeout_sec"] =task.timeout_sec;
+            t["cancel_flag"] =task.cancel_flag;
             data.push_back(t);
         }
         resp["data"] = data;
@@ -165,9 +170,60 @@ namespace taskhub {
         data["exit_code"] = task.exit_code;
         data["last_output"] = task.last_output;
         data["last_error"] = task.last_error;
+        data["max_retries"] = task.max_retries;
+        data["retry_count"] =task.retry_count;
+        data["timeout_sec"] =task.timeout_sec;
+        data["cancel_flag"] =task.cancel_flag;
         resp["data"] = data;
         res.status = 200;
         res.set_content(resp.dump(), "application/json");
     }
 
+    void TaskHandler::cancel_task(const httplib::Request &req, httplib::Response &res)
+    {
+        auto user_opt = AuthManager::instance().user_from_request(req);
+        if (!user_opt) {
+            nlohmann::json resp;
+            resp["code"] = 401;
+            resp["message"] = "unauthorized";
+            resp["data"] = nullptr;
+    
+            res.status = 401;
+            res.set_content(resp.dump(), "application/json");
+            return;
+        }
+    
+        Logger::info("POST /api/cancel_task");
+
+        auto tasks = TaskManager::instance().list_tasks();
+        auto id_str = req.matches[1];  // httplib 的路径捕获
+        int task_id = std::stoi(id_str);
+
+        auto& tm = TaskManager::instance();
+        auto taskPtr = tm.get_task_ptr(task_id);
+
+        if (!taskPtr) {
+            resp::error(res, 1003, "Task not found");
+            return;
+        }
+
+        Task& task = *taskPtr;
+        if (task.status == TaskStatus::Success ||
+            task.status == TaskStatus::Failed ||
+            task.status == TaskStatus::Canceled ||
+            task.status == TaskStatus::Timeout) {
+            resp::error(res, 1004, "Task already finished");
+            return;
+        }
+
+        // ★ 设置取消标记
+        task.cancel_flag = true;
+        task.update_time = utils::now_string();
+        tm.updateTask(task);   // 写回缓存和 DB
+
+        broadcast_task_event("task_updated", task);
+
+        resp::ok(res);  // {"code":0,"message":"ok"}
+
+    }
 }

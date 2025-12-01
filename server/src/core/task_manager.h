@@ -1,10 +1,13 @@
 #pragma once
 #include <vector>
 #include <optional>
+#include <memory>
 #include "task.h" 
 #include <mutex>
 
 namespace taskhub {
+
+using TaskPtr = std::shared_ptr<Task>;
 
 class TaskManager {
 public:
@@ -17,7 +20,9 @@ public:
     std::vector<Task> list_tasks() const;
     void load_from_db();
     std::optional<Task> get_task(Task::IdType id) const;
+    TaskPtr get_task_ptr(Task::IdType id) const;
     bool set_running(Task::IdType id);
+    bool updateTask(const Task& updated);
     bool set_finished(Task::IdType id, bool success,
                     int exit_code,
                     const std::string& output,
@@ -33,7 +38,7 @@ private:
 private:
     mutable std::mutex m_mutex;          // ★ 保护 m_tasks
     Task::IdType          m_next_id{1};
-    std::vector<Task>     m_tasks;
+    std::vector<TaskPtr>  m_tasks;
 };
 
 } // namespace taskhub

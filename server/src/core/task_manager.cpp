@@ -1,5 +1,6 @@
 #include "task_manager.h"
 #include <sstream>
+#include <memory>
 #include "utils.h"
 #include "core/db.h"
 #include  "logger.h"
@@ -13,13 +14,16 @@ namespace taskhub {
     Task::IdType taskhub::TaskManager::add_task(const std::string &name, int type, const nlohmann::json &params)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        Task task;
-        task.id = m_next_id++;
-        task.name = name;
-        task.type = type;
-        task.params = params;
-        task.create_time =  utils::now_string();
-        task.update_time =  task.create_time;
+        TaskPtr task = std::make_shared<Task>();
+        task->id = m_next_id++;
+        task->name = name;
+        task->type = type;
+        task->params = params;
+        task->create_time =  utils::now_string();
+        task->update_time =  task->create_time;
+        task->max_retries=params.value("max_retries", 0);
+        task->timeout_sec=params.value("timeout_sec",0);
+
         // 写入 DB
         sqlite3* db = Db::instance().handle();
         const char* sql = "INSERT INTO tasks (id, name, type, status, params, create_time, update_time, exit_code, last_output, last_error) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
@@ -28,18 +32,18 @@ namespace taskhub {
         if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
             Logger::error("INSERT tasks prepare failed: " + Db::instance().last_error());
         } else {
-            sqlite3_bind_int64(stmt, 1, static_cast<sqlite3_int64>(task.id));
-            sqlite3_bind_text(stmt,  2, task.name.c_str(), -1, SQLITE_TRANSIENT);
-            sqlite3_bind_int(stmt,   3, task.type);
-            std::string status_str =  Task::status_to_string(task.status);
+            sqlite3_bind_int64(stmt, 1, static_cast<sqlite3_int64>(task->id));
+            sqlite3_bind_text(stmt,  2, task->name.c_str(), -1, SQLITE_TRANSIENT);
+            sqlite3_bind_int(stmt,   3, task->type);
+            std::string status_str =  Task::status_to_string(task->status);
             sqlite3_bind_text(stmt,  4, status_str.c_str(), -1, SQLITE_TRANSIENT);
-            std::string params_str = task.params.dump();
+            std::string params_str = task->params.dump();
             sqlite3_bind_text(stmt,  5, params_str.c_str(), -1, SQLITE_TRANSIENT);
-            sqlite3_bind_text(stmt,  6, task.create_time.c_str(), -1, SQLITE_TRANSIENT);
-            sqlite3_bind_text(stmt,  7, task.update_time.c_str(), -1, SQLITE_TRANSIENT);
-            sqlite3_bind_int(stmt,   8, task.exit_code);
-            sqlite3_bind_text(stmt,  9, task.last_output.c_str(), -1, SQLITE_TRANSIENT);
-            sqlite3_bind_text(stmt, 10, task.last_error.c_str(), -1, SQLITE_TRANSIENT);
+            sqlite3_bind_text(stmt,  6, task->create_time.c_str(), -1, SQLITE_TRANSIENT);
+            sqlite3_bind_text(stmt,  7, task->update_time.c_str(), -1, SQLITE_TRANSIENT);
+            sqlite3_bind_int(stmt,   8, task->exit_code);
+            sqlite3_bind_text(stmt,  9, task->last_output.c_str(), -1, SQLITE_TRANSIENT);
+            sqlite3_bind_text(stmt, 10, task->last_error.c_str(), -1, SQLITE_TRANSIENT);
 
             if (sqlite3_step(stmt) != SQLITE_DONE) {
                 Logger::error("INSERT tasks step failed: " + Db::instance().last_error());
@@ -48,13 +52,18 @@ namespace taskhub {
         }
 
         m_tasks.push_back(task);
-        return task.id;
+        return task->id;
     }
 
     std::vector<Task> taskhub::TaskManager::list_tasks() const
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        return m_tasks;
+        std::vector<Task> res;
+        res.reserve(m_tasks.size());
+        for (const auto& t : m_tasks) {
+            if (t) res.push_back(*t);
+        }
+        return res;
     }
 
     void TaskManager::load_from_db()
@@ -97,8 +106,9 @@ namespace taskhub {
             if (errText)
                 t.last_error = reinterpret_cast<const char*>(errText);
     
-            m_tasks.push_back(std::move(t));
-            if (t.id > max_id) max_id = t.id;
+            TaskPtr ptr = std::make_shared<Task>(std::move(t));
+            if (ptr->id > max_id) max_id = ptr->id;
+            m_tasks.push_back(std::move(ptr));
 
         }
 
@@ -111,20 +121,31 @@ namespace taskhub {
 
     std::optional<Task> taskhub::TaskManager::get_task(Task::IdType id) const
     {
+        std::lock_guard<std::mutex> lock(m_mutex);
         for (const auto &task : m_tasks) {
-            if (task.id == id) {
-                return task;
+            if (task && task->id == id) {
+                return *task;
             }
         }
         return std::optional<Task>();
+    }
+    TaskPtr TaskManager::get_task_ptr(Task::IdType id) const
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        for (const auto &task : m_tasks) {
+            if (task && task->id == id) {
+                return task;
+            }
+        }
+        return nullptr;
     }
     bool TaskManager::set_running(Task::IdType id)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         for (auto& t : m_tasks) {
-            if (t.id == id) {
-                t.status = TaskStatus::Running;
-                t.update_time = utils::now_string();
+            if (t && t->id == id) {
+                t->status = TaskStatus::Running;
+                t->update_time = utils::now_string();
 
                 sqlite3* db = Db::instance().handle();
                 const char* sql = "UPDATE tasks SET status = ?, update_time = ? WHERE id = ?;";
@@ -135,10 +156,10 @@ namespace taskhub {
                     return false;
                 }
             
-                std::string status_str = Task::status_to_string(t.status);
+                std::string status_str = Task::status_to_string(t->status);
                 sqlite3_bind_text(stmt, 1, status_str.c_str(), -1, SQLITE_TRANSIENT);
-                sqlite3_bind_text(stmt, 2, t.update_time.c_str(), -1, SQLITE_TRANSIENT);
-                sqlite3_bind_int64(stmt, 3, static_cast<sqlite3_int64>(t.id));
+                sqlite3_bind_text(stmt, 2, t->update_time.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_int64(stmt, 3, static_cast<sqlite3_int64>(t->id));
             
                 bool ok = (sqlite3_step(stmt) == SQLITE_DONE);
                 if (!ok) {
@@ -150,16 +171,68 @@ namespace taskhub {
         }
         return false;
     }
+    bool TaskManager::updateTask(const Task& updated)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        TaskPtr target;
+        for (auto& t : m_tasks) {
+            if (t && t->id == updated.id) {
+                target = t;
+                break;
+            }
+        }
+        if (!target) {
+            Logger::warn("updateTask: Task id " + std::to_string(updated.id) + " not found");
+            return false;
+        }
+
+        // 同步内存中的任务信息
+        *target = updated;
+
+        sqlite3* db = Db::instance().handle();
+        const char* sql = R"(
+            UPDATE tasks
+            SET name = ?, type = ?, status = ?, params = ?, create_time = ?, update_time = ?, exit_code = ?, last_output = ?, last_error = ?
+            WHERE id = ?;
+        )";
+
+        sqlite3_stmt* stmt = nullptr;
+        if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+            Logger::error("UPDATE tasks prepare failed: " + Db::instance().last_error());
+            return false;
+        }
+
+        std::string status_str = Task::status_to_string(target->status);
+        std::string params_str = target->params.dump();
+
+        sqlite3_bind_text(stmt, 1, target->name.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int(stmt, 2, target->type);
+        sqlite3_bind_text(stmt, 3, status_str.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 4, params_str.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 5, target->create_time.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 6, target->update_time.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int(stmt, 7, target->exit_code);
+        sqlite3_bind_text(stmt, 8, target->last_output.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 9, target->last_error.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int64(stmt, 10, static_cast<sqlite3_int64>(target->id));
+
+        bool ok = (sqlite3_step(stmt) == SQLITE_DONE);
+        if (!ok) {
+            Logger::error("UPDATE tasks step failed: " + Db::instance().last_error());
+        }
+        sqlite3_finalize(stmt);
+        return ok;
+    }
     bool TaskManager::set_finished(Task::IdType id, bool success, int exit_code, const std::string &output, const std::string &error_msg)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         for (auto& t : m_tasks) {
-            if (t.id == id) {
-                t.status     = success ? TaskStatus::Success : TaskStatus::Failed;
-                t.exit_code  = exit_code;
-                t.last_output = output;
-                t.last_error  = error_msg;
-                t.update_time = utils::now_string();
+            if (t && t->id == id) {
+                t->status     = success ? TaskStatus::Success : TaskStatus::Failed;
+                t->exit_code  = exit_code;
+                t->last_output = output;
+                t->last_error  = error_msg;
+                t->update_time = utils::now_string();
 
                 sqlite3* db = Db::instance().handle();
                 const char* sql = R"(
@@ -174,13 +247,13 @@ namespace taskhub {
                     return false;
                 }
             
-                std::string status_str = Task::status_to_string(t.status);
+                std::string status_str = Task::status_to_string(t->status);
                 sqlite3_bind_text(stmt, 1, status_str.c_str(), -1, SQLITE_TRANSIENT);
-                sqlite3_bind_text(stmt, 2, t.update_time.c_str(), -1, SQLITE_TRANSIENT);
-                sqlite3_bind_int(stmt,   3, t.exit_code);
-                sqlite3_bind_text(stmt,  4, t.last_output.c_str(), -1, SQLITE_TRANSIENT);
-                sqlite3_bind_text(stmt,  5, t.last_error.c_str(), -1, SQLITE_TRANSIENT);
-                sqlite3_bind_int64(stmt, 6, static_cast<sqlite3_int64>(t.id));
+                sqlite3_bind_text(stmt, 2, t->update_time.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_int(stmt,   3, t->exit_code);
+                sqlite3_bind_text(stmt,  4, t->last_output.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_text(stmt,  5, t->last_error.c_str(), -1, SQLITE_TRANSIENT);
+                sqlite3_bind_int64(stmt, 6, static_cast<sqlite3_int64>(t->id));
             
                 bool ok = (sqlite3_step(stmt) == SQLITE_DONE);
                 if (!ok) {

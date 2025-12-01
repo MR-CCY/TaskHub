@@ -6,6 +6,7 @@
 #include "json.hpp"
 #include <string>
 #include "core/task.h"
+#include "core/logger.h"
 namespace taskhub {
 
 using nlohmann::json;
@@ -33,7 +34,20 @@ inline void broadcast_task_event(const std::string& event, const Task& t) {
     wrapper["event"] = event;          // 如 "task_created" / "task_updated"
     wrapper["data"]  = task_to_json(t);
 
-    WsHub::instance().broadcast(wrapper.dump());
+    std::string payload;
+    try {
+        // 避免非 UTF-8 内容导致 dump 直接抛异常
+        payload = wrapper.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+    } catch (const std::exception& ex) {
+        Logger::error(std::string("broadcast_task_event dump failed: ") + ex.what());
+        return;
+    }
+
+    try {
+        WsHub::instance().broadcast(payload);
+    } catch (const std::exception& ex) {
+        Logger::error(std::string("broadcast_task_event send failed: ") + ex.what());
+    }
 }
 
 } // namespace taskhub

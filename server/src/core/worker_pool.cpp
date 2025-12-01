@@ -3,7 +3,8 @@
 #include <atomic>
 #include <memory>
 #include "core/blocking_queue.h"
-
+#include "core/utils_exec.h"
+#include "core/utils.h"
 namespace taskhub {
     struct PoolStats {
         int workers;
@@ -28,7 +29,6 @@ namespace taskhub {
     {
         if (!m_workers.empty()) return; // 已启动
         m_stopping = false;
-        m_stopping = false;
         for (std::size_t i = 0; i < num_workers; ++i) {
             m_workers.emplace_back([this, i] { worker_loop(i); });
         }
@@ -42,12 +42,11 @@ namespace taskhub {
     }
     void WorkerPool::submit(int TaskId)
     {
-        auto optTask = TaskManager::instance().get_task(TaskId);
-        if (!optTask) {
+        auto task = TaskManager::instance().get_task_ptr(TaskId);
+        if (!task) {
             Logger::warn("WorkerPool::submit: Task id " + std::to_string(TaskId) + " not found");
             return;
         }
-        TaskPtr task = std::make_shared<Task>(*optTask);
         submit(task);
     }
     void WorkerPool::stop()
@@ -87,14 +86,27 @@ namespace taskhub {
     }
     void WorkerPool::execute_one_task(std::size_t worker_id, TaskPtr task)
     {
-         // 1) 标记为 running，更新 DB
         auto &tm = TaskManager::instance();
+         // 0) 执行前，再检查一下是否被取消
+        if (task->cancel_flag) {
+            task->status      = TaskStatus::Canceled;
+            task->update_time = utils::now_string();
+            tm.updateTask(*task);
+            broadcast_task_event("task_updated", *task);
+
+            Logger::info("Worker " + std::to_string(worker_id) +
+                        " skip canceled task " + std::to_string(task->id));
+            return;
+        }
+
+         // 1) 标记为 running，更新 DB
+       
         task->status      = TaskStatus::Running;
         task->update_time = utils::now_string();
         tm.set_running(task->id);
     
         broadcast_task_event("task_updated", *task);
-    m_current_running++;
+        m_current_running++;
         Logger::info("Worker " + std::to_string(worker_id)
                      + " start task " + std::to_string(task->id)
                      + ": " + task->params["cmd"].get<std::string>());
@@ -103,26 +115,91 @@ namespace taskhub {
         std::string output;
         std::string error;
         int exit_code = 0;
-        try {
-            const std::string cmd = task->params["cmd"].get<std::string>();
-            // TODO: 调用你已有的 TaskRunner 逻辑
-            auto [exit_code, output] = utils::run_command(cmd);
-            // 这里只留接口位
-        } catch (const std::exception &ex) {
-            exit_code = -1;
-            error = ex.what();
+        const std::string cmd = task->params["cmd"].get<std::string>();
+
+        int max_retries = task->max_retries;
+        int attempt     = 0;
+        bool final_timeout   = false;
+        bool final_canceled  = false;
+        int  final_exit_code = 0;
+        std::string final_out, final_err;
+
+        while (true) {
+            // 每次尝试前再检查是否取消了
+            if (task->cancel_flag) {
+                final_canceled = true;
+                break;
+            }
+            Logger::info("Worker " + std::to_string(worker_id) +
+            " attempt " + std::to_string(attempt+1) +
+            " for task " + std::to_string(task->id));
+
+            auto start = std::chrono::steady_clock::now();
+            ExecResult r = run_with_timeout(cmd, task->timeout_sec);
+
+            auto end   = std::chrono::steady_clock::now();
+            auto ms    = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+            Logger::info("Task " + std::to_string(task->id) +
+            " attempt " + std::to_string(attempt+1) +
+            " finished in " + std::to_string(ms) + " ms, exit=" +
+            std::to_string(r.exit_code) +
+            (r.timed_out ? " (timeout)" : ""));
+
+            final_exit_code = r.exit_code;
+            final_out       = std::move(r.output);
+            final_err       = std::move(r.error);
+            final_timeout   = r.timed_out;
+
+            if (final_timeout) {
+                // 超时一般不重试，直接 break
+                break;
+            }
+    
+            if (final_exit_code == 0) {
+                // 成功，不重试
+                break;
+            }
+             // 失败 + 有重试机会
+            attempt++;
+            task->retry_count = attempt;
+            tm.updateTask(*task);
+            broadcast_task_event("task_updated", *task);
+
+            if (attempt > max_retries) {
+                break;
+            }
+
+            // 指数退避：1s, 2s, 4s...
+            int backoff_sec = 1 << (attempt - 1);
+            Logger::info("Task " + std::to_string(task->id) +
+                        " will retry after " + std::to_string(backoff_sec) + " sec");
+            std::this_thread::sleep_for(std::chrono::seconds(backoff_sec));
         }
-        // 3) 标记为 finished，更新 DB
-        bool success = (exit_code == 0);
-        task->status      = success ? TaskStatus::Success : TaskStatus::Failed;
+
+        task->exit_code   = final_exit_code;
+        task->last_output = std::move(final_out);
+        task->last_error  = std::move(final_err);
+
+        if (final_canceled || task->cancel_flag) {
+            task->status = TaskStatus::Canceled;
+        } else if (final_timeout) {
+            task->status = TaskStatus::Timeout;
+        } else if (final_exit_code == 0) {
+            task->status = TaskStatus::Success;
+        } else {
+            task->status = TaskStatus::Failed;
+        }
+
         task->update_time = utils::now_string();
-        task->exit_code   = exit_code;
-        task->last_output = output;
-        task->last_error  = error;
-        tm.set_finished(task->id, success, exit_code, output, error);
+        tm.updateTask(*task);
         broadcast_task_event("task_updated", *task);
+
         Logger::info("Worker " + std::to_string(worker_id)
-                     + " finished task " + std::to_string(task->id)
-                     + ", exit=" + std::to_string(exit_code));
+                    + " finished task " + std::to_string(task->id)
+                    + ", status="
+                    + std::to_string(static_cast<int>(task->status))
+                    + ", exit=" + std::to_string(task->exit_code));
+
     }
 }
