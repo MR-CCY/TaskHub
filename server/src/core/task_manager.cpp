@@ -26,7 +26,7 @@ namespace taskhub {
 
         // 写入 DB
         sqlite3* db = Db::instance().handle();
-        const char* sql = "INSERT INTO tasks (id, name, type, status, params, create_time, update_time, exit_code, last_output, last_error) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+        const char* sql = "INSERT INTO tasks (id, name, type, status, params, create_time, update_time, exit_code, last_output, last_error, max_retries, retry_count, timeout_sec, cancel_flag) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
 
         sqlite3_stmt* stmt = nullptr;
         if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
@@ -44,6 +44,10 @@ namespace taskhub {
             sqlite3_bind_int(stmt,   8, task->exit_code);
             sqlite3_bind_text(stmt,  9, task->last_output.c_str(), -1, SQLITE_TRANSIENT);
             sqlite3_bind_text(stmt, 10, task->last_error.c_str(), -1, SQLITE_TRANSIENT);
+            sqlite3_bind_int(stmt,  11, task->max_retries);
+            sqlite3_bind_int(stmt,  12, task->retry_count);
+            sqlite3_bind_int(stmt,  13, task->timeout_sec);
+            sqlite3_bind_int(stmt,  14, task->cancel_flag ? 1 : 0);
 
             if (sqlite3_step(stmt) != SQLITE_DONE) {
                 Logger::error("INSERT tasks step failed: " + Db::instance().last_error());
@@ -70,7 +74,7 @@ namespace taskhub {
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         sqlite3* db = Db::instance().handle();
-        const char* sql = "SELECT id, name, type, status, params, create_time, update_time, exit_code, last_output, last_error FROM tasks ORDER BY id;";
+        const char* sql = "SELECT id, name, type, status, params, create_time, update_time, exit_code, last_output, last_error, max_retries, retry_count, timeout_sec, cancel_flag FROM tasks ORDER BY id;";
     
         sqlite3_stmt* stmt = nullptr;
         if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
@@ -97,14 +101,18 @@ namespace taskhub {
             t.create_time = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5));
             t.update_time = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6));
             t.exit_code   = sqlite3_column_int(stmt, 7);
-    
+
             const unsigned char* outText = sqlite3_column_text(stmt, 8);
             if (outText)
                 t.last_output = reinterpret_cast<const char*>(outText);
-    
+
             const unsigned char* errText = sqlite3_column_text(stmt, 9);
             if (errText)
                 t.last_error = reinterpret_cast<const char*>(errText);
+            t.max_retries = sqlite3_column_int(stmt, 10);
+            t.retry_count = sqlite3_column_int(stmt, 11);
+            t.timeout_sec = sqlite3_column_int(stmt, 12);
+            t.cancel_flag = sqlite3_column_int(stmt, 13) != 0;
     
             TaskPtr ptr = std::make_shared<Task>(std::move(t));
             if (ptr->id > max_id) max_id = ptr->id;
@@ -192,7 +200,7 @@ namespace taskhub {
         sqlite3* db = Db::instance().handle();
         const char* sql = R"(
             UPDATE tasks
-            SET name = ?, type = ?, status = ?, params = ?, create_time = ?, update_time = ?, exit_code = ?, last_output = ?, last_error = ?
+            SET name = ?, type = ?, status = ?, params = ?, create_time = ?, update_time = ?, exit_code = ?, last_output = ?, last_error = ?, max_retries = ?, retry_count = ?, timeout_sec = ?, cancel_flag = ?
             WHERE id = ?;
         )";
 
@@ -214,7 +222,11 @@ namespace taskhub {
         sqlite3_bind_int(stmt, 7, target->exit_code);
         sqlite3_bind_text(stmt, 8, target->last_output.c_str(), -1, SQLITE_TRANSIENT);
         sqlite3_bind_text(stmt, 9, target->last_error.c_str(), -1, SQLITE_TRANSIENT);
-        sqlite3_bind_int64(stmt, 10, static_cast<sqlite3_int64>(target->id));
+        sqlite3_bind_int(stmt, 10, target->max_retries);
+        sqlite3_bind_int(stmt, 11, target->retry_count);
+        sqlite3_bind_int(stmt, 12, target->timeout_sec);
+        sqlite3_bind_int(stmt, 13, target->cancel_flag ? 1 : 0);
+        sqlite3_bind_int64(stmt, 14, static_cast<sqlite3_int64>(target->id));
 
         bool ok = (sqlite3_step(stmt) == SQLITE_DONE);
         if (!ok) {

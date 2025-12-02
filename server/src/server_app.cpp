@@ -106,16 +106,20 @@ namespace taskhub {
          // 建表：tasks
         const char* sql = R"(
             CREATE TABLE IF NOT EXISTS tasks (
-                id          INTEGER PRIMARY KEY,
-                name        TEXT NOT NULL,
-                type        INTEGER NOT NULL,
-                status      TEXT NOT NULL,
-                params      TEXT,
-                create_time TEXT,
-                update_time TEXT,
-                exit_code   INTEGER,
-                last_output TEXT,
-                last_error  TEXT
+                id           INTEGER PRIMARY KEY,
+                name         TEXT NOT NULL,
+                type         INTEGER NOT NULL,
+                status       TEXT NOT NULL,
+                params       TEXT,
+                create_time  TEXT,
+                update_time  TEXT,
+                exit_code    INTEGER,
+                last_output  TEXT,
+                last_error   TEXT,
+                timeout_sec  INTEGER NOT NULL DEFAULT 0,
+                max_retries  INTEGER NOT NULL DEFAULT 0,
+                retry_count  INTEGER NOT NULL DEFAULT 0,
+                cancel_flag  INTEGER NOT NULL DEFAULT 0
             );
         )";
 
