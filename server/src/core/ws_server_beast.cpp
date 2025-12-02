@@ -91,6 +91,7 @@ namespace taskhub {
             Logger::error("WsServer listen error: " + ec.message());
             return;
         }
+        running_ = true;
     }
 
     WsServer::~WsServer()
@@ -99,7 +100,7 @@ namespace taskhub {
     }
     bool WsServer::start()
     {
-        running_ = true;
+       
         do_accept();
         thread_ = std::thread([this]() {
             Logger::info("WsServer io_context run");

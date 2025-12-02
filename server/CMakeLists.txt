@@ -16,12 +16,14 @@ find_package(SQLite3 REQUIRED)
 file(GLOB SERVER_SOURCES
     src/*.cpp
     src/core/*.cpp
+    src/db/*.cpp
     src/handlers/*.cpp
 )
 
 file(GLOB SERVER_HEADERS
     src/*.h
     src/core/*.h
+    src/db/*.h
     src/handlers/*.h
 )
 
@@ -30,6 +32,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/third_party/httplib
     ${CMAKE_SOURCE_DIR}/third_party/nlohmann_json
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/db
     ${Boost_INCLUDE_DIRS}
     ${SQLite3_INCLUDE_DIRS}
 )
@@ -53,3 +56,12 @@ configure_file(
     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/config.json
     COPYONLY
 )
+#
+
+file(GLOB TASKHUB_MIGRATIONS "${CMAKE_CURRENT_SOURCE_DIR}/migrations/*.sql")
+foreach(mig ${TASKHUB_MIGRATIONS})
+    get_filename_component(fname "${mig}" NAME)
+    configure_file(${mig}
+        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/migrations/${fname}"
+        COPYONLY)
+endforeach()

@@ -7,6 +7,7 @@
 #include "httplib.h"
 #include "core/ws_server_beast.h"
 #include "core/worker_pool.h"
+
 namespace taskhub {
 
 class ServerApp {
@@ -23,6 +24,7 @@ private:
     void init_http_server();
     void setup_routes();
     void init_db(); 
+    void init_version();
 private:
     // HTTP 服务对象
     std::unique_ptr<httplib::Server> m_server;

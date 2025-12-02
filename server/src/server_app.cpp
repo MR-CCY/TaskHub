@@ -8,7 +8,8 @@
 #include "router.h"
 #include "core/task_runner.h"
 #include "core/auth_manager.h"
-#include "core/db.h"
+#include "db/db.h"
+#include "db/migrator.h"
 namespace taskhub {
 
     ServerApp::ServerApp() {
@@ -34,6 +35,9 @@ namespace taskhub {
         // 4. 注册路由
         setup_routes();
         init_db();
+
+        // 5. 初始化数据库
+        init_version();
         Logger::info("Routes registered");
         // 5. 启动后台任务执行线程
         TaskRunner::instance().start();
@@ -120,5 +124,18 @@ namespace taskhub {
             std::exit(1);
         }
         Logger::info("Database initialized");
+    }
+    void ServerApp::init_version()
+    {
+        auto& cfg = Config::instance();
+        std::string db_path = cfg.db_path();
+        sqlite3* db = nullptr;
+        int rc = sqlite3_open(db_path.c_str(), &db);
+        // 这里已有错误检查...
+
+        std::string migrations_dir = "./migrations"; 
+        // 或 Config 里搞一个 migrations_dir，可配置化也行
+
+        taskhub::DbMigrator::migrate(db, migrations_dir);
     }
 }
