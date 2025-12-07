@@ -1,10 +1,11 @@
 #include "dag_service.h"
 #include "runner/taskRunner.h"
+#include "dag/dag_thread_pool.h"
 namespace taskhub::api {
     DagService::DagService(runner::TaskRunner &runner):
     _executor(runner)
     {
-
+        dag::DagThreadPool::instance().start(4);
     }
     DagService &DagService::instance()
     {

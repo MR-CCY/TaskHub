@@ -2,6 +2,7 @@
 #include "runner/task_config.h"
 #include "runner/task_result.h"
 #include "core/logger.h"
+#include "core/utils.h"
 using namespace taskhub;
 
 namespace {
@@ -9,6 +10,7 @@ namespace {
 // A 节点对应的本地处理函数
 core::TaskResult taskAHandler(const core::TaskConfig& cfg, std::atomic_bool* cancelFlag)
 {
+    Logger::info("[taskA] start="+utils::now_string());
     core::TaskResult r;
     // TODO: 填你真实的逻辑，这里先 mock 一下
     Logger::info("taskAHandler running...");
@@ -16,19 +18,41 @@ core::TaskResult taskAHandler(const core::TaskConfig& cfg, std::atomic_bool* can
     // 可以根据 cfg.execParams 做点事情
     r.status  = core::TaskStatus::Success;
     r.message = "taskA done";
+    Logger::info("[taskA] end="+utils::now_string());
     return r;
 }
 
 // B 节点对应的本地处理函数
 core::TaskResult taskBHandler(const core::TaskConfig& cfg, std::atomic_bool* cancelFlag)
 {
+    Logger::info("[taskB] start="+utils::now_string());
     core::TaskResult r;
     Logger::info("taskBHandler running...");
     r.status  = core::TaskStatus::Success;
     r.message = "taskB done";
+    Logger::info("[taskB] end="+utils::now_string());
+    return r;   
+}
+core::TaskResult taskCHandler(const core::TaskConfig& cfg, std::atomic_bool* cancelFlag)
+{
+    Logger::info("[taskB] start="+utils::now_string());
+    core::TaskResult r;
+    Logger::info("taskCHandler running...");
+    r.status  = core::TaskStatus::Success;
+    r.message = "taskC done";
+    Logger::info("[taskB] end="+utils::now_string());
     return r;
 }
-
+core::TaskResult taskDHandler(const core::TaskConfig& cfg, std::atomic_bool* cancelFlag)
+{
+    Logger::info("[taskD] start="+utils::now_string());
+    core::TaskResult r;
+    Logger::info("taskDHandler running...");
+    r.status  = core::TaskStatus::Success;
+    r.message = "taskD done";
+    Logger::info("[taskD] end="+utils::now_string());
+    return r;
+}
 //     // ★ 显式暴露一个函数，由 ServerApp 在 init_dag() 调用
 // void register_builtin_local_tasks()
 // {
@@ -43,6 +67,8 @@ struct AutoRegisterLocalTasks {
         auto& runner = runner::TaskRunner::instance();
         runner.registerLocalTask("taskA_handler", taskAHandler);
         runner.registerLocalTask("taskB_handler", taskBHandler);
+        runner.registerLocalTask("taskC_handler", taskCHandler);
+        runner.registerLocalTask("taskD_handler", taskDHandler);
     }
 };
 

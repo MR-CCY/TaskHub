@@ -2,6 +2,7 @@
 #include <future>
 #include <unordered_set>
 #include "core/logger.h"
+#include "dag_thread_pool.h"
 namespace taskhub::dag {
     DagExecutor::DagExecutor(runner::TaskRunner &runner):
     _runner(runner)
@@ -14,71 +15,82 @@ namespace taskhub::dag {
         core::TaskResult finalResult;
         finalResult.status = core::TaskStatus::Success;
     
-        // TODO Step 1：初始化 readyQueue_（将 indegree=0 的节点入队）
+        // 1. 读取并限制 maxParallel
+        _maxParallel = static_cast<int>(ctx.config().maxParallel);
+        if (_maxParallel <= 0) {
+            _maxParallel = 1;
+        }
+    
+        // 2. 初始化 ready 队列（入度为 0 的节点入队）
         initReadyQueue(ctx);
     
-        // 你可以使用 std::vector<std::future<void>> 来等待所有异步任务
-        std::vector<std::future<void>> futures;
-
-        // TODO Step 2：
-        //   循环从 readyQueue_ 中取节点，直到：
-        //     - readyQueue_ 为空 且 runningCount()==0
-        //     - 或者 FailFast 策略下，ctx.isFailed()==true
-        //
-        //   伪代码：
-        //     while (true) {
-        //         1) 从 readyQueue_ 里取一个 TaskId（注意加锁）
-        //         2) 如果没有可执行节点且 runningCount()==0 → break
-        //         3) submitNode(ctx, id)
-        //     }
-        //
-        //   注意：submitNode 内部会调用线程池/异步执行，并在完成时调用 onNodeFinished
+        // 3. 调度循环：直到没有 ready 节点 且 没有运行中的任务
         while (true) {
-            if (ctx.config().failPolicy == FailPolicy::FailFast && ctx.isFailed()) {
-                break;
+            // 3.1 尽量填满并行度：从 readyQueue 里取节点，丢给线程池执行
+            while (ctx.runningCount() < _maxParallel) {
+                core::TaskId id;
+
+                {
+                    std::lock_guard<std::mutex> lk(_readyMutex);
+                    if (!_readyQueue.empty()) {
+                        id = _readyQueue.front();
+                        _readyQueue.pop();
+                    }
+                }
+
+                if (id.value.empty()) {
+                    // 当前没有更多 ready 节点可以提交
+                    break;
+                }
+
+                // FailFast 模式下，如果已经失败，就不再提交新任务（但会等待已有任务跑完）
+                if (ctx.config().failPolicy == FailPolicy::FailFast && ctx.isFailed()) {
+                    // 直接丢弃这个 id，不提交
+                    continue;
+                }
+
+                // 使用线程池异步执行节点
+                submitNodeAsync(ctx, id);
             }
-    
-            core::TaskId id;
+
+            // 3.2 检查结束条件：没有 ready 节点，且没有运行中的任务
             {
                 std::lock_guard<std::mutex> lk(_readyMutex);
-                if (!_readyQueue.empty()) {
-                    id.value = _readyQueue.front().value;
-                    _readyQueue.pop();
+                if (_readyQueue.empty() && ctx.runningCount() == 0) {
+                    break; // 所有节点执行完毕
                 }
             }
-    
-            if (id.value.empty()) {
-                // 没有新的 ready 节点了
-                if (ctx.runningCount() == 0) {
-                    break; // 所有任务执行完
-                }
-    
-                // TODO：这里可以选择 sleep 一小会儿，或者用条件变量优化
-                std::this_thread::sleep_for(std::chrono::milliseconds(5));
-                continue;
-            }
-    
-            // 提交执行
-            auto fut = submitNode(ctx, id);
-            if (fut.valid()) {
-                futures.push_back(std::move(fut));
-            }
-        }
-         // TODO Step 3：等待所有异步任务结束（如果你在 submitNode 中用 async 返回 future，可以在此 join）
-        for (auto &f : futures) {
-            if (f.valid()) {
-                f.get();
-            }
-        }
 
-        // TODO Step 4：根据 ctx.isFailed() 设置 finalResult.status
+            // 3.3 使用条件变量等待“状态改变”：有新 ready / 有任务完成 / FailFast 失败
+            std::unique_lock<std::mutex> lk(_cvMutex);
+            _cv.wait(lk, [this, &ctx] {
+                // 有新 ready 节点？
+                {
+                    std::lock_guard<std::mutex> qlk(_readyMutex);
+                    if (!_readyQueue.empty()) {
+                        return true;
+                    }
+                }
+                // 所有任务都执行完了？
+                if (ctx.runningCount() == 0) {
+                    return true;
+                }
+                // FailFast：已经失败？
+                if (ctx.config().failPolicy == FailPolicy::FailFast && ctx.isFailed()) {
+                    return true;
+                }
+                return false;
+            });
+        }
+    
+        // 4. 根据 ctx.isFailed() 设置最终结果
         if (ctx.isFailed()) {
             finalResult.status = core::TaskStatus::Failed;
         }
-
-        // 通知 DAG 完成
+    
+        // 5. 通知 DAG 完成
         ctx.finish(finalResult.ok());
-
+    
         return finalResult;
     }
     void DagExecutor::initReadyQueue(DagRunContext &ctx)
@@ -142,11 +154,36 @@ namespace taskhub::dag {
             onNodeFinished(ctx, id, result);
         });
     }
+    void DagExecutor::submitNodeAsync(DagRunContext &ctx, const core::TaskId &id)
+    {
+        auto* graph = &ctx.graph();
+        auto node = graph->getNode(id);
+        if (!node) return;
+    
+        ctx.setNodeStatus(id, core::TaskStatus::Running);
+        ctx.incrementRunning();
+    
+        dag::DagThreadPool::instance().post([this, &ctx, id]() {
+            auto nodeInner = ctx.graph().getNode(id);
+            core::TaskResult result;
+    
+            if (nodeInner) {
+                const auto& cfg = nodeInner->runnerConfig();
+                result = _runner.run(cfg, nullptr);
+            } else {
+                result.status  = core::TaskStatus::Failed;
+                result.message = "Node not found in graph";
+            }
+    
+            onNodeFinished(ctx, id, result);
+        });
+    }
     void DagExecutor::onNodeFinished(DagRunContext &ctx, const core::TaskId &id, const core::TaskResult &result)
     {
         auto node = ctx.graph().getNode(id);
         if (!node) {
             ctx.decrementRunning();
+            _cv.notify_one();
             return;
         }
 
@@ -205,6 +242,6 @@ namespace taskhub::dag {
 
         // ✅ 所有“可能往队列里塞新任务”的逻辑都结束之后，再减 runningCount
         ctx.decrementRunning();
-    
+        _cv.notify_one();
     }
 }
