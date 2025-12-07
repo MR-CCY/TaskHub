@@ -18,6 +18,8 @@ file(GLOB SERVER_SOURCES
     src/core/*.cpp
     src/db/*.cpp
     src/handlers/*.cpp
+    src/dag/*.cpp
+    src/runner/*.cpp
 )
 
 file(GLOB SERVER_HEADERS
@@ -25,6 +27,8 @@ file(GLOB SERVER_HEADERS
     src/core/*.h
     src/db/*.h
     src/handlers/*.h
+    src/dag/*.h
+    src/runner/*.h
 )
 
 # 包含目录

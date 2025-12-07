@@ -7,7 +7,8 @@
 #include "httplib.h"
 #include "core/ws_server_beast.h"
 #include "core/worker_pool.h"
-
+#include "runner/taskRunner.h"
+#include "dag/dag_service.h"
 namespace taskhub {
 
 class ServerApp {
@@ -17,7 +18,6 @@ public:
 
     // 程序主入口
     int run();
-
 private:
     void init_config();
     void init_logger();
@@ -25,6 +25,7 @@ private:
     void setup_routes();
     void init_db(); 
     void init_version();
+    void init_dag();
 private:
     // HTTP 服务对象
     std::unique_ptr<httplib::Server> m_server;

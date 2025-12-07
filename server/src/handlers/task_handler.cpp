@@ -12,6 +12,7 @@
 #include "core/ws_task_events.h"
 #include "core/http_response.h"
 #include "core/worker_pool.h"
+#include "dag/dag_service.h"
 // using taskhub::resp;
 // using taskhub::broadcast_task_event;
 namespace taskhub {
@@ -224,6 +225,113 @@ namespace taskhub {
         broadcast_task_event("task_updated", task);
 
         resp::ok(res);  // {"code":0,"message":"ok"}
+
+    }
+    void TaskHandler::runDag(const httplib::Request &req, httplib::Response &res)
+    {
+        // auto user_opt = AuthManager::instance().user_from_request(req);
+        // if (!user_opt) {
+        //     nlohmann::json resp;
+        //     resp["code"] = 401;
+        //     resp["message"] = "unauthorized";
+        //     resp["data"] = nullptr;
+    
+        //     res.status = 401;
+        //     res.set_content(resp.dump(), "application/json");
+        //     return;
+        // }
+        Logger::info("POST /api/run_dag");
+        try {
+            // 1. 解析请求 JSON
+            json body = json::parse(req.body);
+            auto& dagSvc = api::DagService::instance();
+
+            // 3. 解析 config
+            dag::DagConfig cfg;
+            if (body.contains("config")) {
+                auto jcfg = body["config"];
+                std::string policy = jcfg.value("fail_policy", "SkipDownstream");
+                if (policy == "FailFast") {
+                    cfg.failPolicy = dag::FailPolicy::FailFast;
+                } else {
+                    cfg.failPolicy = dag::FailPolicy::SkipDownstream;
+                }
+                cfg.maxParallel = jcfg.value("max_parallel", 4u);
+            }
+            // 4. 解析任务列表，构造 DagTaskSpec + TaskConfig
+            std::vector<dag::DagTaskSpec> specs;
+            if (!body.contains("tasks") || !body["tasks"].is_array()) {
+                // 返回 400
+                resp::error(res, 400, R"({"ok":false,"error":"tasks must be array"})");
+                return;
+            }
+
+            for (auto& jtask : body["tasks"]) {
+                dag::DagTaskSpec spec;
+                core::TaskConfig cfgTask;
+    
+                // id 与 deps
+                std::string idStr = jtask.value("id", "");
+                if (idStr.empty()) {
+                    continue; // 或者直接报错
+                }
+                cfgTask.id.value = idStr;
+                spec.id = cfgTask.id;
+    
+                if (jtask.contains("deps")) {
+                    for (auto& d : jtask["deps"]) {
+                        spec.deps.push_back(core::TaskId{ d.get<std::string>() });
+                    }
+                }
+    
+                // 这里可以按需解析更多 TaskConfig 字段
+                cfgTask.name    = jtask.value("name", idStr);
+                cfgTask.timeout = std::chrono::milliseconds(jtask.value("timeout_ms", 0));
+                cfgTask.retryCount = jtask.value("retry_count", 0);
+                cfgTask.execType   = core::TaskExecType::Local;
+                cfgTask.execCommand = jtask.value("exec_command", ""); // 例如 local handler 名
+    
+                spec.runnerCfg = cfgTask;
+                specs.push_back(std::move(spec));
+            }
+
+            // 5. 准备 callbacks（这里先简单记录一下每个节点最终状态）
+            std::vector<json> nodeStates;
+
+            dag::DagEventCallbacks callbacks;
+            callbacks.onNodeStatusChanged =
+                [&nodeStates](const core::TaskId& id, core::TaskStatus st) {
+                    json j;
+                    j["id"] = id.value;
+                    j["status"] = static_cast<int>(st);
+                    nodeStates.push_back(std::move(j));
+                };
+            callbacks.onDagFinished = [](bool success) {
+                // 需要的话，这里可以打日志或发 ws 事件
+                Logger::info("dag finished, success: {}");
+            };
+            // 6. 调用 DagService
+            core::TaskResult dagResult = dagSvc.runDag(specs, cfg, callbacks);
+
+            // 7. 组装响应 JSON
+            json respJson;
+            respJson["ok"]      = dagResult.ok();
+            respJson["status"]  = static_cast<int>(dagResult.status);
+            respJson["message"] = dagResult.message;
+            respJson["nodes"]   = nodeStates;
+
+            res.set_content(respJson.dump(), "application/json");
+    
+        }
+        catch (const std::exception& ex) {
+            json err;
+            err["ok"]    = false;
+            err["error"] = ex.what();
+            res.status  = 500;
+            res.body    = err.dump();
+            resp::ok(res); 
+        }
+       
 
     }
 }

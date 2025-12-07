@@ -31,5 +31,7 @@ namespace taskhub {
         });
         //M7
         server.Post(R"(/api/tasks/(\d+)/cancel)", TaskHandler::cancel_task);
+        //M8
+        server.Post("/api/dag/run", TaskHandler::runDag);
     }
 }

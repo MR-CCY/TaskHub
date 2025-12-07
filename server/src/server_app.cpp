@@ -44,6 +44,11 @@ namespace taskhub {
         Logger::info("TaskRunner started");
         AuthManager::instance().init();
         Logger::info("AuthManager initialized");
+
+         // ★★★ 新增：初始化 DAG 子系统
+         init_dag();
+        Logger::info("DagService initialized");
+
         //7.监听8090 端口启动ws服务
         m_wsServer = std::make_unique<WsServer>("0.0.0.0", 8090);
         m_wsServer->start();
@@ -141,5 +146,9 @@ namespace taskhub {
         // 或 Config 里搞一个 migrations_dir，可配置化也行
 
         taskhub::DbMigrator::migrate(db, migrations_dir);
+    }
+    void ServerApp::init_dag()
+    {
+        // 2. 用它构造 DagService
     }
 }
