@@ -8,7 +8,6 @@
 #include "core/ws_server_beast.h"
 #include "core/worker_pool.h"
 #include "runner/taskRunner.h"
-#include "dag/dag_service.h"
 namespace taskhub {
 
 class ServerApp {

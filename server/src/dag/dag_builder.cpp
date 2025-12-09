@@ -13,22 +13,6 @@ namespace taskhub::dag {
     {
         DagGraph graph;
 
-        // TODO Step 1：先为所有 TaskSpec 创建节点，并设置 TaskConfig
-        //   for spec in specs_:
-        //      auto node = graph.ensureNode(spec.id);
-        //      node->setRunnerConfig(spec.runnerCfg);
-        //
-        // TODO Step 2：填充依赖 & 下游关系
-        //   再遍历一次 specs_:
-        //      node = graph.ensureNode(spec.id);
-        //      for depId in spec.deps:
-        //         node->addDependency(depId);
-        //         auto depNode = graph.ensureNode(depId);
-        //         depNode->addDownstream(spec.id);
-        //
-        // TODO Step 3：重算 indegree
-        //   graph.recomputeIndegree();
-    
         for (const auto& spec : _specs) {
             auto node = graph.ensureNode(spec.id);
             node->setRunnerConfig(spec.runnerCfg);
@@ -74,7 +58,7 @@ namespace taskhub::dag {
             for (const auto& dep : spec.deps) {
                 if (!dep.value.empty() && ids.find(dep.value) == ids.end()) {
                     result.ok = false;
-                    result.errorMessage = "DagBuilder::validate() failed: dependency not found: " + dep.value;
+                    result.errorMessage = "DagBuilder::validate()失败：未找到依赖项: " + dep.value;
                     return result;
                 }
             }
@@ -125,7 +109,7 @@ namespace taskhub::dag {
     
         if (visitedCount != static_cast<int>(ids.size())) {
             result.ok = false;
-            result.errorMessage = "DagBuilder::validate() failed: cycle detected in DAG";
+            result.errorMessage = "DagBuilder::validate()失败：在DAG中检测到环";
             std::unordered_map<std::string, int> color;
             std::unordered_map<std::string, size_t> stackPos;
             std::vector<std::string> stack;

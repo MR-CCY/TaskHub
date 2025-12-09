@@ -194,6 +194,12 @@ namespace taskhub::dag {
             for (const auto& childId : node->downstream()) {
                 auto child = ctx.graph().getNode(childId);
                 if (!child) continue;
+                auto st = child->status();
+                if (st == core::TaskStatus::Skipped ||
+                    st == core::TaskStatus::Failed) {
+                    continue;
+                }
+
                 int newDeg = child->decrementIndegree();
                 if (newDeg == 0) {
                     std::lock_guard<std::mutex> lk(_readyMutex);
@@ -207,6 +213,7 @@ namespace taskhub::dag {
                 // FailFast：标记失败，主循环会尽快退出，不再消费队列
                 ctx.markFailed();
                 ctx.decrementRunning();   // ✅ 记得仍然要减一次 runningCount
+                _cv.notify_one();    // 必须唤醒一次，否则可能卡在 wait 上
                 return;
             }
 

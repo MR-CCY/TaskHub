@@ -10,6 +10,7 @@
 #include "core/auth_manager.h"
 #include "db/db.h"
 #include "db/migrator.h"
+#include "dag/dag_thread_pool.h"
 namespace taskhub {
 
     ServerApp::ServerApp() {
@@ -45,8 +46,8 @@ namespace taskhub {
         AuthManager::instance().init();
         Logger::info("AuthManager initialized");
 
-         // ★★★ 新增：初始化 DAG 子系统
-         init_dag();
+         // ★★★ 新增：初始化 DAG 子系统/主要是线程池
+        init_dag();
         Logger::info("DagService initialized");
 
         //7.监听8090 端口启动ws服务
@@ -150,5 +151,6 @@ namespace taskhub {
     void ServerApp::init_dag()
     {
         // 2. 用它构造 DagService
+        dag::DagThreadPool::instance().start(4);
     }
 }

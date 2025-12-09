@@ -239,7 +239,6 @@ TaskResult TaskRunner::execLocal(const TaskConfig &cfg, std::atomic_bool *cancel
         r.message = "TaskRunner: local task not found: " + key;
         return r;
     }
-
     // 检查任务是否在执行前已被取消
     if (cancelFlag && cancelFlag->load(std::memory_order_acquire)) {
         r.status  = core::TaskStatus::Canceled;

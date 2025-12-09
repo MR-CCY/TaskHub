@@ -17,6 +17,7 @@ struct TaskId {
     std::string value;
     bool empty() const { return value.empty(); }
     bool operator==(const TaskId& other) const { return value == other.value; }
+    bool operator<(const TaskId& other) const { return value < other.value; }
 };
 
 } // namespace taskhub::core

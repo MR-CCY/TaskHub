@@ -12,7 +12,9 @@
 #include "core/ws_task_events.h"
 #include "core/http_response.h"
 #include "core/worker_pool.h"
-#include "dag/dag_service.h"
+#include "dag/dag_builder.h"
+#include "dag/dag_executor.h"
+#include "runner/taskRunner.h"
 // using taskhub::resp;
 // using taskhub::broadcast_task_event;
 namespace taskhub {
@@ -244,7 +246,7 @@ namespace taskhub {
         try {
             // 1. 解析请求 JSON
             json body = json::parse(req.body);
-            auto& dagSvc = api::DagService::instance();
+            // auto& dagSvc = api::DagService::instance();
 
             // 3. 解析 config
             dag::DagConfig cfg;
@@ -311,7 +313,52 @@ namespace taskhub {
                 Logger::info("dag finished, success: {}");
             };
             // 6. 调用 DagService
-            core::TaskResult dagResult = dagSvc.runDag(specs, cfg, callbacks);
+                        
+            //Step 1：构建 builder，添加所有任务
+            dag::DagBuilder builder;
+            for (const auto& spec : specs) {
+                builder.addTask(spec);
+            }
+
+            // Step 2：validats是是否成图，是否有环
+            auto validateResult = builder.validate();
+            if (!validateResult.ok) {
+                resp::error(res, 4001, validateResult.errorMessage);
+                Logger::error(validateResult.errorMessage);
+                return;
+            }
+
+            // TODO Step 3：构建图 + 运行
+            auto graph = builder.build();
+            dag::DagRunContext ctx(cfg, std::move(graph), callbacks);
+            dag::DagExecutor executor(runner::TaskRunner::instance());
+            core::TaskResult dagResult=executor.execute(ctx);
+            const auto& finalMap = ctx.finalStatus();
+
+            std::vector<std::string> successIds;
+            std::vector<std::string> failedIds;
+            std::vector<std::string> skippedIds;
+
+            for (const auto& kv : finalMap) {
+                const auto& id = kv.first;
+                auto status    = kv.second;
+                const std::string idStr = id.value;  // 按你实际来
+
+                switch (status) {
+                case core::TaskStatus::Success:
+                    successIds.push_back(idStr);
+                    break;
+                case core::TaskStatus::Failed:
+                case core::TaskStatus::Timeout:
+                    failedIds.push_back(idStr);
+                    break;
+                case core::TaskStatus::Skipped:
+                    skippedIds.push_back(idStr);
+                    break;
+                default:
+                    break;
+                }
+            }
 
             // 7. 组装响应 JSON
             json respJson;
@@ -319,6 +366,13 @@ namespace taskhub {
             respJson["status"]  = static_cast<int>(dagResult.status);
             respJson["message"] = dagResult.message;
             respJson["nodes"]   = nodeStates;
+            
+            json summary;
+            summary["total"]   = finalMap.size();
+            summary["success"] = successIds;
+            summary["failed"]  = failedIds;
+            summary["skipped"] = skippedIds;
+            respJson["summary"] = summary;
 
             res.set_content(respJson.dump(), "application/json");
     

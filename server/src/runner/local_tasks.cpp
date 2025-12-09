@@ -53,6 +53,16 @@ core::TaskResult taskDHandler(const core::TaskConfig& cfg, std::atomic_bool* can
     Logger::info("[taskD] end="+utils::now_string());
     return r;
 }
+core::TaskResult taskBFailHandler(const core::TaskConfig& cfg, std::atomic_bool* cancelFlag)
+{
+    Logger::info("[taskBFailHandler] start="+utils::now_string());
+    core::TaskResult r;
+    Logger::info("taskBFailHandler running...");
+    r.status  = core::TaskStatus::Failed;
+    r.message = "taskBFailHandler done";
+    Logger::info("[taskBFailHandler] end="+utils::now_string());
+    return r;
+}
 //     // ★ 显式暴露一个函数，由 ServerApp 在 init_dag() 调用
 // void register_builtin_local_tasks()
 // {
@@ -69,6 +79,7 @@ struct AutoRegisterLocalTasks {
         runner.registerLocalTask("taskB_handler", taskBHandler);
         runner.registerLocalTask("taskC_handler", taskCHandler);
         runner.registerLocalTask("taskD_handler", taskDHandler);
+        runner.registerLocalTask("taskB_fail_handler", taskBFailHandler);
     }
 };
 

@@ -6,7 +6,9 @@
 namespace taskhub::core {
 
 struct TaskResult {
-    TaskStatus status{ TaskStatus::Pending };
+    TaskStatus status{ 
+        TaskStatus::Pending
+     };
     std::string message;           // 错误信息、日志摘要等
     std::chrono::milliseconds duration{0};
 

@@ -28,18 +28,18 @@ namespace taskhub::dag {
     }
     void DagRunContext::setNodeStatus(const core::TaskId &id, core::TaskStatus st)
     {
-         // TODO Step 1：更新节点自身状态
+        //Step 1：更新节点自身状态
         //   auto node = graph_.getNode(id);
         //   if (node) node->setStatus(st);
-        //
-        // TODO Step 2：调用回调（注意要判空）
-        //   如果 callbacks_.onNodeStatusChanged 被设置，则调用之
         {
             auto node = _graph.getNode(id);
             if (node) {
                 node->setStatus(st);
+                _finalStatus[id] = st;  // 总是覆盖成“最后一次”状态
             }
         }
+        //Step 2：调用回调（注意要判空）
+        //   如果 callbacks_.onNodeStatusChanged 被设置，则调用之
 
         if (_callbacks.onNodeStatusChanged) {
             _callbacks.onNodeStatusChanged(id, st);
@@ -47,11 +47,15 @@ namespace taskhub::dag {
     }
     void DagRunContext::finish(bool success)
     {
-         // TODO：在 DAG 完成时调用，可做：
+        // DAG 完成时调用，可做：
         //   - 打日志
         //   - 调用 onDagFinished 回调
         if (_callbacks.onDagFinished) {
             _callbacks.onDagFinished(success);
         }
+    }
+    std::map<core::TaskId, core::TaskStatus> DagRunContext::finalStatus()
+    {
+        return _finalStatus;
     }
 }
