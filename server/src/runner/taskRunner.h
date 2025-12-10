@@ -26,9 +26,9 @@ public:
     /// @param cancelFlag 外部取消标记，可为 nullptr；DAG 或上层可传进来
     ///
     /// 这是对外唯一入口：所有执行都走这里。
-    core::TaskResult run(const core::TaskConfig& cfg,
-                         std::atomic_bool* cancelFlag = nullptr) const;
+    core::TaskResult run(const core::TaskConfig& cfg,std::atomic_bool* cancelFlag = nullptr) const;
         // ★ 新增：注册本地任务
+        //不再使用
     void registerLocalTask(const std::string& key, LocalTaskFn fn);
     // void register_builtin_local_tasks();
 private:
@@ -52,7 +52,7 @@ private:
     core::TaskResult dispatchExec(const core::TaskConfig& cfg,
                                   std::atomic_bool* cancelFlag,
                                   SteadyClock::time_point deadline) const;
-
+    //下面这个方式在M9已不再使用，已改用dispatchExec
     // === 针对不同 execType 的具体执行方法 ===
     core::TaskResult execLocal(const core::TaskConfig& cfg,
                                std::atomic_bool* cancelFlag,

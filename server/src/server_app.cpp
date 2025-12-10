@@ -11,6 +11,7 @@
 #include "db/db.h"
 #include "db/migrator.h"
 #include "dag/dag_thread_pool.h"
+#include "execution/execution_registry.h"
 namespace taskhub {
 
     ServerApp::ServerApp() {
@@ -152,5 +153,6 @@ namespace taskhub {
     {
         // 2. 用它构造 DagService
         dag::DagThreadPool::instance().start(4);
+        taskhub::runner::registerDefaultExecutionStrategies();
     }
 }

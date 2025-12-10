@@ -290,7 +290,9 @@ namespace taskhub {
                 cfgTask.name    = jtask.value("name", idStr);
                 cfgTask.timeout = std::chrono::milliseconds(jtask.value("timeout_ms", 0));
                 cfgTask.retryCount = jtask.value("retry_count", 0);
-                cfgTask.execType   = core::TaskExecType::Local;
+                cfgTask.retryDelay = std::chrono::milliseconds(jtask.value("retryDelay", 1000));
+                std::string execType = jtask.value("exec_type", "local");
+                cfgTask.execType   =  core::StringToTaskExecType(execType);
                 cfgTask.execCommand = jtask.value("exec_command", ""); // 例如 local handler 名
     
                 spec.runnerCfg = cfgTask;
@@ -373,8 +375,9 @@ namespace taskhub {
             summary["failed"]  = failedIds;
             summary["skipped"] = skippedIds;
             respJson["summary"] = summary;
-
+            Logger::info("==========");
             res.set_content(respJson.dump(), "application/json");
+            Logger::info("=222222==");
     
         }
         catch (const std::exception& ex) {

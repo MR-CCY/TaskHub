@@ -187,6 +187,7 @@ namespace taskhub::dag {
             return;
         }
 
+        auto st = result.status;
         if (result.ok()) {
             ctx.setNodeStatus(id, core::TaskStatus::Success);
 
@@ -194,9 +195,11 @@ namespace taskhub::dag {
             for (const auto& childId : node->downstream()) {
                 auto child = ctx.graph().getNode(childId);
                 if (!child) continue;
-                auto st = child->status();
-                if (st == core::TaskStatus::Skipped ||
-                    st == core::TaskStatus::Failed) {
+                auto childSt = child->status();
+                if (childSt == core::TaskStatus::Skipped ||
+                    childSt == core::TaskStatus::Failed ||
+                    childSt == core::TaskStatus::Timeout ||
+                    childSt == core::TaskStatus::Canceled) {
                     continue;
                 }
 
@@ -207,46 +210,59 @@ namespace taskhub::dag {
                 }
             }
         } else {
-            ctx.setNodeStatus(id, core::TaskStatus::Failed);
-
-            if (ctx.config().failPolicy == FailPolicy::FailFast) {
-                // FailFast：标记失败，主循环会尽快退出，不再消费队列
-                ctx.markFailed();
-                ctx.decrementRunning();   // ✅ 记得仍然要减一次 runningCount
-                _cv.notify_one();    // 必须唤醒一次，否则可能卡在 wait 上
-                return;
+              // 1）先把原始状态写进去（Failed / Timeout / Canceled）
+            switch (st) {
+            case core::TaskStatus::Timeout:
+                ctx.setNodeStatus(id, core::TaskStatus::Timeout);
+                break;
+            case core::TaskStatus::Canceled:
+                ctx.setNodeStatus(id, core::TaskStatus::Canceled);
+                break;
+            default:
+                ctx.setNodeStatus(id, core::TaskStatus::Failed);
+                break;
             }
-
-            if (ctx.config().failPolicy == FailPolicy::SkipDownstream) {
-                // 这里沿用你原来的 BFS，把所有下游标记为 Skipped
-                std::queue<core::TaskId> toVisit;
-                std::unordered_set<std::string> visited;
-
-                for (const auto& childId : node->downstream()) {
-                    if (visited.insert(childId.value).second) {
-                        toVisit.push(childId);
-                    }
+            // 2）在“策略”上统一当成“失败类”
+            const bool isFailureLike =(st == core::TaskStatus::Failed|| st == core::TaskStatus::Timeout || st == core::TaskStatus::Canceled);
+            if (isFailureLike) {
+                if (ctx.config().failPolicy == FailPolicy::FailFast) {
+                    // FailFast：标记失败，主循环会尽快退出，不再消费队列
+                    ctx.markFailed();
+                    ctx.decrementRunning();   // ✅ 记得仍然要减一次 runningCount
+                    _cv.notify_one();    // 必须唤醒一次，否则可能卡在 wait 上
+                    return;
                 }
 
-                while (!toVisit.empty()) {
-                    auto childId = toVisit.front();
-                    toVisit.pop();
+                if (ctx.config().failPolicy == FailPolicy::SkipDownstream) {
+                    // 这里沿用你原来的 BFS，把所有下游标记为 Skipped
+                    std::queue<core::TaskId> toVisit;
+                    std::unordered_set<std::string> visited;
 
-                    auto child = ctx.graph().getNode(childId);
-                    if (!child) {
-                        continue;
+                    for (const auto& childId : node->downstream()) {
+                        if (visited.insert(childId.value).second) {
+                            toVisit.push(childId);
+                        }
                     }
 
-                    ctx.setNodeStatus(childId, core::TaskStatus::Skipped);
-                    for (const auto& grandChildId : child->downstream()) {
-                        if (visited.insert(grandChildId.value).second) {
-                            toVisit.push(grandChildId);
+                    while (!toVisit.empty()) {
+                        auto childId = toVisit.front();
+                        toVisit.pop();
+
+                        auto child = ctx.graph().getNode(childId);
+                        if (!child) {
+                            continue;
+                        }
+
+                        ctx.setNodeStatus(childId, core::TaskStatus::Skipped);
+                        for (const auto& grandChildId : child->downstream()) {
+                            if (visited.insert(grandChildId.value).second) {
+                                toVisit.push(grandChildId);
+                            }
                         }
                     }
                 }
             }
         }
-
         // ✅ 所有“可能往队列里塞新任务”的逻辑都结束之后，再减 runningCount
         ctx.decrementRunning();
         _cv.notify_one();

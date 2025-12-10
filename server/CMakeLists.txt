@@ -12,23 +12,25 @@ find_package(Boost REQUIRED)  # header-only，用 Boost::boost 目标
 # SQLite
 find_package(SQLite3 REQUIRED)
 
-# 收集所有 cpp/h 文件
-file(GLOB SERVER_SOURCES
+# 收集所有 cpp/h 文件（自动跟踪新文件变更）
+file(GLOB SERVER_SOURCES CONFIGURE_DEPENDS
     src/*.cpp
     src/core/*.cpp
     src/db/*.cpp
     src/handlers/*.cpp
     src/dag/*.cpp
     src/runner/*.cpp
+    src/execution/*.cpp
 )
 
-file(GLOB SERVER_HEADERS
+file(GLOB SERVER_HEADERS CONFIGURE_DEPENDS
     src/*.h
     src/core/*.h
     src/db/*.h
     src/handlers/*.h
     src/dag/*.h
     src/runner/*.h
+    src/execution/*.h
 )
 
 # 包含目录

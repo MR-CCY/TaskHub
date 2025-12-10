@@ -8,43 +8,8 @@
 #include <exception>
 #include <cstdlib>
 #include "httplib.h"
-
-namespace {
-
-    using LocalTaskFn = taskhub::runner::LocalTaskFn;
-
-    class LocalTaskRegistry {
-    public:
-        static LocalTaskRegistry& instance() {
-            static LocalTaskRegistry inst;
-            return inst;
-        }
-
-        void registerTask(const std::string& key, LocalTaskFn fn) {
-            std::lock_guard<std::mutex> lock(mu_);
-            registry_[key] = std::move(fn);
-        }
-
-        LocalTaskFn find(const std::string& key) const {
-            std::lock_guard<std::mutex> lock(mu_);
-            auto it = registry_.find(key);
-            if (it == registry_.end()) {
-                return nullptr;
-            }
-            return it->second;
-        }
-
-    private:
-        LocalTaskRegistry() = default;
-        LocalTaskRegistry(const LocalTaskRegistry&) = delete;
-        LocalTaskRegistry& operator=(const LocalTaskRegistry&) = delete;
-
-        mutable std::mutex mu_;
-        std::unordered_map<std::string, LocalTaskFn> registry_;
-    };
-
-} // namespace
-
+#include "local_task_registry.h"
+#include "execution/execution_registry.h"
 namespace taskhub::runner {
 using namespace core;
 
@@ -69,148 +34,189 @@ void TaskRunner::registerLocalTask(const std::string &key, LocalTaskFn fn)
 TaskResult TaskRunner::runWithRetry(const TaskConfig &cfg, std::atomic_bool *externalCancelFlag) const
 {
     TaskResult lastResult;
-    // retry次数
+
+    // STEP 0：计算最大尝试次数（retryCount 次重试 = retryCount + 1 次总尝试）
     int maxAttempts = cfg.retryCount + 1;
+    if (maxAttempts <= 0) {
+        maxAttempts = 1;
+    }
+
+    // 基础重试间隔（<=0 时兜底为 1s）
     auto baseDelay = cfg.retryDelay;
     if (baseDelay.count() <= 0) {
         baseDelay = std::chrono::milliseconds(1000);
     }
-    for (int attempt = 0; attempt < maxAttempts; ++attempt) {
 
-        // TODO Step 2：提前检查取消
-        //   如果 externalCancelFlag && externalCancelFlag->load()，则直接返回 Canceled
-        if (externalCancelFlag && externalCancelFlag->load(std::memory_order_acquire)) {
+    for (int attempt = 0; attempt < maxAttempts; ++attempt) {
+        // STEP 1：本轮尝试前，先检查是否已经被外部取消
+        if (externalCancelFlag &&
+            externalCancelFlag->load(std::memory_order_acquire)) {
             lastResult.status  = core::TaskStatus::Canceled;
             lastResult.message = "TaskRunner: canceled before attempt";
             return lastResult;
         }
 
-        // TODO Step 3：计算本次执行的 deadline
+        // STEP 2：计算本轮执行的 deadline（软超时截止时间）
         SteadyClock::time_point deadline = SteadyClock::time_point::max();
         if (cfg.hasTimeout()) {
             deadline = SteadyClock::now() + cfg.timeout;
         }
 
-        // TODO Step 4：真正执行一次
+        Logger::info("TaskRunner::runWithRetry, id=" + cfg.id.value +
+                     ", name=" + cfg.name +
+                     ", attempt=" + std::to_string(attempt + 1) + "/" + std::to_string(maxAttempts) +
+                     ", deadline=" + std::to_string(deadline.time_since_epoch().count()));
+
+        // STEP 3：真正执行一次（内部已负责：超时 / 取消 / 调度策略）
         lastResult = runOneAttempt(cfg, externalCancelFlag, deadline);
 
-        // 成功就直接返回
+        // STEP 4：根据结果决定是否结束重试
+
+        // 4.1 成功：直接返回
         if (lastResult.ok()) {
             return lastResult;
         }
 
-        // 如果是被取消 or 超时，可根据你的产品策略决定是否继续重试：
-        // 常见做法：被取消 / 超时就不再重试
+        // 4.2 被取消或超时：通常视为“终止条件”，不再重试
         if (lastResult.status == core::TaskStatus::Canceled ||
             lastResult.status == core::TaskStatus::Timeout) {
+            return lastResult;
+        }
+
+        // 4.3 普通失败（Failed）：如果还有机会，进入 STEP 5 做退避等待
+        if (attempt + 1 >= maxAttempts) {
+            // 已经是最后一次尝试，直接跳出循环，在末尾返回 lastResult
             break;
         }
 
-        // 如果还没到最后一次尝试，则等待一段时间（重试间隔）
-        if (attempt + 1 < maxAttempts) {
-            auto delay = baseDelay;
-            if (cfg.retryUseExponentialBackoff) {
-                delay *= (1 << attempt); // 简单指数退避：1x,2x,4x...
-            }
+        // STEP 5：在下一次重试前做退避等待，并在等待期间支持取消
 
-            // TODO Step 5：重试前的中断检查
-            //   等待 delay 期间可以循环检测 cancelFlag，以便外部取消时不再重试
-            auto sleepUntil = SteadyClock::now() + delay;
-            while (SteadyClock::now() < sleepUntil) {
-                if (externalCancelFlag && externalCancelFlag->load(std::memory_order_acquire)) {
-                    lastResult.status  = core::TaskStatus::Canceled;
-                    lastResult.message = "TaskRunner: canceled during retry backoff";
-                    return lastResult;
-                }
-                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        auto delay = baseDelay;
+        if (cfg.retryUseExponentialBackoff) {
+            // 简单指数退避：1x, 2x, 4x, ...
+            delay *= (1 << attempt);
+        }
+
+        auto sleepUntil = SteadyClock::now() + delay;
+        while (SteadyClock::now() < sleepUntil) {
+            // 等待过程中仍然允许被取消，尽快返回
+            if (externalCancelFlag &&
+                externalCancelFlag->load(std::memory_order_acquire)) {
+                lastResult.status  = core::TaskStatus::Canceled;
+                lastResult.message = "TaskRunner: canceled during retry backoff";
+                return lastResult;
             }
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
     }
 
-    // TODO：这里可以打失败日志
-    // LOG_WARN("TaskRunner::run failed after {} attempts, id={}", maxAttempts, cfg.id.value);
+    // STEP 6：所有尝试结束，返回最后一次的结果
+    // （可能是 Failed / Canceled / Timeout）
     return lastResult;
 }
 
 TaskResult TaskRunner::runOneAttempt(const TaskConfig &cfg, std::atomic_bool *externalCancelFlag, SteadyClock::time_point deadline) const
 {
-    TaskResult result;
-      // TODO Step 1：为本次执行创建一个“内部取消标记”：
-    //   - 如果 cfg.cancelable=false，则可以忽略外部 cancelFlag，或者只读不取消
-    //   - 结合 externalCancelFlag，一起传给真正执行逻辑
+    core::TaskResult result;
+
+    // 1. 取消标记：优先用外面的，否则用内部的
     std::atomic_bool internalCancel{false};
-    std::atomic_bool *effectiveCancel = &internalCancel;
+    std::atomic_bool* effectiveCancel =
+        externalCancelFlag ? externalCancelFlag : &internalCancel;
 
-    if (cfg.cancelable && externalCancelFlag) {
-        effectiveCancel = externalCancelFlag;
-    }
-    Logger::info("TaskRunner::runOneAttempt, id=" + cfg.id.value +
-                 ", name=" + cfg.name +
-                 ", execType=" + std::to_string(static_cast<int>(cfg.execType)));
-   // TODO Step 2：通过 async/thread 方式执行，以便 wait_for 实现超时
-    auto future = std::async(std::launch::async, [this, &cfg, effectiveCancel, deadline]() {
-        // 真正执行任务（不关心超时，只关心 cancelFlag）
-        return dispatchExec(cfg, effectiveCancel, deadline);
-    });       
+    // 2. 用 promise/future 代替 std::async
+    std::promise<core::TaskResult> prom;
+    auto fut = prom.get_future();
 
+    // 注意：把 cfg 拷一份到线程里，避免悬空引用
+    auto cfgCopy = cfg;
+
+    std::thread worker(
+        [this,
+         cfgCopy,
+         effectiveCancel,
+         deadline,
+         p = std::move(prom)]() mutable
+    {
+        core::TaskResult r;
+        try {
+            r = dispatchExec(cfgCopy, effectiveCancel, deadline);
+        } catch (const std::exception& e) {
+            r.status  = core::TaskStatus::Failed;
+            r.message = std::string("TaskRunner: exception: ") + e.what();
+        } catch (...) {
+            r.status  = core::TaskStatus::Failed;
+            r.message = "TaskRunner: unknown exception";
+        }
+
+        try {
+            p.set_value(r);
+        } catch (...) {
+            // 如果主线程已经放弃 future（超时直接返回了），这里 set_value 可能抛异常，忽略即可。
+        }
+    });
+
+    // ⭐ 关键：分离线程，future 析构时不会 join worker
+    worker.detach();
+
+    // 3. 有超时配置：软超时逻辑
     if (cfg.hasTimeout()) {
-        // TODO Step 3：wait_for 等待结果直到 timeout
-        auto now = SteadyClock::now();
-        if (deadline <= now) {
-            // timeout 已经过期
-            if (effectiveCancel) {
-                // 设置取消标记
-                effectiveCancel->store(true, std::memory_order_release);
+        while (true) {
+            auto now = SteadyClock::now();
+            if (deadline <= now) {
+                // 已经过了截止时间（极端情况）
+                if (effectiveCancel) {
+                    effectiveCancel->store(true, std::memory_order_release);
+                }
+                result.status  = core::TaskStatus::Timeout;
+                result.message = "TaskRunner: timeout before wait_for";
+                return result;  // ⭐ 直接返回，不再 get()
             }
-            result.status  = core::TaskStatus::Timeout;
-            result.message = "TaskRunner: timeout before execution";
-            return result;
-        }
 
-        auto remain = deadline - now;
-        if (future.wait_for(remain) == std::future_status::ready) {
-            result = future.get();
-        } else {
-            // 超时：通知取消，并设置超时状态
-            if (effectiveCancel) {
-                effectiveCancel->store(true, std::memory_order_release);
+            auto remain = deadline - now;
+            Logger::info("TaskRunner::runOneAttempt, id=" + cfg.id.value +
+                         ", name=" + cfg.name +
+                         ", remain=" + std::to_string(remain.count()));
+
+            auto st = fut.wait_for(remain);
+            if (st == std::future_status::ready) {
+                // 正常结束
+                return fut.get();   // ⭐ 这里直接返回，结束一切
+            } else {
+                // 超时：发取消信号 + 返回 Timeout
+                Logger::info("TaskRunner::runOneAttempt, id=" + cfg.id.value +
+                             ", name=" + cfg.name +
+                             ", timeout=" + std::to_string(cfg.timeout.count()));
+
+                if (effectiveCancel) {
+                    effectiveCancel->store(true, std::memory_order_release);
+                }
+                result.status  = core::TaskStatus::Timeout;
+                result.message = "TaskRunner: timeout during execution";
+                return result;       // ⭐ 不再 get()，也不再管 worker 线程
             }
-            result.status  = core::TaskStatus::Timeout;
-            result.message = "TaskRunner: timeout during execution";
         }
-    } else {
-        // 没有超时，直接等待
-        result = future.get();
     }
 
+    // 4. 没有超时配置：正常等待
+    result = fut.get();
     return result;
 
 }
 
 TaskResult TaskRunner::dispatchExec(const TaskConfig &cfg, std::atomic_bool *cancelFlag, SteadyClock::time_point deadline) const
 {
-    // 根据 execType 分发执行逻辑
-    Logger::info("TaskRunner::dispatchExec, id=" + cfg.id.value +
-                 ", name=" + cfg.name +
-                 ", execType=" + std::to_string(static_cast<int>(cfg.execType)));
-    switch (cfg.execType) {
-        case core::TaskExecType::Local:
-            return execLocal(cfg, cancelFlag, deadline);
-        case core::TaskExecType::Shell:
-            return execShell(cfg, cancelFlag, deadline);
-        case core::TaskExecType::HttpCall:
-            return execHttpCall(cfg, cancelFlag, deadline);
-        case core::TaskExecType::Script:
-            return execScript(cfg, cancelFlag, deadline);
-        case core::TaskExecType::Remote:
-            return execRemote(cfg, cancelFlag, deadline);
-        default: {
-            core::TaskResult r;
-            r.status  = core::TaskStatus::Failed;
-            r.message = "TaskRunner: unknown execType";
-            return r;
-        }
+    auto* strategy = ExecutionStrategyRegistry::instance().get(cfg.execType);
+    if (!strategy) {
+        core::TaskResult r;
+        r.status  = core::TaskStatus::Failed;
+        r.message = "没有为execType注册执行策略:"
+                    + std::to_string(static_cast<int>(cfg.execType));
+        return r;
     }
+
+    // 真正执行一次（不含重试）
+    return strategy->execute(cfg, cancelFlag, deadline);
 }
 
 // ... existing code ...

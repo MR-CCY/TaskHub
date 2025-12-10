@@ -1,9 +1,11 @@
-#include "runner/taskRunner.h"
+// #include "runner/taskRunner.h"
 #include "runner/task_config.h"
 #include "runner/task_result.h"
 #include "core/logger.h"
 #include "core/utils.h"
+#include "runner/local_task_registry.h"
 using namespace taskhub;
+using namespace taskhub::runner;
 
 namespace {
 
@@ -74,12 +76,13 @@ core::TaskResult taskBFailHandler(const core::TaskConfig& cfg, std::atomic_bool*
 // 自动注册器：程序启动时自动把本地任务注册进 TaskRunner
 struct AutoRegisterLocalTasks {
     AutoRegisterLocalTasks() {
-        auto& runner = runner::TaskRunner::instance();
-        runner.registerLocalTask("taskA_handler", taskAHandler);
-        runner.registerLocalTask("taskB_handler", taskBHandler);
-        runner.registerLocalTask("taskC_handler", taskCHandler);
-        runner.registerLocalTask("taskD_handler", taskDHandler);
-        runner.registerLocalTask("taskB_fail_handler", taskBFailHandler);
+        auto& lfr= LocalTaskRegistry::instance();
+
+        lfr.registerTask("taskA_handler", taskAHandler);
+        lfr.registerTask("taskB_handler", taskBHandler);
+        lfr.registerTask("taskC_handler", taskCHandler);
+        lfr.registerTask("taskD_handler", taskDHandler);
+        lfr.registerTask("taskB_fail_handler", taskBFailHandler);
     }
 };
 

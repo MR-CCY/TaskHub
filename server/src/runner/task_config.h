@@ -69,4 +69,35 @@ struct TaskConfig {
     }
 };
 
+inline std::string TaskExecTypetoString(TaskExecType type){
+    switch (type) {
+        case TaskExecType::Local:
+            return "Local";
+        case TaskExecType::Remote:
+            return "Remote";
+        case TaskExecType::Script:
+            return "Script";
+        case TaskExecType::HttpCall:
+            return "HttpCall";
+        case TaskExecType::Shell:
+            return "Shell";
+        default:
+            return "Unknown";
+    }
+}
+
+inline TaskExecType StringToTaskExecType(const std::string& type){ 
+    if (type == "Local")
+        return TaskExecType::Local;
+    else if (type == "Remote")
+        return TaskExecType::Remote;
+    else if (type == "Script")
+        return TaskExecType::Script;
+    else if (type == "HttpCall")
+        return TaskExecType::HttpCall;
+    else if (type == "Shell")
+        return TaskExecType::Shell;
+    else
+        return TaskExecType::Local;
+}
 } // namespace taskhub::core
