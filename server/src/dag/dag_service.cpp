@@ -32,6 +32,7 @@ namespace taskhub::api {
 
         // TODO Step 3：构建图 + 运行
         auto graph = builder.build();
+        
         dag::DagRunContext ctx(config, std::move(graph), callbacks);
         return _executor.execute(ctx);
     }

@@ -21,6 +21,7 @@ file(GLOB SERVER_SOURCES CONFIGURE_DEPENDS
     src/dag/*.cpp
     src/runner/*.cpp
     src/execution/*.cpp
+    src/scheduler/*.cpp
 )
 
 file(GLOB SERVER_HEADERS CONFIGURE_DEPENDS
@@ -31,6 +32,7 @@ file(GLOB SERVER_HEADERS CONFIGURE_DEPENDS
     src/dag/*.h
     src/runner/*.h
     src/execution/*.h
+    src/scheduler/*.h
 )
 
 # 包含目录

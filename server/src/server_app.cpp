@@ -12,6 +12,8 @@
 #include "db/migrator.h"
 #include "dag/dag_thread_pool.h"
 #include "execution/execution_registry.h"
+#include "scheduler/cron_scheduler.h"
+#include "dag/dag_types.h"      
 namespace taskhub {
 
     ServerApp::ServerApp() {
@@ -51,6 +53,9 @@ namespace taskhub {
         init_dag();
         Logger::info("DagService initialized");
 
+        scheduler::CronScheduler::instance().start();
+        Logger::info("CronScheduler started");
+
         //7.监听8090 端口启动ws服务
         m_wsServer = std::make_unique<WsServer>("0.0.0.0", 8090);
         m_wsServer->start();
@@ -58,6 +63,8 @@ namespace taskhub {
         // 6. 启动监听（阻塞）
         Logger::info("Listening at " + m_host + ":" + std::to_string(m_port));
         m_server->listen(m_host.c_str(), m_port);
+
+   
 
         return 0;
     }
