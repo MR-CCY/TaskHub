@@ -19,7 +19,7 @@ class WorkerRegistry {
         void upsertWorker(const WorkerInfo& info);    // 注册或更新
         void removeWorker(const std::string& id);
         std::vector<WorkerInfo> listWorkers() const;
-    
+        bool touchHeartbeat(const std::string& id, int runningTasks);
         // 简单分配策略（M11 用最小版）
         std::optional<WorkerInfo> pickWorkerForQueue(const std::string& queue) const;
     

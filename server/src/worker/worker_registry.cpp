@@ -11,7 +11,13 @@ namespace taskhub::worker {
     void WorkerRegistry::upsertWorker(const WorkerInfo &info)
     {
         std::lock_guard<std::mutex> lk(_mutex);
-        _workers[info.id] = info;
+
+        WorkerInfo copy = info;
+    
+        // ✅ 注册即视为一次心跳
+        copy.lastHeartbeat = std::chrono::steady_clock::now();
+    
+        _workers[copy.id] = std::move(copy);
     }
 
     void WorkerRegistry::removeWorker(const std::string &id)
@@ -29,6 +35,20 @@ namespace taskhub::worker {
             result.push_back(info);
         }
         return result;
+    }
+
+    bool WorkerRegistry::touchHeartbeat(const std::string &id, int runningTasks)
+    {
+        std::lock_guard<std::mutex> lk(_mutex);
+
+        auto it = _workers.find(id);
+        if (it == _workers.end()) {
+            return false;
+        }
+    
+        it->second.lastHeartbeat = std::chrono::steady_clock::now();
+        it->second.runningTasks = runningTasks;
+        return true;
     }
 
     std::optional<WorkerInfo> WorkerRegistry::pickWorkerForQueue(const std::string &queue) const

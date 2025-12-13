@@ -33,6 +33,7 @@ namespace taskhub
     }
     void WorkHandler::workers_register(const httplib::Request &req, httplib::Response &res)
     {
+        Logger::info("Worker register request: " + req.body);
         try {
             json jReq = json::parse(req.body, nullptr, false);
             if (jReq.is_discarded() || !jReq.is_object()) {
@@ -83,50 +84,32 @@ namespace taskhub
     }
     void WorkHandler::workers_heartbeat(const httplib::Request &req, httplib::Response &res)
     {
+       Logger::info("Worker heartbeat request: " + req.body);
         try {
-            json jReq = json::parse(req.body, nullptr, false);
-            if (jReq.is_discarded() || !jReq.is_object()) {
-                resp::error(res, 400, "invalid json", 400);
-                return;
-            }
-
-            const std::string id = jReq.value("id", std::string{});
-            const int runningTasks = jReq.value("running_tasks", 0);
+            auto j = json::parse(req.body);
+    
+            std::string id = j.value("id", "");
+            int running = j.value("running_tasks", 0);
+    
             if (id.empty()) {
-                resp::error(res, 400, "missing required field: id", 400);
+                resp::error(res, 400, "missing worker id", 400);
                 return;
             }
-
-            // WorkerRegistry 目前没有专门的 heartbeat API：用 list + upsert 更新。
-            auto workers = WorkerRegistry::instance().listWorkers();
-            bool found = false;
-            for (auto& w : workers) {
-                if (w.id == id) {
-                    w.runningTasks = runningTasks;
-                    w.lastHeartbeat = std::chrono::steady_clock::now();
-                    WorkerRegistry::instance().upsertWorker(w);
-                    found = true;
-                    break;
-                }
-            }
-
-            if (!found) {
-                resp::error(res, 404, "worker not found: " + id, 404);
+    
+            bool ok = WorkerRegistry::instance().touchHeartbeat(id, running);
+            if (!ok) {
+                resp::error(res, 404, "worker not found", 404);
                 return;
             }
-
-            json j;
-            j["ok"] = true;
-            res.status = 200;
-            res.set_content(j.dump(), "application/json");
-        } catch (const std::exception& e) {
-            resp::error(res, 500, std::string("internal error: ") + e.what(), 500);
+    
+            res.set_content(R"({"ok":true})", "application/json");
         } catch (...) {
-            resp::error(res, 500, "internal error: unknown", 500);
+            resp::error(res, 500, "internal error", 500);
         }
     }
     void WorkHandler::workers_list(const httplib::Request &req, httplib::Response &res)
     {
+        Logger::info("Worker list request");
         try {
             auto workers = WorkerRegistry::instance().listWorkers();
 
@@ -138,6 +121,10 @@ namespace taskhub
                 jw["port"] = w.port;
                 jw["running_tasks"] = w.runningTasks;
                 jw["alive"] = w.isAlive();
+
+                auto now = std::chrono::steady_clock::now();
+                auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(now - w.lastHeartbeat).count();
+                jw["last_seen_ms_ago"] = diff;
 
                 jw["queues"] = json::array();
                 for (const auto& q : w.queues) jw["queues"].push_back(q);
@@ -162,6 +149,7 @@ namespace taskhub
     }
     void WorkHandler::worker_execute(const httplib::Request &req, httplib::Response &res)
     {
+        Logger::info("Worker execute task request: " + req.body);
         try {
             json jReq = json::parse(req.body, nullptr, false);
             if (jReq.is_discarded()) {
