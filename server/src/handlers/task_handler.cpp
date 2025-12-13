@@ -271,40 +271,27 @@ namespace taskhub {
             for (auto& jtask : body["tasks"]) {
                 dag::DagTaskSpec spec;
                 core::TaskConfig cfgTask;
-    
-                // id 与 deps
-                std::string idStr = jtask.value("id", "");
-                if (idStr.empty()) {
-                    continue; // 或者直接报错
-                }
-                cfgTask.id.value = idStr;
+                cfgTask= core::parseTaskConfigFromReq(jtask);
                 spec.id = cfgTask.id;
-    
+                spec.runnerCfg = cfgTask;
+
                 if (jtask.contains("deps")) {
                     for (auto& d : jtask["deps"]) {
                         spec.deps.push_back(core::TaskId{ d.get<std::string>() });
                     }
                 }
-    
-                // 这里可以按需解析更多 TaskConfig 字段
-                cfgTask.name    = jtask.value("name", idStr);
-                cfgTask.timeout = std::chrono::milliseconds(jtask.value("timeout_ms", 0));
-                cfgTask.retryCount = jtask.value("retry_count", 0);
-                cfgTask.retryDelay = std::chrono::milliseconds(jtask.value("retryDelay", 1000));
-                std::string execType = jtask.value("exec_type", "local");
-                cfgTask.execType   =  core::StringToTaskExecType(execType);
-                cfgTask.execCommand = jtask.value("exec_command", ""); // 例如 local handler 名
-    
-                spec.runnerCfg = cfgTask;
+                
                 specs.push_back(std::move(spec));
             }
 
             // 5. 准备 callbacks（这里先简单记录一下每个节点最终状态）
             std::vector<json> nodeStates;
+            std::mutex nodeStatesMutex; // 并发访问需要保护
 
             dag::DagEventCallbacks callbacks;
             callbacks.onNodeStatusChanged =
-                [&nodeStates](const core::TaskId& id, core::TaskStatus st) {
+                [&nodeStates, &nodeStatesMutex](const core::TaskId& id, core::TaskStatus st) {
+                    std::lock_guard<std::mutex> lk(nodeStatesMutex);
                     json j;
                     j["id"] = id.value;
                     j["status"] = static_cast<int>(st);

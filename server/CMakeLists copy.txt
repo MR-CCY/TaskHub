@@ -1,0 +1,124 @@
+cmake_minimum_required(VERSION 3.16)
+if(POLICY CMP0167)
+    # 使用传统 FindBoost 模式
+    cmake_policy(SET CMP0167 OLD)
+endif()
+
+# Boost 设置（优先 Homebrew 位置，使用 FindBoost；仅头文件）
+set(Boost_ROOT "/opt/homebrew/opt/boost")
+set(Boost_NO_BOOST_CMAKE ON)
+find_package(Boost REQUIRED)  # header-only，用 Boost::boost 目标
+
+# SQLite（清理可能残留的失效路径）
+if(SQLite3_INCLUDE_DIR AND NOT EXISTS "${SQLite3_INCLUDE_DIR}/sqlite3.h")
+    message(STATUS "Resetting stale SQLite3 include path: ${SQLite3_INCLUDE_DIR}")
+    unset(SQLite3_INCLUDE_DIR CACHE)
+endif()
+if(SQLite3_LIBRARY AND NOT EXISTS "${SQLite3_LIBRARY}")
+    message(STATUS "Resetting stale SQLite3 library path: ${SQLite3_LIBRARY}")
+    unset(SQLite3_LIBRARY CACHE)
+endif()
+if(APPLE AND EXISTS "${CMAKE_OSX_SYSROOT}/usr")
+    list(APPEND CMAKE_PREFIX_PATH "${CMAKE_OSX_SYSROOT}/usr")
+endif()
+find_package(SQLite3 REQUIRED)
+set(TASKHUB_SQLITE_INCLUDES ${SQLite3_INCLUDE_DIRS})
+if(APPLE AND CMAKE_OSX_SYSROOT AND TASKHUB_SQLITE_INCLUDES)
+    file(REAL_PATH "${CMAKE_OSX_SYSROOT}/usr/include" TASKHUB_OSX_USR_INCLUDE)
+    foreach(dir IN LISTS TASKHUB_SQLITE_INCLUDES)
+        file(REAL_PATH "${dir}" TASKHUB_SQLITE_INCLUDE_REAL)
+        if(TASKHUB_SQLITE_INCLUDE_REAL STREQUAL TASKHUB_OSX_USR_INCLUDE)
+            message(STATUS "Skipping SDK SQLite include dir already covered by sysroot: ${dir}")
+            list(REMOVE_ITEM TASKHUB_SQLITE_INCLUDES "${dir}")
+        endif()
+    endforeach()
+endif()
+if(TARGET SQLite::SQLite3 AND TASKHUB_OSX_USR_INCLUDE)
+    get_target_property(TASKHUB_SQLITE_IFACE_INC SQLite::SQLite3 INTERFACE_INCLUDE_DIRECTORIES)
+    if(TASKHUB_SQLITE_IFACE_INC)
+        set(TASKHUB_SQLITE_IFACE_FILTERED "")
+        foreach(dir IN LISTS TASKHUB_SQLITE_IFACE_INC)
+            file(REAL_PATH "${dir}" TASKHUB_SQLITE_IFACE_REAL)
+            if(TASKHUB_SQLITE_IFACE_REAL STREQUAL TASKHUB_OSX_USR_INCLUDE)
+                message(STATUS "Removing sysroot include from SQLite::SQLite3 interface: ${dir}")
+            else()
+                list(APPEND TASKHUB_SQLITE_IFACE_FILTERED "${dir}")
+            endif()
+        endforeach()
+        set_target_properties(SQLite::SQLite3 PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES "${TASKHUB_SQLITE_IFACE_FILTERED}")
+    endif()
+endif()
+
+# 收集所有 cpp/h 文件（自动跟踪新文件变更）
+file(GLOB SERVER_SOURCES CONFIGURE_DEPENDS
+    src/*.cpp
+    src/core/*.cpp
+    src/db/*.cpp
+    src/handlers/*.cpp
+    src/dag/*.cpp
+    src/runner/*.cpp
+    src/execution/*.cpp
+    src/scheduler/*.cpp
+    src/worker/*.cpp
+)
+
+file(GLOB SERVER_HEADERS CONFIGURE_DEPENDS
+    src/*.h
+    src/core/*.h
+    src/db/*.h
+    src/handlers/*.h
+    src/dag/*.h
+    src/runner/*.h
+    src/execution/*.h
+    src/scheduler/*.h
+    src/worker/*.h
+)
+
+# 包含目录
+include_directories(
+    ${CMAKE_SOURCE_DIR}/third_party/httplib
+    ${CMAKE_SOURCE_DIR}/third_party/nlohmann_json
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/db
+    ${Boost_INCLUDE_DIRS}
+    ${TASKHUB_SQLITE_INCLUDES}
+)
+
+# 创建可执行文件
+add_executable(taskhub_server
+    ${SERVER_SOURCES}
+    ${SERVER_HEADERS}
+)
+
+# Debug 下强制关闭优化并保留完整符号，避免断点/局部变量缺失
+target_compile_options(taskhub_server PRIVATE
+    $<$<CONFIG:Debug>:-O0 -g3 -fno-omit-frame-pointer -fstandalone-debug -fno-limit-debug-info>
+)
+# Debug 下定义 DEBUG/_DEBUG 宏，方便代码里用条件编译
+target_compile_definitions(taskhub_server PRIVATE
+    $<$<CONFIG:Debug>:DEBUG;_DEBUG>
+)
+
+# 链接 Boost/SQLite
+target_link_libraries(taskhub_server
+    PRIVATE
+    Boost::boost
+    SQLite::SQLite3
+)
+
+# 拷贝配置文件到运行目录
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/config/default_config.json
+    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/config.json
+    COPYONLY
+)
+#
+
+file(GLOB TASKHUB_MIGRATIONS "${CMAKE_CURRENT_SOURCE_DIR}/migrations/*.sql")
+foreach(mig ${TASKHUB_MIGRATIONS})
+    get_filename_component(fname "${mig}" NAME)
+    configure_file(${mig}
+        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/migrations/${fname}"
+        COPYONLY)
+endforeach()

@@ -35,5 +35,7 @@ namespace taskhub {
         server.Post("/api/dag/run", TaskHandler::runDag);
         //M10
         CronHandler::setup_routes(server);
+        //M11
+        WorkHandler::setup_routes(server);
     }
 }

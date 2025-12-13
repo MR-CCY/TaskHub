@@ -1,5 +1,7 @@
 #include "local_strategy.h"
 #include "runner/local_task_registry.h"
+#include <thread>
+#include <atomic>
 
 namespace  taskhub::runner {
     core::TaskResult LocalExecutionStrategy::execute(const core::TaskConfig &cfg, std::atomic_bool *cancelFlag, Deadline deadline)
@@ -31,7 +33,29 @@ namespace  taskhub::runner {
             return r;
         }
 
+        // === 软超时（Soft Timeout）===
+        // Local 任务无法安全强杀线程，只能：
+        // 1) 到 deadline 时将 cancelFlag 置为 true（提示任务协作退出）
+        // 2) 任务返回后，如果确实超时，则覆盖结果为 Timeout
+        std::atomic_bool timeoutFlag{false};
+        std::thread watchdog;
+        if (deadline != Deadline::max()) {
+            watchdog = std::thread([&]() {
+                while (SteadyClock::now() < deadline) {
+                    if (cancelFlag && cancelFlag->load(std::memory_order_acquire)) {
+                        return; // 外部已取消
+                    }
+                    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+                }
+                timeoutFlag.store(true, std::memory_order_release);
+                if (cancelFlag) {
+                    cancelFlag->store(true, std::memory_order_release);
+                }
+            });
+        }
+
         // 执行任务函数并捕获可能的异常
+        const auto start = SteadyClock::now();
         try {
             r = func(cfg, cancelFlag);
         } catch (const std::exception& ex) {
@@ -41,6 +65,23 @@ namespace  taskhub::runner {
             r.status  = core::TaskStatus::Failed;
             r.message = "TaskRunner：本地任务未知异常";
         }
+
+        // 等待 watchdog 结束（避免 thread 泄漏）
+        if (watchdog.joinable()) {
+            watchdog.join();
+        }
+
+        // 如果发生了超时（软超时），则统一覆盖为 Timeout
+        // 注意：即使任务返回 Success，只要超时，就按 Timeout 处理
+        if (timeoutFlag.load(std::memory_order_acquire)) {
+            r.status  = core::TaskStatus::Timeout;
+            if (r.message.empty()) {
+                r.message = "TaskRunner：本地任务执行超时（软超时）";
+            }
+        }
+
+        const auto end = SteadyClock::now();
+        r.durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
         
         Logger::info("LocalExecutionStrategy::execute, id=" + cfg.id.value +
             ", name=" + cfg.name +

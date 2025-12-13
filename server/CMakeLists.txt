@@ -22,6 +22,7 @@ file(GLOB SERVER_SOURCES CONFIGURE_DEPENDS
     src/runner/*.cpp
     src/execution/*.cpp
     src/scheduler/*.cpp
+    src/worker/*.cpp
 )
 
 file(GLOB SERVER_HEADERS CONFIGURE_DEPENDS
@@ -33,6 +34,7 @@ file(GLOB SERVER_HEADERS CONFIGURE_DEPENDS
     src/runner/*.h
     src/execution/*.h
     src/scheduler/*.h
+    src/worker/*.h
 )
 
 # 包含目录

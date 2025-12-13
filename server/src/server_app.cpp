@@ -14,6 +14,7 @@
 #include "execution/execution_registry.h"
 #include "scheduler/cron_scheduler.h"
 #include "dag/dag_types.h"      
+#include <filesystem>
 namespace taskhub {
 
     ServerApp::ServerApp() {
@@ -64,8 +65,6 @@ namespace taskhub {
         Logger::info("Listening at " + m_host + ":" + std::to_string(m_port));
         m_server->listen(m_host.c_str(), m_port);
 
-   
-
         return 0;
     }
 
@@ -74,13 +73,27 @@ namespace taskhub {
 
         // 1. 尝试加载配置文件（后面你可以做真正的 JSON 解析）
         //    现在先允许失败，失败就用默认值
+        namespace fs = std::filesystem;
+        const fs::path cwd = fs::current_path();
 
         // 优先加载生产环境配置
         bool loaded = cfg.load("/etc/taskhub/config.json");
 
-        // 如果生产环境没有，就加载 build 目录里的
+        // 如果生产环境没有，就尝试其他几个可能的路径
         if (!loaded) {
-            cfg.load("config.json");   // 可执行文件旁边的
+            // 1) 当前工作目录
+            loaded = cfg.load("config.json");
+        }
+        if (!loaded) {
+            // 2) 构建输出目录（常见：build/bin/config.json）
+            loaded = cfg.load((cwd / "build" / "bin" / "config.json").string());
+        }
+        if (!loaded) {
+            // 3) 源码默认配置
+            loaded = cfg.load((cwd / "server" / "config" / "default_config.json").string());
+        }
+        if (!loaded) {
+            Logger::warn("No config file found in fallback paths, using built-in defaults");
         }
 
         // 2. 环境变量覆盖（支持 Docker / 本地调试）
@@ -105,6 +118,11 @@ namespace taskhub {
         // TODO:
         // - 启用 HTTPS 时在这里切换为 httplib::SSLServer
         // - 设置 Server 的超时、线程数等参数
+#if defined(DEBUG) || defined(_DEBUG)
+        // 调试时将线程池限制为 1，方便单步不被其他 worker 线程打断
+        m_server->new_task_queue = [] { return new httplib::ThreadPool(1); };
+        Logger::info("HTTP server thread pool set to 1 (debug build)");
+#endif
     }
     void ServerApp::setup_routes() {
         Router::setup_routes(*m_server);

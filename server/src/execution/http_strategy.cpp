@@ -58,17 +58,26 @@ namespace taskhub::runner {
 
         httplib::Client cli(host, port);
         cli.set_keep_alive(false);
-    
-        if (deadline != SteadyClock::time_point::max()) {
+
+        if (deadline != Deadline::max()) {
             const auto now = SteadyClock::now();
             if (deadline <= now) {
                 r.status  = core::TaskStatus::Timeout;
                 r.message = "TaskRunner: timeout before http call";
                 return r;
             }
-            const auto remain = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now);
-            const auto sec    = static_cast<int>(remain.count() / 1000);
-            const auto usec   = static_cast<int>((remain.count() % 1000) * 1000);
+
+            // 剩余时间：用于设置 httplib 的连接/读写超时
+            // 说明：cpp-httplib 的 timeout 只能在调用前设置，无法真正中断正在阻塞的请求。
+            //      因此这里将 deadline 映射为网络层 timeout，作为“硬超时”。
+            auto remain = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now);
+            if (remain.count() <= 0) {
+                remain = std::chrono::milliseconds(1);
+            }
+
+            const int sec  = static_cast<int>(remain.count() / 1000);
+            const int usec = static_cast<int>((remain.count() % 1000) * 1000);
+
             cli.set_connection_timeout(sec, usec);
             cli.set_read_timeout(sec, usec);
             cli.set_write_timeout(sec, usec);
@@ -93,12 +102,14 @@ namespace taskhub::runner {
             r.status  = core::TaskStatus::Failed;
             r.message = "TaskRunner: http 状态 " + std::to_string(res->status);
         }
+        const auto end = SteadyClock::now();
+        r.durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
         Logger::info("HttpExecutionStrategy::execute, id=" + cfg.id.value +
                     ", name=" + cfg.name +
                     ", status=" + std::to_string(static_cast<int>(r.status)) +
-                    ", message=" + r.message);
-        r.duration = std::chrono::duration_cast<std::chrono::milliseconds>(SteadyClock::now() - start);
+                    ", message=" + r.message +
+                    ", duration=" + std::to_string(r.durationMs) + "ms");
         return r;
     }
 }

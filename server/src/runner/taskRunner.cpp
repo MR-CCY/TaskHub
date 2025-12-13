@@ -1,7 +1,6 @@
 #include "taskRunner.h"
 #include "core/logger.h"
 #include <thread>
-#include <future>
 #include <functional>
 #include <unordered_map>
 #include <mutex>
@@ -115,93 +114,54 @@ TaskResult TaskRunner::runWithRetry(const TaskConfig &cfg, std::atomic_bool *ext
     return lastResult;
 }
 
-TaskResult TaskRunner::runOneAttempt(const TaskConfig &cfg, std::atomic_bool *externalCancelFlag, SteadyClock::time_point deadline) const
+TaskResult TaskRunner::runOneAttempt(const TaskConfig &cfg,
+                                     std::atomic_bool *externalCancelFlag,
+                                     SteadyClock::time_point deadline) const
 {
     core::TaskResult result;
 
-    // 1. 取消标记：优先用外面的，否则用内部的
+    // 1) 取消标记：优先用外面的，否则用内部的
     std::atomic_bool internalCancel{false};
     std::atomic_bool* effectiveCancel =
         externalCancelFlag ? externalCancelFlag : &internalCancel;
 
-    // 2. 用 promise/future 代替 std::async
-    std::promise<core::TaskResult> prom;
-    auto fut = prom.get_future();
-
-    // 注意：把 cfg 拷一份到线程里，避免悬空引用
-    auto cfgCopy = cfg;
-
-    std::thread worker(
-        [this,
-         cfgCopy,
-         effectiveCancel,
-         deadline,
-         p = std::move(prom)]() mutable
-    {
-        core::TaskResult r;
-        try {
-            r = dispatchExec(cfgCopy, effectiveCancel, deadline);
-        } catch (const std::exception& e) {
-            r.status  = core::TaskStatus::Failed;
-            r.message = std::string("TaskRunner: exception: ") + e.what();
-        } catch (...) {
-            r.status  = core::TaskStatus::Failed;
-            r.message = "TaskRunner: unknown exception";
-        }
-
-        try {
-            p.set_value(r);
-        } catch (...) {
-            // 如果主线程已经放弃 future（超时直接返回了），这里 set_value 可能抛异常，忽略即可。
-        }
-    });
-
-    // ⭐ 关键：分离线程，future 析构时不会 join worker
-    worker.detach();
-
-    // 3. 有超时配置：软超时逻辑
+    // 2) 超时前置检查（极端情况：调用时已过期）
     if (cfg.hasTimeout()) {
-        while (true) {
-            auto now = SteadyClock::now();
-            if (deadline <= now) {
-                // 已经过了截止时间（极端情况）
-                if (effectiveCancel) {
-                    effectiveCancel->store(true, std::memory_order_release);
-                }
-                result.status  = core::TaskStatus::Timeout;
-                result.message = "TaskRunner: timeout before wait_for";
-                return result;  // ⭐ 直接返回，不再 get()
+        const auto now = SteadyClock::now();
+        if (deadline <= now) {
+            if (effectiveCancel) {
+                effectiveCancel->store(true, std::memory_order_release);
             }
-
-            auto remain = deadline - now;
-            Logger::info("TaskRunner::runOneAttempt, id=" + cfg.id.value +
-                         ", name=" + cfg.name +
-                         ", remain=" + std::to_string(remain.count()));
-
-            auto st = fut.wait_for(remain);
-            if (st == std::future_status::ready) {
-                // 正常结束
-                return fut.get();   // ⭐ 这里直接返回，结束一切
-            } else {
-                // 超时：发取消信号 + 返回 Timeout
-                Logger::info("TaskRunner::runOneAttempt, id=" + cfg.id.value +
-                             ", name=" + cfg.name +
-                             ", timeout=" + std::to_string(cfg.timeout.count()));
-
-                if (effectiveCancel) {
-                    effectiveCancel->store(true, std::memory_order_release);
-                }
-                result.status  = core::TaskStatus::Timeout;
-                result.message = "TaskRunner: timeout during execution";
-                return result;       // ⭐ 不再 get()，也不再管 worker 线程
-            }
+            result.status  = core::TaskStatus::Timeout;
+            result.message = "TaskRunner: timeout before execution";
+            return result;
         }
     }
 
-    // 4. 没有超时配置：正常等待
-    result = fut.get();
-    return result;
+    // 3) 同步执行：不再为每个任务额外启动/分离线程。
+    //    超时/取消的“真正终止能力”交给各 execution strategy：
+    //    - Shell(B): fork/exec + killpg
+    //    - HttpCall: client timeout
+    //    - Local: 任务自身需轮询 cancelFlag（软超时）
+    try {
+        result = dispatchExec(cfg, effectiveCancel, deadline);
+    } catch (const std::exception& e) {
+        result.status  = core::TaskStatus::Failed;
+        result.message = std::string("TaskRunner: exception: ") + e.what();
+    } catch (...) {
+        result.status  = core::TaskStatus::Failed;
+        result.message = "TaskRunner: unknown exception";
+    }
 
+    // 4) 执行返回后做一次收尾检查：如果外部已经取消且策略未显式标记，则覆盖为 Canceled
+    if (effectiveCancel &&
+        effectiveCancel->load(std::memory_order_acquire) &&
+        result.status == core::TaskStatus::Success) {
+        result.status  = core::TaskStatus::Canceled;
+        result.message = "TaskRunner: canceled";
+    }
+
+    return result;
 }
 
 TaskResult TaskRunner::dispatchExec(const TaskConfig &cfg, std::atomic_bool *cancelFlag, SteadyClock::time_point deadline) const
@@ -310,13 +270,16 @@ TaskResult TaskRunner::execShell(const TaskConfig &cfg, std::atomic_bool *cancel
         r.status  = core::TaskStatus::Failed;
         r.message = "TaskRunner: shell exit code " + std::to_string(code);
     }
-    //
+    r.exitCode = code;
+    const auto end = SteadyClock::now();
+    r.durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
     Logger::info("TaskRunner::execShell, id=" + cfg.id.value +
                  ", name=" + cfg.name +
                  ", status=" + std::to_string(static_cast<int>(r.status)) +
                  ", message=" + r.message +
-                 ", duration=" + std::to_string(r.duration.count()));
-    r.duration = std::chrono::duration_cast<std::chrono::milliseconds>(SteadyClock::now() - start);
+                 ", duration=" + std::to_string(r.durationMs) + "ms");
+   
     return r;
 }
 /// 执行HTTP调用任务
@@ -412,12 +375,14 @@ TaskResult TaskRunner::execHttpCall(const TaskConfig &cfg, std::atomic_bool *can
         r.status  = core::TaskStatus::Failed;
         r.message = "TaskRunner: http status " + std::to_string(res->status);
     }
+    const auto end = SteadyClock::now();
 
+    r.durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     Logger::info("TaskRunner::execHttpCall, id=" + cfg.id.value +
                  ", name=" + cfg.name +
                  ", status=" + std::to_string(static_cast<int>(r.status)) +
                  ", message=" + r.message);
-    r.duration = std::chrono::duration_cast<std::chrono::milliseconds>(SteadyClock::now() - start);
+
     return r;
 }
 

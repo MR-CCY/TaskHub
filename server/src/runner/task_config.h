@@ -2,7 +2,8 @@
 #include <string>
 #include <chrono>
 #include <unordered_map>
-
+#include "json.hpp"
+using json = nlohmann::json;
 #include "task_common.h"
 
 namespace taskhub::core {
@@ -34,6 +35,16 @@ struct TaskConfig {
     // ---- 执行方式（Hook 到不同 Runner）----
     TaskExecType execType{ TaskExecType::Local };
     std::string execCommand;    // 脚本 / Shell / HTTP URL / 指令（视 execType 而定）
+    //Shell
+    // { "cwd": "/tmp", "env.PATH": "...", "shell": "/bin/bash" }
+    // HttpCall
+    // { "method": "POST", "header.Authorization": "...", "body": "..." }
+    // Script
+    // { "interpreter": "python3", "args": "-u main.py" }
+    // Local
+    // { "handler": "taskA_handler" }
+    // Remote
+    // { "inner_exec_type": "Shell" }
     std::unordered_map<std::string, std::string> execParams; // 参数包
 
     // ---- 超时配置（M7）----
@@ -52,6 +63,7 @@ struct TaskConfig {
     bool cancelable{ true };    // 是否允许在执行中被取消
 
     // ---- 优先级（M9）----
+    //todo:优先级还没做吧
     TaskPriority priority{ TaskPriority::Normal };
 
     // ---- 队列分组（M9）----
@@ -67,6 +79,7 @@ struct TaskConfig {
     bool hasTimeout() const {
         return timeout.count() > 0;
     }
+
 };
 
 inline std::string TaskExecTypetoString(TaskExecType type){
@@ -86,18 +99,139 @@ inline std::string TaskExecTypetoString(TaskExecType type){
     }
 }
 
-inline TaskExecType StringToTaskExecType(const std::string& type){ 
-    if (type == "Local")
-        return TaskExecType::Local;
-    else if (type == "Remote")
-        return TaskExecType::Remote;
-    else if (type == "Script")
-        return TaskExecType::Script;
-    else if (type == "HttpCall")
-        return TaskExecType::HttpCall;
-    else if (type == "Shell")
-        return TaskExecType::Shell;
-    else
-        return TaskExecType::Local;
+inline TaskExecType StringToTaskExecType(std::string type){
+    std::transform(type.begin(), type.end(), type.begin(),
+                   [](unsigned char c){ return std::tolower(c); });
+
+    if (type == "local")   return TaskExecType::Local;
+    if (type == "remote")  return TaskExecType::Remote;
+    if (type == "script")  return TaskExecType::Script;
+    if (type == "httpcall" || type == "http_call" || type == "http") return TaskExecType::HttpCall;
+    if (type == "shell")   return TaskExecType::Shell;
+
+    return TaskExecType::Local;
+}
+inline int toPriorityInt(taskhub::core::TaskPriority p) {
+    return static_cast<int>(p);
+}
+
+inline json buildRequestJson(const taskhub::core::TaskConfig& cfg)
+{
+    json jTask;
+
+    jTask["id"]            = cfg.id.value;
+    jTask["name"]          = cfg.name;
+    jTask["exec_type"]     = TaskExecTypetoString(cfg.execType);
+    jTask["exec_command"]  = cfg.execCommand;
+
+    // exec_params
+    json jParams = json::object();
+    for (const auto& kv : cfg.execParams) {
+        jParams[kv.first] = kv.second;
+    }
+    
+    jTask["exec_params"] = jParams;
+
+    // timeout/retry
+    jTask["timeout_ms"]           = static_cast<long long>(cfg.timeout.count());
+    jTask["retry_count"]          = cfg.retryCount;
+    jTask["retry_delay_ms"]       = static_cast<long long>(cfg.retryDelay.count());
+    jTask["retry_exp_backoff"]    = cfg.retryUseExponentialBackoff;
+
+    // priority/queue/output
+    jTask["priority"]       = toPriorityInt(cfg.priority);
+    jTask["queue"]          = cfg.queue;
+    jTask["capture_output"] = cfg.captureOutput;
+
+    // metadata
+    json jMeta = json::object();
+    for (const auto& kv : cfg.metadata) {
+        jMeta[kv.first] = kv.second;
+    }
+    jTask["metadata"] = jMeta;
+
+    // 顶层封装（方便未来扩展）
+    json jReq;
+    jReq["task"] = jTask;
+    return jReq;
+}
+
+inline TaskConfig parseTaskConfigFromReq(const json& jReq) {
+      // ✅ 兼容两种格式：
+    // 1) { "task": { ... } }
+    // 2) { ... }  （直接就是 task）
+    const json& jt = (jReq.contains("task") && jReq["task"].is_object())
+                         ? jReq["task"]
+                         : jReq;
+
+    core::TaskConfig cfg;
+    cfg.id.value        = jt.value("id", "");
+    cfg.name            = jt.value("name", "");
+    cfg.execType        = StringToTaskExecType(jt.value("exec_type", "Local"));
+    cfg.execCommand     = jt.value("exec_command", "");
+    cfg.queue           = jt.value("queue", "");
+    cfg.captureOutput   = jt.value("capture_output", true);
+
+    // timeout/retry
+    cfg.timeout   = std::chrono::milliseconds(jt.value("timeout_ms", 0LL));
+    cfg.retryCount = jt.value("retry_count", 0);
+    cfg.retryDelay = std::chrono::milliseconds(jt.value("retry_delay_ms", 1000LL));
+    cfg.retryUseExponentialBackoff = jt.value("retry_exp_backoff", true);
+
+    // priority（int）
+    cfg.priority = static_cast<core::TaskPriority>(jt.value("priority", 0));
+
+    // exec_params
+    if (jt.contains("exec_params") && jt["exec_params"].is_object()) {
+        for (auto it = jt["exec_params"].begin(); it != jt["exec_params"].end(); ++it) {
+            if (it.value().is_string()) cfg.execParams[it.key()] = it.value().get<std::string>();
+            else cfg.execParams[it.key()] = it.value().dump();
+        }
+    }
+
+    // metadata
+    if (jt.contains("metadata") && jt["metadata"].is_object()) {
+        for (auto it = jt["metadata"].begin(); it != jt["metadata"].end(); ++it) {
+            if (it.value().is_string()) cfg.metadata[it.key()] = it.value().get<std::string>();
+            else cfg.metadata[it.key()] = it.value().dump();
+        }
+    }
+
+    return cfg;
+}
+inline bool startsWith(const std::string& s, const std::string& prefix){
+    return s.size() >= prefix.size() && s.compare(0, prefix.size(), prefix) == 0;
+}
+inline TaskConfig makeInnerTask(const TaskConfig& cfg) {
+    TaskConfig inner = cfg; // 继承 timeout/retry/priority/queue/captureOutput/metadata 等
+
+    // 1) inner.exec_type
+    auto itType = cfg.execParams.find("inner.exec_type");
+    if (itType != cfg.execParams.end()) {
+        inner.execType = StringToTaskExecType(itType->second); // 你这个函数已支持大小写/下划线
+    } else {
+        // 没传就给个默认（按你的产品策略）
+        inner.execType = TaskExecType::Shell;
+    }
+
+    // 2) inner.exec_command
+    auto itCmd = cfg.execParams.find("inner.exec_command");
+    if (itCmd != cfg.execParams.end()) {
+        inner.execCommand = itCmd->second;
+    } else {
+        // 兜底：如果用户把命令写在 cfg.execCommand，也能跑
+        inner.execCommand = cfg.execCommand;
+    }
+
+    // 3) inner.exec_params.*
+    inner.execParams.clear();
+    for (const auto& kv : cfg.execParams) {
+        const std::string prefix = "inner.exec_params.";
+        if (startsWith(kv.first, prefix)) {
+            inner.execParams.emplace(kv.first.substr(prefix.size()), kv.second);
+        }
+    }
+
+    return inner;
 }
 } // namespace taskhub::core

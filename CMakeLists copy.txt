@@ -1,0 +1,48 @@
+cmake_minimum_required(VERSION 3.21)
+project(TaskHub)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Refresh an invalid macOS SDK path (happens if Xcode was upgraded/removed).
+if(APPLE)
+    execute_process(
+        COMMAND xcrun --show-sdk-path
+        OUTPUT_VARIABLE TASKHUB_SDK_PATH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    if(TASKHUB_SDK_PATH AND EXISTS "${TASKHUB_SDK_PATH}")
+        if(NOT DEFINED CMAKE_OSX_SYSROOT OR NOT EXISTS "${CMAKE_OSX_SYSROOT}")
+            message(STATUS "Using SDK from xcrun: ${TASKHUB_SDK_PATH}")
+            set(CMAKE_OSX_SYSROOT "${TASKHUB_SDK_PATH}" CACHE PATH "macOS SDK path" FORCE)
+        endif()
+    endif()
+endif()
+
+# 默认使用 Debug 构建，便于调试（除非外部显式指定）
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
+endif()
+
+# Debug 配置下的编译选项：关闭优化、打开完整调试信息
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g3 -fno-omit-frame-pointer -fstandalone-debug -fno-limit-debug-info")
+
+# 输出更详细构建信息（可选）
+set(CMAKE_VERBOSE_MAKEFILE OFF)
+
+# 让路径更整洁
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+
+option(BUILD_TASKHUB_SERVER "Build the TaskHub server backend" ON)
+option(BUILD_TASKHUB_CLIENT "Build the Qt TaskHubClient front-end" ON)
+
+if(BUILD_TASKHUB_SERVER)
+    add_subdirectory(server)
+endif()
+
+if(BUILD_TASKHUB_CLIENT)
+    add_subdirectory(client)
+endif()

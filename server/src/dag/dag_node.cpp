@@ -54,7 +54,7 @@ void DagNode::setRunnerConfig(const core::TaskConfig &cfg)
 {
     _runnerCfg = cfg;
     // 使用节点信息覆盖/补充任务的 id 和 name，确保日志和追踪可定位到 DAG 节点
-    _runnerCfg.id.value = "dag_" + _id.value;
+    _runnerCfg.id.value = _id.value;
     _runnerCfg.name     = "DAGNode_" + _id.value;
 }
 const core::TaskConfig &DagNode::runnerConfig() const
