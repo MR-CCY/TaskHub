@@ -85,6 +85,7 @@ inline json taskResultToJson(const core::TaskResult& r) {
     j["stderr"]      = r.stderrData;
     j["attempt"]     = r.attempt;
     j["max_attempts"]= r.maxAttempts;
+    
 
     // metadata 可选
     json jm = json::object();

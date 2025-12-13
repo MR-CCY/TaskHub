@@ -25,6 +25,30 @@ bool Config::load(const std::string& path) {
     try {
         nlohmann::json j;
         ifs >> j;
+        for (auto& [key, value] : j.items()) {
+            if (value.is_object()) {
+                m_config[key] = value.dump();
+                for (auto& [k, v] : value.items()) {
+                    if (v.is_boolean()) {
+                        m_config[key + "." + k] = v.get<bool>();
+                    } else if (v.is_number_integer()) {
+                        m_config[key + "." + k] = v.get<int>();
+                    } else if (v.is_number_float()) {
+                        m_config[key + "." + k] = v.get<double>();
+                    } else if (v.is_string()) {
+                        m_config[key + "." + k] = v.get<std::string>();
+                    }else if(v.is_array()){
+                        std::vector<std::string> vec;
+                        for(const auto& item : v){
+                            if(item.is_string()){
+                                vec.push_back(item.get<std::string>());
+                            }
+                        }
+                        m_config[key + "." + k] = vec;
+                    }
+                }
+            }
+        }
 
         // server 部分
         if (j.contains("server") && j["server"].is_object()) {
@@ -63,7 +87,6 @@ bool Config::load(const std::string& path) {
                 m_log_path = l["path"].get<std::string>();
             }
         }
-
         Logger::info("Config loaded from: " + path);
         return true;
     }

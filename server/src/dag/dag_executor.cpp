@@ -63,11 +63,12 @@ namespace taskhub::dag {
 
             // 3.3 使用条件变量等待“状态改变”：有新 ready / 有任务完成 / FailFast 失败
             std::unique_lock<std::mutex> lk(_cvMutex);
-            _cv.wait(lk, [this, &ctx] {
+            _cv.wait(lk, [this, &ctx,&finalResult] {
                 // 有新 ready 节点？
                 {
                     std::lock_guard<std::mutex> qlk(_readyMutex);
                     if (!_readyQueue.empty()) {
+                        // finalResult=ctx.taskResults()[ctx.id];
                         return true;
                     }
                 }
@@ -84,9 +85,9 @@ namespace taskhub::dag {
         }
     
         // 4. 根据 ctx.isFailed() 设置最终结果
-        if (ctx.isFailed()) {
-            finalResult.status = core::TaskStatus::Failed;
-        }
+        // if (ctx.isFailed()) {
+        //     finalResult.status = core::TaskStatus::Failed;
+        // }
     
         // 5. 通知 DAG 完成
         ctx.finish(finalResult.ok());
@@ -186,11 +187,10 @@ namespace taskhub::dag {
             _cv.notify_one();
             return;
         }
-
+        ctx.setTaskResults(id, result);
         auto st = result.status;
         if (result.ok()) {
             ctx.setNodeStatus(id, core::TaskStatus::Success);
-
             // ✅ 先处理下游，把新的 ready 节点全部入队
             for (const auto& childId : node->downstream()) {
                 auto child = ctx.graph().getNode(childId);

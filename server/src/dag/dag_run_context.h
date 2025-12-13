@@ -38,7 +38,8 @@ public:
 
     // 状态上报：内部调用时自动触发回调
     void setNodeStatus(const core::TaskId& id, core::TaskStatus st);
-
+    void setTaskResults(const core::TaskId& id, core::TaskResult);
+    std::map<core::TaskId, core::TaskResult> taskResults();
     // 最终结束时调用
     void finish(bool success);
     //返回总结
@@ -53,6 +54,8 @@ private:
 
     mutable std::mutex _mutex; // 保护必要的共享数据（如回调调用时的顺序）
     std::map<core::TaskId, core::TaskStatus> _finalStatus;
+    std::map<core::TaskId, core::TaskResult> _taskResults;
+    core::TaskResult _finalResults;
 };
 
 } // namespace taskhub::dag

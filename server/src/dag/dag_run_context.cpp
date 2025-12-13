@@ -45,6 +45,16 @@ namespace taskhub::dag {
             _callbacks.onNodeStatusChanged(id, st);
         }
     }
+    void DagRunContext::setTaskResults(const core::TaskId &id, core::TaskResult st)
+    {
+        {
+            _taskResults[id] = st;
+        }
+    }
+    std::map<core::TaskId, core::TaskResult> DagRunContext::taskResults()
+    {
+        return _taskResults;
+    }
     void DagRunContext::finish(bool success)
     {
         // DAG 完成时调用，可做：

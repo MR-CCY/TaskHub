@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <mutex>
 #include <string>
-
+#include <thread>
 namespace taskhub::worker {
 
 class WorkerRegistry {
@@ -20,13 +20,23 @@ class WorkerRegistry {
         void removeWorker(const std::string& id);
         std::vector<WorkerInfo> listWorkers() const;
         bool touchHeartbeat(const std::string& id, int runningTasks);
-        // 简单分配策略（M11 用最小版）
+        // 简单分配策略
         std::optional<WorkerInfo> pickWorkerForQueue(const std::string& queue) const;
-    
+
+        void pruneDeadWorkers(std::chrono::milliseconds pruneAfter);
+        void startSweeper(std::chrono::milliseconds sweepInterval,
+                        std::chrono::milliseconds pruneAfter);
+        void stopSweeper();
+        
     private:
         WorkerRegistry() = default; 
         mutable std::mutex _mutex;
         std::unordered_map<std::string, WorkerInfo> _workers;
+
+        std::thread _sweeperThread;
+        std::atomic_bool _stopSweeper{false};
+        std::chrono::milliseconds _sweepInterval{5000};
+        std::chrono::milliseconds _pruneAfter{60000};
     };
 
 }

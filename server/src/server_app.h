@@ -8,6 +8,9 @@
 #include "core/ws_server_beast.h"
 #include "core/worker_pool.h"
 #include "runner/taskRunner.h"
+namespace taskhub::worker {
+    class WorkerHeartbeatClient;
+}
 namespace taskhub {
 
 class ServerApp {
@@ -29,6 +32,7 @@ private:
     // HTTP 服务对象
     std::unique_ptr<httplib::Server> m_server;
     std::unique_ptr<taskhub::WsServer> m_wsServer;
+    std::unique_ptr<worker::WorkerHeartbeatClient>  g_heartbeat = nullptr;
     // 服务运行参数
     std::string m_host;
     int m_port;

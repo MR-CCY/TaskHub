@@ -122,7 +122,7 @@ namespace taskhub::runner {
             Logger::error(result.message);
             return result;
         }
-
+        Logger::debug("RemoteExecution: got response: " + resp->body);  
         // 8) map to TaskResult
         core::TaskResult parsed = core::parseResultJson(jResp);
 

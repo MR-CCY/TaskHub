@@ -331,7 +331,7 @@ namespace taskhub {
             for (const auto& kv : finalMap) {
                 const auto& id = kv.first;
                 auto status    = kv.second;
-                const std::string idStr = id.value;  // 按你实际来
+                const std::string idStr = id.value;
 
                 switch (status) {
                 case core::TaskStatus::Success:

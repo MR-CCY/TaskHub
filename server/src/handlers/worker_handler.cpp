@@ -92,12 +92,14 @@ namespace taskhub
             int running = j.value("running_tasks", 0);
     
             if (id.empty()) {
+                Logger::error("Worker heartbeat request missing worker id");
                 resp::error(res, 400, "missing worker id", 400);
                 return;
             }
     
             bool ok = WorkerRegistry::instance().touchHeartbeat(id, running);
             if (!ok) {
+                Logger::warn("worker heartbeat: worker not found"+id);
                 resp::error(res, 404, "worker not found", 404);
                 return;
             }
