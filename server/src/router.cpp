@@ -37,5 +37,6 @@ namespace taskhub {
         CronHandler::setup_routes(server);
         //M11
         WorkHandler::setup_routes(server);
+        LogHandler::setup_routes(server);
     }
 }

@@ -9,6 +9,7 @@
 #include "httplib.h"
 #include "local_task_registry.h"
 #include "execution/execution_registry.h"
+#include "core/log_manager.h"
 namespace taskhub::runner {
 using namespace core;
 
@@ -16,13 +17,54 @@ TaskRunner& TaskRunner::instance() {
     static TaskRunner instance;
     return instance;
 }
-
 TaskResult TaskRunner::run(const TaskConfig &cfg, std::atomic_bool *cancelFlag) const
 {
     Logger::info("TaskRunner::run start, id=" + cfg.id.value +
                  ", name=" + cfg.name +
                  ", execType=" + std::to_string(static_cast<int>(cfg.execType)));
-    return runWithRetry(cfg, cancelFlag);
+
+     const auto runStart = SteadyClock::now();
+
+    // NOTE: if taskId is empty in some flows, you can still emit to Event stream; downstream may treat it as global.
+    core::emitEvent(cfg.id, LogLevel::Info,"TaskRunner::run start, execType=" + std::to_string(static_cast<int>(cfg.execType)));
+
+    TaskResult r = runWithRetry(cfg, cancelFlag);
+
+    // ===== M12: end event (structured) =====
+    core::LogRecord rec;
+    rec.taskId   = cfg.id;
+    rec.level    = r.ok() ? LogLevel::Info : LogLevel::Warn;
+    rec.stream   = core::LogStream::Event;
+    rec.message  = "TaskRunner::run end";
+
+    // duration：优先用 TaskResult 的 durationMs，没有就用 run() 这层兜底
+    const auto runEnd = SteadyClock::now();
+    const auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(runEnd - runStart).count();
+    rec.durationMs = (r.durationMs > 0) ? r.durationMs : static_cast<long long>(elapsedMs);
+
+    // attempt
+    rec.attempt = r.attempt; 
+
+    // summary fields
+    rec.fields["status"]       = std::to_string(static_cast<int>(r.status));
+    rec.fields["message"]      = r.message;
+    rec.fields["exec_type"]    = std::to_string(static_cast<int>(cfg.execType));
+    rec.fields["exit_code"]    = std::to_string(r.exitCode);
+    rec.fields["attempt"]      = std::to_string(r.attempt);
+    rec.fields["max_attempts"] = std::to_string(r.maxAttempts);
+
+    // stdout/stderr：事件里别塞正文，先塞字节数（正文交给 TaskLogBuffer / stdout stream）
+    rec.fields["stdout_bytes"] = std::to_string(r.stdoutData.size());
+    rec.fields["stderr_bytes"] = std::to_string(r.stderrData.size());
+
+    // remote worker info（如果有）
+    if (!r.workerId.empty())   rec.fields["worker_id"]   = r.workerId;
+    if (!r.workerHost.empty()) rec.fields["worker_host"] = r.workerHost;
+    if (r.workerPort != 0)     rec.fields["worker_port"] = std::to_string(r.workerPort);
+
+    core::LogManager::instance().emit(rec);
+
+    return r;
 }
 
 void TaskRunner::registerLocalTask(const std::string &key, LocalTaskFn fn)
@@ -30,6 +72,12 @@ void TaskRunner::registerLocalTask(const std::string &key, LocalTaskFn fn)
     LocalTaskRegistry::instance().registerTask(key, std::move(fn));
 }
 
+// ... existing code ...
+
+/// \brief 带重试机制的任务执行函数
+/// \param cfg 任务配置信息，包括超时设置、重试次数、重试延迟等
+/// \param externalCancelFlag 外部取消标志，当该标志被设置时任务会被取消
+/// \return TaskResult 任务执行结果，包含状态、消息和其他相关信息
 TaskResult TaskRunner::runWithRetry(const TaskConfig &cfg, std::atomic_bool *externalCancelFlag) const
 {
     TaskResult lastResult;
@@ -39,6 +87,7 @@ TaskResult TaskRunner::runWithRetry(const TaskConfig &cfg, std::atomic_bool *ext
     if (maxAttempts <= 0) {
         maxAttempts = 1;
     }
+    lastResult.maxAttempts= maxAttempts;
 
     // 基础重试间隔（<=0 时兜底为 1s）
     auto baseDelay = cfg.retryDelay;
@@ -52,6 +101,8 @@ TaskResult TaskRunner::runWithRetry(const TaskConfig &cfg, std::atomic_bool *ext
             externalCancelFlag->load(std::memory_order_acquire)) {
             lastResult.status  = core::TaskStatus::Canceled;
             lastResult.message = "TaskRunner: canceled before attempt";
+            core::emitEvent(cfg.id, LogLevel::Warn,
+                      "TaskRunner canceled before attempt, attempt=" + std::to_string(attempt + 1) + "/" + std::to_string(maxAttempts));
             return lastResult;
         }
 
@@ -67,8 +118,16 @@ TaskResult TaskRunner::runWithRetry(const TaskConfig &cfg, std::atomic_bool *ext
                      ", deadline=" + std::to_string(deadline.time_since_epoch().count()));
 
         // STEP 3：真正执行一次（内部已负责：超时 / 取消 / 调度策略）
+        core::emitEvent(cfg.id, LogLevel::Info,
+                  "Attempt start " + std::to_string(attempt + 1) + "/" + std::to_string(maxAttempts));
         lastResult = runOneAttempt(cfg, externalCancelFlag, deadline);
-
+        core::emitEvent(cfg.id,
+                  lastResult.ok() ? LogLevel::Info : LogLevel::Warn,
+                  "Attempt end " + std::to_string(attempt + 1) + "/" + std::to_string(maxAttempts) +
+                  ", status=" + std::to_string(static_cast<int>(lastResult.status)) +
+                  ", message=" + lastResult.message);
+         // 添加 attempt 字段
+        lastResult.attempt = attempt + 1;
         // STEP 4：根据结果决定是否结束重试
 
         // 4.1 成功：直接返回
@@ -79,6 +138,8 @@ TaskResult TaskRunner::runWithRetry(const TaskConfig &cfg, std::atomic_bool *ext
         // 4.2 被取消或超时：通常视为“终止条件”，不再重试
         if (lastResult.status == core::TaskStatus::Canceled ||
             lastResult.status == core::TaskStatus::Timeout) {
+            core::emitEvent(cfg.id, LogLevel::Warn,
+                      "Stop retry due to terminal status=" + std::to_string(static_cast<int>(lastResult.status)));
             return lastResult;
         }
 
@@ -96,6 +157,9 @@ TaskResult TaskRunner::runWithRetry(const TaskConfig &cfg, std::atomic_bool *ext
             delay *= (1 << attempt);
         }
 
+        core::emitEvent(cfg.id, LogLevel::Info,
+                  "Retry backoff " + std::to_string(delay.count()) + "ms before next attempt");
+
         auto sleepUntil = SteadyClock::now() + delay;
         while (SteadyClock::now() < sleepUntil) {
             // 等待过程中仍然允许被取消，尽快返回
@@ -103,6 +167,7 @@ TaskResult TaskRunner::runWithRetry(const TaskConfig &cfg, std::atomic_bool *ext
                 externalCancelFlag->load(std::memory_order_acquire)) {
                 lastResult.status  = core::TaskStatus::Canceled;
                 lastResult.message = "TaskRunner: canceled during retry backoff";
+                core::emitEvent(cfg.id, LogLevel::Warn, "Canceled during retry backoff");
                 return lastResult;
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -113,6 +178,8 @@ TaskResult TaskRunner::runWithRetry(const TaskConfig &cfg, std::atomic_bool *ext
     // （可能是 Failed / Canceled / Timeout）
     return lastResult;
 }
+
+// ... existing code ...
 
 TaskResult TaskRunner::runOneAttempt(const TaskConfig &cfg,
                                      std::atomic_bool *externalCancelFlag,

@@ -3,3 +3,4 @@
 #include "auth_handler.h"
 #include "cron_handler.h"
 #include "worker_handler.h"
+#include "log_handler.h"

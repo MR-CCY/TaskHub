@@ -1,5 +1,4 @@
 #include "shell_strategy.h"
-
 #include <unistd.h>
 #include <sys/wait.h>
 #include <signal.h>
@@ -64,6 +63,63 @@ static void drain_fd(int fd, std::string& out, bool& openFlag) {
     }
 }
 
+static void emit_lines_to_log_buffer(const taskhub::core::TaskId& taskId, bool isStdout, const std::string& text) {
+    if (text.empty()) return;
+
+    std::string line;
+    line.reserve(256);
+    for (char c : text) {
+        if (c == '\n') {
+            // push a line (skip pure empty line if you want; here we allow empty lines)
+            if (isStdout) {
+                taskhub::core::LogManager::instance().stdoutLine(taskId, line);
+            } else {
+                taskhub::core::LogManager::instance().stderrLine(taskId, line);
+            }
+            line.clear();
+        } else if (c != '\r') {
+            line.push_back(c);
+        }
+    }
+
+    // trailing line without newline
+    if (!line.empty()) {
+        if (isStdout) {
+            taskhub::core::LogManager::instance().stdoutLine(taskId, line);
+        } else {
+            taskhub::core::LogManager::instance().stderrLine(taskId, line);
+        }
+    }
+}
+
+
+static void emitEvent(const taskhub::core::TaskConfig& cfg,
+                      LogLevel level,
+                      const std::string& msg,
+                      long long durationMs,
+                      int attempt = 1,
+                      const std::unordered_map<std::string, std::string>& extra = {})
+{
+    taskhub::core::LogRecord rec;
+    rec.taskId     = cfg.id;
+    rec.level      = level;
+    rec.stream     = taskhub::core::LogStream::Event;
+    rec.message    = msg;
+    rec.durationMs = static_cast<std::int64_t>(durationMs);
+    rec.attempt    = attempt;
+
+    // common fields (helps filtering/searching)
+    rec.fields["exec_type"] = "Shell";
+    if (!cfg.execCommand.empty()) rec.fields["exec_command"] = cfg.execCommand;
+    if (!cfg.queue.empty())       rec.fields["queue"]        = cfg.queue;
+
+    for (const auto& kv : extra) {
+        rec.fields[kv.first] = kv.second;
+    }
+
+    taskhub::core::LogManager::instance().emit(rec);
+}
+
 /**
  * @brief 执行一个 Shell 命令任务。
  *
@@ -86,14 +142,20 @@ core::TaskResult ShellExecutionStrategy::execute(const core::TaskConfig &cfg,
     if (cfg.execCommand.empty()) {
         r.status  = core::TaskStatus::Failed;
         r.message = "TaskRunner：空Shell命令";
+        // 失败也发一条事件（便于定位）
+        core::emitEvent(cfg, LogLevel::Error, "Shell rejected: empty exec_command", 0);
         return r;
     }
 
     if (cancelFlag && cancelFlag->load(std::memory_order_acquire)) {
         r.status  = core::TaskStatus::Canceled;
         r.message = "TaskRunner：在Shell执行前取消";
+        core::emitEvent(cfg, LogLevel::Warn, "Shell canceled before start", 0);
         return r;
     }
+
+    // start event
+    core::emitEvent(cfg, LogLevel::Info, std::string("Shell start: ") + cfg.execCommand, 0);
 
     // 2) 创建 stdout / stderr 管道以捕获子进程输出
     int outPipe[2]{-1, -1};
@@ -253,6 +315,38 @@ core::TaskResult ShellExecutionStrategy::execute(const core::TaskConfig &cfg,
     // 记录本次执行所花费的时间
     const auto end = SteadyClock::now();
     r.durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+    // ✅ 将 stdout/stderr 按行写入 LogManager buffer（用于 WS 实时订阅/分页拉取）
+    if (cfg.captureOutput) {
+        emit_lines_to_log_buffer(cfg.id, true,  stdoutBuf);
+        emit_lines_to_log_buffer(cfg.id, false, stderrBuf);
+    }
+
+    // ✅ 结束事件（统一可观测性）
+    {
+        const int st = static_cast<int>(r.status);
+        std::string endMsg = "Shell end: status=" + std::to_string(st) +
+                             ", exitCode=" + std::to_string(exitCode) +
+                             ", durationMs=" + std::to_string(r.durationMs);
+        if (!r.message.empty()) {
+            endMsg += ", message=" + r.message;
+        }
+
+        LogLevel lvl = LogLevel::Info;
+        if (r.status == core::TaskStatus::Failed)   lvl = LogLevel::Error;
+        if (r.status == core::TaskStatus::Timeout)  lvl = LogLevel::Warn;
+        if (r.status == core::TaskStatus::Canceled) lvl = LogLevel::Warn;
+
+        core::emitEvent(cfg,
+                  lvl,
+                  endMsg,
+                  r.durationMs,
+                  /*attempt*/1,
+                  {
+                      {"exit_code", std::to_string(exitCode)},
+                      {"status", std::to_string(static_cast<int>(r.status))}
+                  });
+    }
 
     // 输出日志记录执行情况
     Logger::info("ShellExecutionStrategy::execute, id=" + cfg.id.value +

@@ -17,6 +17,7 @@
 #include "worker/worker_registry.h"   
 #include <filesystem>
 #include "worker/worker_heartbeat_client.h"
+#include "core/log_manager.h"
 namespace taskhub {
 
     ServerApp::ServerApp() {
@@ -82,6 +83,10 @@ namespace taskhub {
             worker::WorkerRegistry::instance().startSweeper(std::chrono::seconds(5),
                                                       std::chrono::seconds(60));
         }
+        // 初始化日志管理器
+        int perTaskMaxRecords = Config::instance().get("log.per_task_max_records", 2000);
+        core::LogManager::instance().init(perTaskMaxRecords);
+        Logger::info("LogManager initialized");
         //7.监听8090 端口启动ws服务
         m_wsServer = std::make_unique<WsServer>("0.0.0.0", 8090);
         m_wsServer->start();

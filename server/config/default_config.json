@@ -4,7 +4,7 @@
     "port": 8082
   },
   "work": {
-    "is_work": true,
+    "is_work": false,
     "master_host": "127.0.0.1",
     "master_port": 8082,
     "worker_host": "127.0.0.1",
