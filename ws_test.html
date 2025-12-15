@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>TaskHub WS Test</title>
+<style>
+  body { font-family: monospace; background: #111; color: #eee; }
+  #log { white-space: pre-wrap; border: 1px solid #444; padding: 10px; height: 400px; overflow-y: auto; }
+  input, button { background: #222; color: #eee; border: 1px solid #555; padding: 6px; }
+</style>
+</head>
+<body>
+
+<h2>TaskHub WebSocket Test</h2>
+
+<div>
+  WS URL:
+  <input id="url" size="40" value="ws://127.0.0.1:8090/ws" />
+  <button onclick="connect()">Connect</button>
+  <button onclick="disconnect()">Disconnect</button>
+</div>
+
+<br/>
+
+<div>
+  task_id:
+  <input id="taskId" size="20" value="log_test_1" />
+</div>
+<br/>
+
+<div>
+  Subscribe JSON:
+  <input id="sub" size="80"
+    value='{"op":0,"topic":0,"task_id":"log_test_1"}' />
+  <button onclick="sendSub()">Send</button>
+</div>
+
+<br/>
+
+<div>
+  Unsubscribe JSON:
+  <input id="unsub" size="80"
+    value='{"op":1,"topic":0,"task_id":"log_test_1"}' />
+  <button onclick="sendUnsub()">Send</button>
+</div>
+
+<br/>
+
+<div>
+  Quick buttons:
+  <button onclick="setSub(0)">Sub Logs</button>
+  <button onclick="setSub(1)">Sub Events</button>
+  <button onclick="setUnsub(0)">Unsub Logs</button>
+  <button onclick="setUnsub(1)">Unsub Events</button>
+</div>
+
+<br/>
+
+<div>
+  <button onclick="sendPing()">Ping</button>
+</div>
+
+<br/>
+
+<div id="log"></div>
+
+<script>
+let ws = null;
+const logDiv = document.getElementById("log");
+
+function log(msg) {
+  logDiv.textContent += msg + "\n";
+  logDiv.scrollTop = logDiv.scrollHeight;
+}
+
+function safeJsonParse(text) {
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    return null;
+  }
+}
+
+function connect() {
+  if (ws) {
+    log("Already connected");
+    return;
+  }
+  const url = document.getElementById("url").value;
+  ws = new WebSocket(url);
+
+  ws.onopen = () => log("[WS] connected");
+  ws.onclose = () => { log("[WS] closed"); ws = null; };
+  ws.onerror = (e) => log("[WS] error");
+  ws.onmessage = (e) => {
+    const obj = safeJsonParse(e.data);
+    if (obj) {
+      log("[RECV]\n" + JSON.stringify(obj, null, 2));
+    } else {
+      log("[RECV] " + e.data);
+    }
+  };
+}
+
+function disconnect() {
+  if (ws) ws.close();
+}
+
+function currentTaskId() {
+  return document.getElementById("taskId").value;
+}
+
+function buildCmd(op, topic) {
+  if (op === 2) return JSON.stringify({ op: 2 });
+  return JSON.stringify({ op: op, topic: topic, task_id: currentTaskId() });
+}
+
+function setSub(topic) {
+  document.getElementById("sub").value = buildCmd(0, topic);
+}
+
+function setUnsub(topic) {
+  document.getElementById("unsub").value = buildCmd(1, topic);
+}
+
+function sendJsonFromInput(id) {
+  if (!ws) {
+    log("Not connected");
+    return;
+  }
+  const msg = document.getElementById(id).value;
+  ws.send(msg);
+  log("[SEND] " + msg);
+}
+
+function sendSub() {
+  sendJsonFromInput('sub');
+}
+
+function sendUnsub() {
+  sendJsonFromInput('unsub');
+}
+
+function sendPing() {
+  if (!ws) {
+    log("Not connected");
+    return;
+  }
+  const msg = JSON.stringify({ op: 2 });
+  ws.send(msg);
+  log("[SEND] " + msg);
+}
+</script>
+
+<br/>
+<div>
+  <b>Protocol notes:</b><br/>
+  <ul>
+    <li><b>op</b>: 0 subscribe, 1 unsubscribe, 2 ping</li>
+    <li><b>topic</b>: 0 TaskLogs, 1 TaskEvents</li>
+    <li>fields: <b>op</b>, <b>topic</b>, <b>task_id</b></li>
+  </ul>
+</div>
+
+</body>
+</html>

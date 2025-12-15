@@ -9,7 +9,7 @@
 #include "core/log_manager.h"
 #include "core/log_record.h"
 #include <chrono>
-
+#include "core/ws_log_streamer.h"
 using json = nlohmann::json;
 
 namespace {
@@ -198,6 +198,15 @@ namespace taskhub::runner {
                       result.durationMs,
                       result.attempt,
                       f);
+             ws::WsLogStreamer::instance().pushTaskEvent(
+                        cfg.id.value,
+                        "remote_dispatch",
+                        {
+                            {"worker_id", worker.id},
+                            {"worker_host", worker.host},
+                            {"worker_port", std::to_string(worker.port)}
+                        }
+                    );
         }
 
         if (!resp) {
@@ -229,6 +238,13 @@ namespace taskhub::runner {
                       result.durationMs,
                       result.attempt,
                       f);
+             ws::WsLogStreamer::instance().pushTaskEvent(
+                        cfg.id.value,
+                        "remote_failed",
+                        {
+                            {"reason", "no_available_worker"}
+                        }
+                    );
             return result;
         }
     
@@ -257,6 +273,13 @@ namespace taskhub::runner {
                       result.durationMs,
                       result.attempt,
                       f);
+            ws::WsLogStreamer::instance().pushTaskEvent(
+                        cfg.id.value,
+                        "remote_failed",
+                        {
+                            {"reason", "no_available_worker"}
+                        }
+                    );
             return result;
         }
     
@@ -285,6 +308,13 @@ namespace taskhub::runner {
                       result.durationMs,
                       result.attempt,
                       f);
+            ws::WsLogStreamer::instance().pushTaskEvent(
+                        cfg.id.value,
+                        "remote_failed",
+                        {
+                            {"reason", "no_available_worker"}
+                        }
+                    );
             return result;
         }
         Logger::debug("RemoteExecution: got response: " + resp->body);  

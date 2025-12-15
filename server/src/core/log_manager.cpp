@@ -1,5 +1,5 @@
 #include "log_manager.h"
-
+#include "ws_log_streamer.h"
 namespace taskhub::core {
 
 LogManager& LogManager::instance() {
@@ -15,19 +15,23 @@ void LogManager::init(std::size_t perTaskMaxRecords) {
 void LogManager::emit(const LogRecord& rec) {
     std::lock_guard<std::mutex> lk(_mu);
     if (!_buffer) _buffer = std::make_unique<TaskLogBuffer>(2000);
-    _buffer->append(rec);
+    auto r =_buffer->append(rec);
+    ws::WsLogStreamer::instance().pushLog(r);
 }
 
 void LogManager::stdoutLine(const TaskId& taskId, const std::string& text) {
     std::lock_guard<std::mutex> lk(_mu);
     if (!_buffer) _buffer = std::make_unique<TaskLogBuffer>(2000);
-    _buffer->appendStdout(taskId, text);
+    LogRecord rec =  _buffer->appendStdout(taskId, text);
+    ws::WsLogStreamer::instance().pushLog(rec);
+
 }
 
 void LogManager::stderrLine(const TaskId& taskId, const std::string& text) {
     std::lock_guard<std::mutex> lk(_mu);
     if (!_buffer) _buffer = std::make_unique<TaskLogBuffer>(2000);
-    _buffer->appendStderr(taskId, text);
+    LogRecord rec =  _buffer->appendStderr(taskId, text);
+    ws::WsLogStreamer::instance().pushLog(rec);
 }
 
 TaskLogBuffer::QueryResult LogManager::query(const TaskId& taskId, std::uint64_t fromSeq, std::size_t limit) const {

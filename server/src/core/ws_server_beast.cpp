@@ -1,6 +1,9 @@
 #include "ws_server_beast.h"
 #include "logger.h"
 #include "ws_hub.h"
+#include "ws_protocol.h"
+#include <boost/beast/core/buffers_to_string.hpp>
+#include <json.hpp>
 namespace taskhub {
     WsSession::WsSession(tcp::socket socket)
     : ws_(std::move(socket)) {
@@ -33,6 +36,25 @@ namespace taskhub {
             Logger::error("WsSession send error: " + ec.message());
         }
     }
+    void WsSession::send_text(const std::string &text)
+    {
+        send(text);
+    }
+    bool WsSession::subscribed(const std::string &channel) const
+    {
+        std::lock_guard<std::mutex> lock(sub_mtx_);
+        return subscriptions_.count(channel) > 0;
+    }
+    void WsSession::subscribe(const std::string &channel)
+    {
+        std::lock_guard<std::mutex> lock(sub_mtx_);
+        subscriptions_.insert(channel);
+    }
+    void WsSession::unsubscribe(const std::string &channel)
+    {
+        std::lock_guard<std::mutex> lock(sub_mtx_);
+        subscriptions_.erase(channel);
+    }
 
 
     void WsSession::do_read()
@@ -54,12 +76,54 @@ namespace taskhub {
             WsHub::instance().remove_session(shared_from_this());
             return;
         }
-    
-        // 当前我们不需要处理客户端发来的内容，可以忽略
+
+        // 解析客户端指令（订阅/退订等）
+        const std::string payload = beast::buffers_to_string(buffer_.data());
         buffer_.consume(buffer_.size());
-    
-        // 继续读下一条
-        do_read();
+        handle_command(payload);
+        do_read();  // 继续读下一条
+    }
+    void WsSession::handle_command(const std::string &payload)
+    {
+        try {
+            auto j = nlohmann::json::parse(payload);
+            auto cmd = ws::parseClientCommand(j);
+            switch (cmd.op) {
+                case ws::WsOp::Subscribe: {
+                    std::string ch;
+                    if (cmd.topic == ws::WsTopic::TaskLogs) {
+                        ch = ws::channelTaskLogs(cmd.taskId);
+                    } else if (cmd.topic == ws::WsTopic::TaskEvents) {
+                        ch = ws::channelTaskEvents(cmd.taskId);
+                    }
+                    if (!ch.empty()) {
+                        subscribe(ch);
+                    }
+                    break;
+                }
+                case ws::WsOp::Unsubscribe: {
+                    std::string ch;
+                    if (cmd.topic == ws::WsTopic::TaskLogs) {
+                        ch = ws::channelTaskLogs(cmd.taskId);
+                    } else if (cmd.topic == ws::WsTopic::TaskEvents) {
+                        ch = ws::channelTaskEvents(cmd.taskId);
+                    }
+                    if (!ch.empty()) {
+                        unsubscribe(ch);
+                    }
+                    break;
+                }
+                case ws::WsOp::Ping:
+                    send_text(R"({"type":"pong"})");
+                    break;
+                default:
+                    break;
+            }
+        } catch (const std::exception& e) {
+            Logger::error(std::string("WsSession handle_command parse error: ") + e.what());
+        } catch (...) {
+            Logger::error("WsSession handle_command parse error: unknown");
+        }
     }
 
     WsServer::WsServer(const std::string &host, unsigned short port)

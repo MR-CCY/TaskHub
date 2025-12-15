@@ -6,6 +6,8 @@
 #include <thread>
 #include <atomic>
 #include <string>
+#include <unordered_set>
+#include <mutex>
 
 namespace taskhub {
 
@@ -20,14 +22,22 @@ public:
 
     void start();
     void send(const std::string& text);   // 给当前 session 发消息
+    void send_text(const std::string& text); // alias for send
+    bool subscribed(const std::string& channel) const;
 
 private:
+    void handle_command(const std::string& payload);
+    void subscribe(const std::string& channel);
+    void unsubscribe(const std::string& channel);
+
     void do_read();
     void on_read(beast::error_code ec, std::size_t bytes_transferred);
 
     websocket::stream<tcp::socket> ws_;
     beast::flat_buffer buffer_;
     std::mutex send_mtx_;
+    mutable std::mutex sub_mtx_;
+    std::unordered_set<std::string> subscriptions_;
 };
 
 class WsServer {

@@ -44,4 +44,15 @@ namespace taskhub {
             }
         }
     }
+    void WsHub::broadcast(const std::string &channel, const std::string &text)
+    {
+        std::lock_guard<std::mutex> lock(mtx_);
+        for (auto& weak : sessions_) {
+            if (auto s = weak.lock()) {
+                if (s->subscribed(channel)) {
+                    s->send_text(text);
+                }
+            }
+        }
+    }
 }

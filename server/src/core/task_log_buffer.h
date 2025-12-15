@@ -21,11 +21,11 @@ public:
     explicit TaskLogBuffer(std::size_t perTaskMaxRecords = 2000);
 
     // 追加一条结构化日志
-    void append(const LogRecord& rec);
+    LogRecord append(const LogRecord& rec);
 
     // 便捷：追加 stdout/stderr（会转成 LogRecord）
-    void appendStdout(const TaskId& taskId, const std::string& text);
-    void appendStderr(const TaskId& taskId, const std::string& text);
+    LogRecord  appendStdout(const TaskId& taskId, const std::string& text);
+    LogRecord  appendStderr(const TaskId& taskId, const std::string& text);
 
     // 分页拉取：fromSeq 起（包含），最多 limit 条
     QueryResult get(const TaskId& taskId, std::uint64_t fromSeq, std::size_t limit) const;

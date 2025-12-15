@@ -3,6 +3,7 @@
 #include <unordered_set>
 #include "core/logger.h"
 #include "dag_thread_pool.h"
+#include "core/ws_log_streamer.h"
 namespace taskhub::dag {
     DagExecutor::DagExecutor(runner::TaskRunner &runner):
     _runner(runner)
@@ -114,6 +115,14 @@ namespace taskhub::dag {
                 std::lock_guard<std::mutex> lk(_readyMutex);
                 _readyQueue.push(node->id());
                 Logger::info("  -> push to readyQueue: " + node->id().value);
+                // WS event: node becomes ready
+                ws::WsLogStreamer::instance().pushTaskEvent(
+                    node->id().value,
+                    "dag_node_ready",
+                    {
+                        {"indegree", std::to_string(node->indegree())}
+                    }
+                );
             }
         }
     }
@@ -163,7 +172,16 @@ namespace taskhub::dag {
     
         ctx.setNodeStatus(id, core::TaskStatus::Running);
         ctx.incrementRunning();
-    
+        // WS event: node execution starts
+        ws::WsLogStreamer::instance().pushTaskEvent(
+            id.value,
+            "dag_node_start",
+            {
+                {"exec_type", std::to_string(static_cast<int>(node->runnerConfig().execType))},
+                {"queue", node->runnerConfig().queue}
+            }
+        );
+
         dag::DagThreadPool::instance().post([this, &ctx, id]() {
             auto nodeInner = ctx.graph().getNode(id);
             core::TaskResult result;
@@ -189,6 +207,16 @@ namespace taskhub::dag {
         }
         ctx.setTaskResults(id, result);
         auto st = result.status;
+        // WS event: node finished (first-class status)
+        ws::WsLogStreamer::instance().pushTaskEvent(
+            id.value,
+            "dag_node_end",
+            {
+                {"status", std::to_string(static_cast<int>(st))},
+                {"duration_ms", std::to_string(result.durationMs)},
+                {"exit_code", std::to_string(result.exitCode)}
+            }
+        );
         if (result.ok()) {
             ctx.setNodeStatus(id, core::TaskStatus::Success);
             // ✅ 先处理下游，把新的 ready 节点全部入队
@@ -205,8 +233,19 @@ namespace taskhub::dag {
 
                 int newDeg = child->decrementIndegree();
                 if (newDeg == 0) {
-                    std::lock_guard<std::mutex> lk(_readyMutex);
-                    _readyQueue.push(childId);
+                    {
+                        std::lock_guard<std::mutex> lk(_readyMutex);
+                        _readyQueue.push(childId);
+                    }
+                    // WS event: child becomes ready
+                    ws::WsLogStreamer::instance().pushTaskEvent(
+                        childId.value,
+                        "dag_node_ready",
+                        {
+                            {"indegree", "0"},
+                            {"parent", id.value}
+                        }
+                    );
                 }
             }
         } else {
@@ -254,6 +293,15 @@ namespace taskhub::dag {
                         }
 
                         ctx.setNodeStatus(childId, core::TaskStatus::Skipped);
+                        // WS event: node skipped due to upstream failure
+                        ws::WsLogStreamer::instance().pushTaskEvent(
+                            childId.value,
+                            "dag_node_skipped",
+                            {
+                                {"reason", "skip_downstream"},
+                                {"upstream", id.value}
+                            }
+                        );
                         for (const auto& grandChildId : child->downstream()) {
                             if (visited.insert(grandChildId.value).second) {
                                 toVisit.push(grandChildId);

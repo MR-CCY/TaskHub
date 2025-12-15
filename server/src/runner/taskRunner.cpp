@@ -10,6 +10,7 @@
 #include "local_task_registry.h"
 #include "execution/execution_registry.h"
 #include "core/log_manager.h"
+#include "core/ws_log_streamer.h"
 namespace taskhub::runner {
 using namespace core;
 
@@ -27,7 +28,14 @@ TaskResult TaskRunner::run(const TaskConfig &cfg, std::atomic_bool *cancelFlag) 
 
     // NOTE: if taskId is empty in some flows, you can still emit to Event stream; downstream may treat it as global.
     core::emitEvent(cfg.id, LogLevel::Info,"TaskRunner::run start, execType=" + std::to_string(static_cast<int>(cfg.execType)));
-
+    ws::WsLogStreamer::instance().pushTaskEvent(
+        cfg.id.value,
+        "task_start",
+        {
+            {"exec_type", TaskExecTypetoString(cfg.execType)},
+            {"queue", cfg.queue}
+        }
+    );
     TaskResult r = runWithRetry(cfg, cancelFlag);
 
     // ===== M12: end event (structured) =====
@@ -63,7 +71,17 @@ TaskResult TaskRunner::run(const TaskConfig &cfg, std::atomic_bool *cancelFlag) 
     if (r.workerPort != 0)     rec.fields["worker_port"] = std::to_string(r.workerPort);
 
     core::LogManager::instance().emit(rec);
-
+    ws::WsLogStreamer::instance().pushTaskEvent(
+        cfg.id.value,
+        "task_end",
+        {
+            {"status",    std::to_string(static_cast<int>(r.status))},
+            {"message",   r.message},
+            {"duration_ms", rec.durationMs},
+            {"attempt",   r.attempt},
+            {"max_attempts", r.maxAttempts}
+        }
+    );
     return r;
 }
 
@@ -116,6 +134,14 @@ TaskResult TaskRunner::runWithRetry(const TaskConfig &cfg, std::atomic_bool *ext
                      ", name=" + cfg.name +
                      ", attempt=" + std::to_string(attempt + 1) + "/" + std::to_string(maxAttempts) +
                      ", deadline=" + std::to_string(deadline.time_since_epoch().count()));
+        ws::WsLogStreamer::instance().pushTaskEvent(
+            cfg.id.value,
+            "attempt_start",
+            {
+                {"attempt", std::to_string(attempt + 1)},
+                {"max_attempts", std::to_string(maxAttempts)}
+            }
+        );
 
         // STEP 3：真正执行一次（内部已负责：超时 / 取消 / 调度策略）
         core::emitEvent(cfg.id, LogLevel::Info,
@@ -126,6 +152,15 @@ TaskResult TaskRunner::runWithRetry(const TaskConfig &cfg, std::atomic_bool *ext
                   "Attempt end " + std::to_string(attempt + 1) + "/" + std::to_string(maxAttempts) +
                   ", status=" + std::to_string(static_cast<int>(lastResult.status)) +
                   ", message=" + lastResult.message);
+        ws::WsLogStreamer::instance().pushTaskEvent(
+            cfg.id.value,
+            "attempt_end",
+            {
+                {"attempt", std::to_string(attempt + 1)},
+                {"status", std::to_string(static_cast<int>(lastResult.status))},
+                {"message", lastResult.message}
+            }
+        );
          // 添加 attempt 字段
         lastResult.attempt = attempt + 1;
         // STEP 4：根据结果决定是否结束重试
