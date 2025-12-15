@@ -20,9 +20,9 @@ enum class WsOp {
 
 // 订阅主题
 enum class WsTopic {
-    TaskLogs,
-    TaskEvents,
-    Unknown
+    TaskLogs = 0,
+    TaskEvents = 1,
+    Unknown = 2
 };
 
 // ---------- 客户端指令 ----------

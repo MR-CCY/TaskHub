@@ -13,8 +13,6 @@ WsLogStreamer &WsLogStreamer::instance()
 
 void WsLogStreamer::pushLog(const core::LogRecord &record)
 {
-   
-
    // TODO-1: 只推 task_id 相关的 channel（先不做全局广播，避免噪音）
    const std::string ch = channelTaskLogs(record.taskId.value);
 

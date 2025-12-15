@@ -68,14 +68,14 @@ TaskResult TaskRunner::run(const TaskConfig &cfg, std::atomic_bool *cancelFlag) 
     // remote worker info（如果有）
     if (!r.workerId.empty())   rec.fields["worker_id"]   = r.workerId;
     if (!r.workerHost.empty()) rec.fields["worker_host"] = r.workerHost;
-    if (r.workerPort != 0)     rec.fields["worker_port"] = std::to_string(r.workerPort);
+    if (r.workerPort != 0)     rec.fields["worker_port"] = r.workerPort;
 
     core::LogManager::instance().emit(rec);
     ws::WsLogStreamer::instance().pushTaskEvent(
         cfg.id.value,
         "task_end",
         {
-            {"status",    std::to_string(static_cast<int>(r.status))},
+            {"status",    TaskStatusTypetoString(r.status)},
             {"message",   r.message},
             {"duration_ms", rec.durationMs},
             {"attempt",   r.attempt},
@@ -138,8 +138,8 @@ TaskResult TaskRunner::runWithRetry(const TaskConfig &cfg, std::atomic_bool *ext
             cfg.id.value,
             "attempt_start",
             {
-                {"attempt", std::to_string(attempt + 1)},
-                {"max_attempts", std::to_string(maxAttempts)}
+                {"attempt", attempt + 1},
+                {"max_attempts", maxAttempts}
             }
         );
 
@@ -156,8 +156,8 @@ TaskResult TaskRunner::runWithRetry(const TaskConfig &cfg, std::atomic_bool *ext
             cfg.id.value,
             "attempt_end",
             {
-                {"attempt", std::to_string(attempt + 1)},
-                {"status", std::to_string(static_cast<int>(lastResult.status))},
+                {"attempt", attempt + 1},
+                {"status", TaskStatusTypetoString(lastResult.status)},
                 {"message", lastResult.message}
             }
         );

@@ -1,4 +1,6 @@
 #pragma once
+#include <algorithm>
+#include <cctype>
 #include <string>
 
 namespace taskhub::core {
@@ -18,6 +20,33 @@ struct TaskId {
     bool empty() const { return value.empty(); }
     bool operator==(const TaskId& other) const { return value == other.value; }
     bool operator<(const TaskId& other) const { return value < other.value; }
+};
+inline std::string TaskStatusTypetoString(TaskStatus type){
+   switch (type)
+   {
+        case TaskStatus::Pending: return "Pending";
+        case TaskStatus::Running: return "Running";
+        case TaskStatus::Success: return "Success";
+        case TaskStatus::Failed: return "Failed";
+        case TaskStatus::Skipped: return "Skipped";
+        case TaskStatus::Canceled: return "Canceled";
+        case TaskStatus::Timeout: return "Timeout";
+        default: return "Unknown";
+   }
+};
+inline TaskStatus TaskExecTypetoStatus(std::string str){
+    std::transform(str.begin(), str.end(), str.begin(),
+                   [](unsigned char c){ return std::tolower(c); });
+    
+   if (str == "unknown") return TaskStatus::Failed;
+   if (str == "pending") return TaskStatus::Pending;
+   if (str == "running") return TaskStatus::Running;
+   if (str == "success") return TaskStatus::Success;
+   if (str == "failed") return TaskStatus::Failed;
+   if (str == "skipped") return TaskStatus::Skipped;
+   if (str == "canceled") return TaskStatus::Canceled;
+   if (str == "timeout") return TaskStatus::Timeout;
+   return TaskStatus::Failed; // default
 };
 
 } // namespace taskhub::core

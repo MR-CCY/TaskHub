@@ -120,7 +120,7 @@ namespace taskhub::dag {
                     node->id().value,
                     "dag_node_ready",
                     {
-                        {"indegree", std::to_string(node->indegree())}
+                        {"indegree", node->indegree()}
                     }
                 );
             }
@@ -177,7 +177,7 @@ namespace taskhub::dag {
             id.value,
             "dag_node_start",
             {
-                {"exec_type", std::to_string(static_cast<int>(node->runnerConfig().execType))},
+                {"exec_type", TaskExecTypetoString(node->runnerConfig().execType)},
                 {"queue", node->runnerConfig().queue}
             }
         );
@@ -212,9 +212,9 @@ namespace taskhub::dag {
             id.value,
             "dag_node_end",
             {
-                {"status", std::to_string(static_cast<int>(st))},
-                {"duration_ms", std::to_string(result.durationMs)},
-                {"exit_code", std::to_string(result.exitCode)}
+                {"status", core::TaskStatusTypetoString(st)},
+                {"duration_ms", result.durationMs},
+                {"exit_code", result.exitCode}
             }
         );
         if (result.ok()) {
@@ -242,7 +242,7 @@ namespace taskhub::dag {
                         childId.value,
                         "dag_node_ready",
                         {
-                            {"indegree", "0"},
+                            {"indegree", 0},
                             {"parent", id.value}
                         }
                     );

@@ -191,7 +191,7 @@ namespace taskhub::runner {
         result.durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
         {
             auto f = base_remote_fields(cfg, queue, worker.id, worker.host, worker.port);
-            f["duration_ms"] = std::to_string(result.durationMs);
+            f["duration_ms"] = result.durationMs;
             core::emitEvent(cfg,
                       LogLevel::Debug,
                       "RemoteExecution: http call finished",
@@ -204,7 +204,7 @@ namespace taskhub::runner {
                         {
                             {"worker_id", worker.id},
                             {"worker_host", worker.host},
-                            {"worker_port", std::to_string(worker.port)}
+                            {"worker_port", worker.port}
                         }
                     );
         }
@@ -224,8 +224,8 @@ namespace taskhub::runner {
             Logger::error(result.message);
 
             auto f = base_remote_fields(cfg, queue, worker.id, worker.host, worker.port);
-            f["status"] = std::to_string(static_cast<int>(result.status));
-            f["duration_ms"] = std::to_string(result.durationMs);
+            f["status"] = core::TaskStatusTypetoString(result.status);
+            f["duration_ms"] =result.durationMs;
             core::emitEvent(cfg,
                       LogLevel::Error,
                       "RemoteExecution: dispatch end (http no response)",
@@ -258,9 +258,9 @@ namespace taskhub::runner {
             push_lines_to_buffer(cfg.id, /*isStdout*/false, result.stderrData);
 
             auto f = base_remote_fields(cfg, queue, worker.id, worker.host, worker.port);
-            f["http_status"] = std::to_string(resp->status);
-            f["status"] = std::to_string(static_cast<int>(result.status));
-            f["duration_ms"] = std::to_string(result.durationMs);
+            f["http_status"] = resp->status;
+            f["status"] = TaskStatusTypetoString(result.status);
+            f["duration_ms"] = result.durationMs;
             emitEvent(cfg,
                       LogLevel::Error,
                       "RemoteExecution: dispatch end (http non-200)",

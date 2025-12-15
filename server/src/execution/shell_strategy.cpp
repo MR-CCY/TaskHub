@@ -93,33 +93,6 @@ static void emit_lines_to_log_buffer(const taskhub::core::TaskId& taskId, bool i
 }
 
 
-static void emitEvent(const taskhub::core::TaskConfig& cfg,
-                      LogLevel level,
-                      const std::string& msg,
-                      long long durationMs,
-                      int attempt = 1,
-                      const std::unordered_map<std::string, std::string>& extra = {})
-{
-    taskhub::core::LogRecord rec;
-    rec.taskId     = cfg.id;
-    rec.level      = level;
-    rec.stream     = taskhub::core::LogStream::Event;
-    rec.message    = msg;
-    rec.durationMs = static_cast<std::int64_t>(durationMs);
-    rec.attempt    = attempt;
-
-    // common fields (helps filtering/searching)
-    rec.fields["exec_type"] = "Shell";
-    if (!cfg.execCommand.empty()) rec.fields["exec_command"] = cfg.execCommand;
-    if (!cfg.queue.empty())       rec.fields["queue"]        = cfg.queue;
-
-    for (const auto& kv : extra) {
-        rec.fields[kv.first] = kv.second;
-    }
-
-    taskhub::core::LogManager::instance().emit(rec);
-}
-
 /**
  * @brief 执行一个 Shell 命令任务。
  *
@@ -344,7 +317,7 @@ core::TaskResult ShellExecutionStrategy::execute(const core::TaskConfig &cfg,
                   /*attempt*/1,
                   {
                       {"exit_code", std::to_string(exitCode)},
-                      {"status", std::to_string(static_cast<int>(r.status))}
+                      {"status", TaskStatusTypetoString(r.status)}
                   });
     }
 
