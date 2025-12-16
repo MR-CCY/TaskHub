@@ -1,7 +1,9 @@
 #pragma once
 
 #include <string>
-
+#include <chrono>
+#include <iomanip>
+#include <sstream>
 namespace taskhub {
 namespace utils {
 
@@ -10,6 +12,8 @@ std::string now_string();
 
 // 当前时间戳（毫秒）
 long long now_millis();
+
+std::string formatTimestampMs(const std::chrono::system_clock::time_point& ts);
 
 std::pair<int, std::string> run_command(const std::string& cmd);
 } // namespace utils

@@ -68,7 +68,7 @@ TaskResult TaskRunner::run(const TaskConfig &cfg, std::atomic_bool *cancelFlag) 
     // remote worker info（如果有）
     if (!r.workerId.empty())   rec.fields["worker_id"]   = r.workerId;
     if (!r.workerHost.empty()) rec.fields["worker_host"] = r.workerHost;
-    if (r.workerPort != 0)     rec.fields["worker_port"] = r.workerPort;
+    if (r.workerPort != 0)     rec.fields["worker_port"] = std::to_string(r.workerPort);
 
     core::LogManager::instance().emit(rec);
     ws::WsLogStreamer::instance().pushTaskEvent(

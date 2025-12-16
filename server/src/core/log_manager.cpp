@@ -13,25 +13,79 @@ void LogManager::init(std::size_t perTaskMaxRecords) {
 }
 
 void LogManager::emit(const LogRecord& rec) {
+    LogRecord stored;
+    std::vector<std::shared_ptr<ILogSink>> sinksSnapshot;
+
+    {
+        std::lock_guard<std::mutex> lk(_mu);
+        if (!_buffer) _buffer = std::make_unique<TaskLogBuffer>(2000);
+
+        // ✅ append 返回带 seq 的记录
+        stored = _buffer->append(rec);
+
+        // ✅ 拷贝 sinks（避免锁内做 IO）
+        sinksSnapshot = _sinks;
+    }
+
+    // ✅ WS 推送（用带 seq 的 stored）
+    ws::WsLogStreamer::instance().pushLog(stored);
+
+    // ✅ sinks 消费
+    for (auto& s : sinksSnapshot) {
+        if (s) s->consume(stored);
+    }
+}
+
+void LogManager::addSink(std::shared_ptr<ILogSink> sink)
+{
+    if (!sink) return;
     std::lock_guard<std::mutex> lk(_mu);
-    if (!_buffer) _buffer = std::make_unique<TaskLogBuffer>(2000);
-    auto r =_buffer->append(rec);
-    ws::WsLogStreamer::instance().pushLog(r);
+    _sinks.push_back(std::move(sink));
+}
+
+void LogManager::clearSinks()
+{
+    std::lock_guard<std::mutex> lk(_mu);
+    _sinks.clear();
+}
+
+void LogManager::setSinks(std::vector<std::shared_ptr<ILogSink>> sinks)
+{
+    std::lock_guard<std::mutex> lk(_mu);
+    _sinks = std::move(sinks);
 }
 
 void LogManager::stdoutLine(const TaskId& taskId, const std::string& text) {
-    std::lock_guard<std::mutex> lk(_mu);
-    if (!_buffer) _buffer = std::make_unique<TaskLogBuffer>(2000);
-    LogRecord rec =  _buffer->appendStdout(taskId, text);
-    ws::WsLogStreamer::instance().pushLog(rec);
+    LogRecord stored;
+    std::vector<std::shared_ptr<ILogSink>> sinksSnapshot;
 
+    {
+        std::lock_guard<std::mutex> lk(_mu);
+        if (!_buffer) _buffer = std::make_unique<TaskLogBuffer>(2000);
+
+        // ✅ appendStdout 返回带 seq 的记录（你也要把它内部改成返回 stored）
+        stored = _buffer->appendStdout(taskId, text);
+        sinksSnapshot = _sinks;
+    }
+
+    ws::WsLogStreamer::instance().pushLog(stored);
+    for (auto& s : sinksSnapshot) if (s) s->consume(stored);
 }
 
 void LogManager::stderrLine(const TaskId& taskId, const std::string& text) {
-    std::lock_guard<std::mutex> lk(_mu);
-    if (!_buffer) _buffer = std::make_unique<TaskLogBuffer>(2000);
-    LogRecord rec =  _buffer->appendStderr(taskId, text);
-    ws::WsLogStreamer::instance().pushLog(rec);
+    LogRecord stored;
+    std::vector<std::shared_ptr<ILogSink>> sinksSnapshot;
+
+    {
+        std::lock_guard<std::mutex> lk(_mu);
+        if (!_buffer) _buffer = std::make_unique<TaskLogBuffer>(2000);
+
+        stored = _buffer->appendStderr(taskId, text);
+        sinksSnapshot = _sinks;
+    }
+
+    ws::WsLogStreamer::instance().pushLog(stored);
+    for (auto& s : sinksSnapshot) if (s) s->consume(stored);
 }
 
 TaskLogBuffer::QueryResult LogManager::query(const TaskId& taskId, std::uint64_t fromSeq, std::size_t limit) const {

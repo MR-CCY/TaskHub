@@ -191,7 +191,7 @@ namespace taskhub::runner {
         result.durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
         {
             auto f = base_remote_fields(cfg, queue, worker.id, worker.host, worker.port);
-            f["duration_ms"] = result.durationMs;
+            f["duration_ms"] = std::to_string(result.durationMs);
             core::emitEvent(cfg,
                       LogLevel::Debug,
                       "RemoteExecution: http call finished",
@@ -204,7 +204,7 @@ namespace taskhub::runner {
                         {
                             {"worker_id", worker.id},
                             {"worker_host", worker.host},
-                            {"worker_port", worker.port}
+                            {"worker_port", std::to_string(worker.port)}
                         }
                     );
         }
@@ -223,9 +223,10 @@ namespace taskhub::runner {
             }
             Logger::error(result.message);
 
+            
             auto f = base_remote_fields(cfg, queue, worker.id, worker.host, worker.port);
             f["status"] = core::TaskStatusTypetoString(result.status);
-            f["duration_ms"] =result.durationMs;
+            f["duration_ms"] = std::to_string(result.durationMs);
             core::emitEvent(cfg,
                       LogLevel::Error,
                       "RemoteExecution: dispatch end (http no response)",
@@ -238,13 +239,24 @@ namespace taskhub::runner {
                       result.durationMs,
                       result.attempt,
                       f);
-             ws::WsLogStreamer::instance().pushTaskEvent(
-                        cfg.id.value,
-                        "remote_failed",
-                        {
-                            {"reason", "no_available_worker"}
-                        }
-                    );
+            std::string reason;
+            if (result.status == core::TaskStatus::Canceled) {
+                reason = "canceled";
+            } else if (result.status == core::TaskStatus::Timeout) {
+                reason = "timeout";
+            } else {
+                reason = "no_response";
+            }
+            ws::WsLogStreamer::instance().pushTaskEvent(
+                cfg.id.value,
+                "remote_failed",
+                {
+                    {"reason", reason},
+                    {"worker_id", worker.id},
+                    {"worker_host", worker.host},
+                    {"worker_port", std::to_string(worker.port)}
+                }
+            );
             return result;
         }
     
@@ -258,28 +270,32 @@ namespace taskhub::runner {
             push_lines_to_buffer(cfg.id, /*isStdout*/false, result.stderrData);
 
             auto f = base_remote_fields(cfg, queue, worker.id, worker.host, worker.port);
-            f["http_status"] = resp->status;
+            f["http_status"] = std::to_string(resp->status);
             f["status"] = TaskStatusTypetoString(result.status);
-            f["duration_ms"] = result.durationMs;
-            emitEvent(cfg,
+            f["duration_ms"] = std::to_string(result.durationMs);
+            core::emitEvent(cfg,
                       LogLevel::Error,
                       "RemoteExecution: dispatch end (http non-200)",
                       result.durationMs,
                       result.attempt,
                       f);
-            emitEvent(cfg,
+            core::emitEvent(cfg,
                       LogLevel::Error,
                       result.message,
                       result.durationMs,
                       result.attempt,
                       f);
             ws::WsLogStreamer::instance().pushTaskEvent(
-                        cfg.id.value,
-                        "remote_failed",
-                        {
-                            {"reason", "no_available_worker"}
-                        }
-                    );
+                cfg.id.value,
+                "remote_failed",
+                {
+                    {"reason", "http_status"},
+                    {"http_status", std::to_string(resp->status)},
+                    {"worker_id", worker.id},
+                    {"worker_host", worker.host},
+                    {"worker_port", std::to_string(worker.port)}
+                }
+            );
             return result;
         }
     
@@ -296,25 +312,28 @@ namespace taskhub::runner {
             auto f = base_remote_fields(cfg, queue, worker.id, worker.host, worker.port);
             f["status"] = std::to_string(static_cast<int>(result.status));
             f["duration_ms"] = std::to_string(result.durationMs);
-            emitEvent(cfg,
+            core::emitEvent(cfg,
                       LogLevel::Error,
                       "RemoteExecution: dispatch end (invalid json)",
                       result.durationMs,
                       result.attempt,
                       f);
-            emitEvent(cfg,
+            core::emitEvent(cfg,
                       LogLevel::Error,
                       result.message,
                       result.durationMs,
                       result.attempt,
                       f);
             ws::WsLogStreamer::instance().pushTaskEvent(
-                        cfg.id.value,
-                        "remote_failed",
-                        {
-                            {"reason", "no_available_worker"}
-                        }
-                    );
+                cfg.id.value,
+                "remote_failed",
+                {
+                    {"reason", "invalid_json"},
+                    {"worker_id", worker.id},
+                    {"worker_host", worker.host},
+                    {"worker_port", std::to_string(worker.port)}
+                }
+            );
             return result;
         }
         Logger::debug("RemoteExecution: got response: " + resp->body);  
@@ -344,7 +363,7 @@ namespace taskhub::runner {
             if (!parsed.message.empty()) {
                 f["message"] = parsed.message;
             }
-            emitEvent(cfg,
+            core::emitEvent(cfg,
                       parsed.ok() ? LogLevel::Info : LogLevel::Warn,
                       "RemoteExecution: dispatch end",
                       parsed.durationMs,

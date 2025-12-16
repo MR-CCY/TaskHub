@@ -6,7 +6,7 @@ namespace taskhub::core {
 class ILogSink {
 public:
     virtual ~ILogSink() = default;
-    virtual void onLog(const LogRecord& r) = 0;
+    virtual void consume(const LogRecord& rec) = 0;
 };
 
 } // namespace taskhub::core

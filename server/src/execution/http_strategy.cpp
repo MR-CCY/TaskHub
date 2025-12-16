@@ -173,13 +173,13 @@ inline void push_text_as_stdout(const taskhub::core::TaskConfig& cfg, const std:
                                                                : LogLevel::Warn,
                         "http dispatch end", r.durationMs, 1,
                         {
-                            {"task_status", std::to_string(static_cast<int>(r.status))},
+                            {"task_status", core::TaskStatusTypetoString(r.status)},
                             {"message", r.message}
                         });
 
         Logger::info("HttpExecutionStrategy::execute, id=" + cfg.id.value +
                     ", name=" + cfg.name +
-                    ", status=" + std::to_string(static_cast<int>(r.status)) +
+                    ", status=" + core::TaskStatusTypetoString(r.status) +
                     ", message=" + r.message +
                     ", duration=" + std::to_string(r.durationMs) + "ms");
         return r;

@@ -1,0 +1,25 @@
+ts_ms=[2025-12-16 17:37:25.456] level=[INFO] stream=None task_id=_system seq=79 msg="Worker heartbeat request: {\"id\":\"worker-1\",\"running_tasks\":0}" source=Logger
+ts_ms=[2025-12-16 17:37:25.816] level=[DEBUG] stream=None task_id=_system seq=80 msg="Pruning dead workers..." source=Logger
+ts_ms=[2025-12-16 17:37:27.464] level=[INFO] stream=None task_id=_system seq=81 msg="Worker heartbeat request: {\"id\":\"worker-1\",\"running_tasks\":0}" source=Logger
+ts_ms=[2025-12-16 17:37:29.470] level=[INFO] stream=None task_id=_system seq=82 msg="Worker heartbeat request: {\"id\":\"worker-1\",\"running_tasks\":0}" source=Logger
+ts_ms=[2025-12-16 17:37:30.931] level=[DEBUG] stream=None task_id=_system seq=83 msg="Pruning dead workers..." source=Logger
+ts_ms=[2025-12-16 17:37:31.477] level=[INFO] stream=None task_id=_system seq=84 msg="Worker heartbeat request: {\"id\":\"worker-1\",\"running_tasks\":0}" source=Logger
+ts_ms=[2025-12-16 17:37:33.483] level=[INFO] stream=None task_id=_system seq=85 msg="Worker heartbeat request: {\"id\":\"worker-1\",\"running_tasks\":0}" source=Logger
+ts_ms=[2025-12-16 17:37:35.491] level=[INFO] stream=None task_id=_system seq=86 msg="Worker heartbeat request: {\"id\":\"worker-1\",\"running_tasks\":0}" source=Logger
+ts_ms=[2025-12-16 17:37:36.020] level=[DEBUG] stream=None task_id=_system seq=87 msg="Pruning dead workers..." source=Logger
+ts_ms=[2025-12-16 17:37:37.515] level=[INFO] stream=None task_id=_system seq=88 msg="Worker heartbeat request: {\"id\":\"worker-1\",\"running_tasks\":0}" source=Logger
+ts_ms=[2025-12-16 17:37:39.526] level=[INFO] stream=None task_id=_system seq=89 msg="Worker heartbeat request: {\"id\":\"worker-1\",\"running_tasks\":0}" source=Logger
+ts_ms=[2025-12-16 17:37:41.118] level=[DEBUG] stream=None task_id=_system seq=90 msg="Pruning dead workers..." source=Logger
+ts_ms=[2025-12-16 17:37:41.534] level=[INFO] stream=None task_id=_system seq=91 msg="Worker heartbeat request: {\"id\":\"worker-1\",\"running_tasks\":0}" source=Logger
+ts_ms=[2025-12-16 17:37:42.689] level=[INFO] stream=None task_id=_system seq=92 msg="POST /api/run_dag" source=Logger
+ts_ms=[2025-12-16 17:37:42.690] level=[INFO] stream=None task_id=_system seq=93 msg="initReadyQueue node id=log_test_1, indegree=0" source=Logger
+ts_ms=[2025-12-16 17:37:42.690] level=[INFO] stream=None task_id=_system seq=94 msg="  -> push to readyQueue: log_test_1" source=Logger
+ts_ms=[2025-12-16 17:37:42.690] level=[INFO] stream=None task_id=_system seq=95 msg="TaskRunner::run start, id=log_test_1, name=DAGNode_log_test_1, execType=1" source=Logger
+ts_ms=[2025-12-16 17:37:42.690] level=[INFO] stream=EVENT task_id=log_test_1 seq=11 msg="TaskRunner::run start, execType=1"
+ts_ms=[2025-12-16 17:37:42.690] level=[INFO] stream=None task_id=_system seq=96 msg="TaskRunner::runWithRetry, id=log_test_1, name=DAGNode_log_test_1, attempt=1/1, deadline=9223372036854775807" source=Logger
+ts_ms=[2025-12-16 17:37:42.690] level=[INFO] stream=EVENT task_id=log_test_1 seq=12 msg="Attempt start 1/1"
+ts_ms=[2025-12-16 17:37:42.690] level=[INFO] stream=EVENT task_id=log_test_1 seq=13 attempt=1 msg="RemoteExecution: dispatch start" exec_type=Remote exec_command= queue=default capture_output=true
+ts_ms=[2025-12-16 17:37:42.690] level=[INFO] stream=EVENT task_id=log_test_1 seq=14 attempt=1 msg="RemoteExecution: picked worker" exec_type=Remote exec_command= queue=default capture_output=true worker_id=worker-1 worker_host=127.0.0.1 worker_port=8083
+ts_ms=[2025-12-16 17:37:42.690] level=[INFO] stream=None task_id=_system seq=97 msg="RemoteExecution: POST /api/worker/execute -> 127.0.0.1:8083, workerId=worker-1, taskId=log_test_1" source=Logger
+ts_ms=[2025-12-16 17:37:42.698] level=[DEBUG] stream=EVENT task_id=log_test_1 seq=15 attempt=1 duration_ms=7 msg="RemoteExecution: http call finished" exec_type=Remote exec_command= queue=default capture_output=true duration_ms=7 worker_id=worker-1 worker_port=8083 worker_host=127.0.0.1
+ts_ms=[2025-12-16 17:37:42.698] level=[DEBUG] stream=None task_id=_system seq=98 msg="RemoteExecution: got response: {\"attempt\":1,\"duration_ms\":4,\"exit_code\":0,\"max_attempts\":1,\"message\":\"\",\"metadata\":{},\"status\":2,\"stderr\":\"E1\nE2\n\",\"stdout\":\"A1\nA2\n\"}" source=Logger

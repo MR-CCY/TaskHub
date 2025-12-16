@@ -20,6 +20,10 @@
     "db_path": "./taskhub.db"
   },
   "log": {
-    "path": "./logs"
+    "path": "./logs/taskhub.log",
+    "maxRecords": 2000,
+    "rotateBytes": 2048,
+    "maxFiles": 5,
+    "compress": false
   }
 }

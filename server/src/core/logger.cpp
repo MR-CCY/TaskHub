@@ -6,7 +6,9 @@
 #include <ctime>
 #include <iomanip>
 #include <sstream>
-
+#include "log_manager.h"
+#include "log_record.h"
+#include "utils.h"
 
 static std::string current_timestamp() {
     std::time_t t = std::time(nullptr);
@@ -22,11 +24,6 @@ static std::string current_timestamp() {
     ss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
     return ss.str();
 }
-
-void taskhub::Logger::init(const std::string &log_path) {
-    (void)log_path;
-}
-
 
 void taskhub::Logger::debug(const std::string &msg) {
     write(LogLevel::Debug, msg);
@@ -45,10 +42,33 @@ void taskhub::Logger::error(const std::string &msg) {
 }
 
 void taskhub::Logger::write(LogLevel level, const std::string &msg) {
-    std::string time = current_timestamp();
-    std::string lvl  = level_to_string(level);
+    // Route legacy Logger messages into the M12 LogManager pipeline.
+    // Use a dedicated system task id so it won't mix with real task logs.
+    taskhub::core::LogRecord rec;
+    rec.taskId.value = "_system";
+    rec.stream = taskhub::core::LogStream::None;
+    rec.message = msg;
+    rec.ts = std::chrono::system_clock::now();
+    // Map legacy LogLevel -> core::LogLevel
+    switch (level) {
+        case LogLevel::Debug: rec.level = LogLevel::Debug; break;
+        case LogLevel::Info:  rec.level = LogLevel::Info;  break;
+        case LogLevel::Warn:  rec.level = LogLevel::Warn;  break;
+        case LogLevel::Error: rec.level = LogLevel::Error; break;
+        default:              rec.level = LogLevel::Info;  break;
+    }
 
-    std::cout << time << " [" << lvl << "] " << msg << std::endl;
+    // Add a couple of helpful fields for system logs.
+    rec.fields["source"] = "Logger";
+
+    try {
+        taskhub::core::LogManager::instance().emit(rec);
+    } catch (...) {
+        // Fallback (should be rare): keep old behavior so we never lose logs.
+        std::string time = utils::now_string();
+        std::string lvl  = level_to_string(level);
+        std::cout << time << " [" << lvl << "] " << msg << std::endl;
+    }
 }
 
 std::string taskhub::Logger::level_to_string(LogLevel level) {

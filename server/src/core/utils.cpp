@@ -39,6 +39,23 @@ long long now_millis() {
            ).count();
 }
 
+std::string formatTimestampMs(const std::chrono::system_clock::time_point &ts)
+{
+    // 获取秒部分
+    auto seconds = std::chrono::time_point_cast<std::chrono::seconds>(ts);
+    auto time_t = std::chrono::system_clock::to_time_t(seconds);
+    
+    // 获取毫秒部分
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(ts.time_since_epoch()) % 1000;
+    
+    // 格式化为字符串
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&time_t), "%Y-%m-%d %H:%M:%S");
+    ss << "." << std::setfill('0') << std::setw(3) << ms.count();
+    
+    return ss.str();
+}
+
 std::pair<int, std::string> run_command(const std::string &cmd)
 {
     std::array<char, 256> buffer{};

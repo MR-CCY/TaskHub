@@ -6,7 +6,8 @@
 #include <json.hpp>
 namespace taskhub {
     WsSession::WsSession(tcp::socket socket)
-    : ws_(std::move(socket)) {
+    : ws_(std::move(socket)),
+      exec_(ws_.get_executor()) {
 
     }
 
@@ -22,19 +23,22 @@ namespace taskhub {
                 Logger::info("WsSession accepted new client");      // ★ 日志1
                 // 握手成功，加入 Hub
                 WsHub::instance().add_session(self);
-                self->do_read();
+                net::dispatch(self->exec_, [self]() {
+                    self->do_read();
+                });
             });
     }
 
     void WsSession::send(const std::string &text)
     {
-        std::lock_guard<std::mutex> lock(send_mtx_);
-        beast::error_code ec;
-        ws_.text(true);
-        ws_.write(net::buffer(text), ec);
-        if (ec) {
-            Logger::error("WsSession send error: " + ec.message());
-        }
+        auto self = shared_from_this();
+        net::post(exec_, [self, text]() {
+            const bool writing = !self->write_queue_.empty();
+            self->write_queue_.push_back(text);
+            if (!writing) {
+                self->do_write();
+            }
+        });
     }
     void WsSession::send_text(const std::string &text)
     {
@@ -59,14 +63,17 @@ namespace taskhub {
 
     void WsSession::do_read()
     {
-        ws_.async_read(buffer_,
+        ws_.async_read(
+            buffer_,
             [self = shared_from_this()](beast::error_code ec, std::size_t bytes) {
                 self->on_read(ec, bytes);
             });
     }
     void WsSession::on_read(beast::error_code ec, std::size_t bytes_transferred)
     {
+  
         if (ec == websocket::error::closed) {
+            Logger::error("WsSession read error: " + ec.message() + " (" + std::to_string(ec.value()) + ")");
             // 连接关闭
             WsHub::instance().remove_session(shared_from_this());
             return;
@@ -82,6 +89,24 @@ namespace taskhub {
         buffer_.consume(buffer_.size());
         handle_command(payload);
         do_read();  // 继续读下一条
+    }
+    void WsSession::do_write()
+    {
+        auto self = shared_from_this();
+        ws_.text(true);
+        ws_.async_write(
+            net::buffer(write_queue_.front()),
+            [self](beast::error_code ec, std::size_t /*bytes_written*/) {
+                if (ec) {
+                    Logger::error("WsSession send error: " + ec.message());
+                    WsHub::instance().remove_session(self);
+                    return;
+                }
+                self->write_queue_.pop_front();
+                if (!self->write_queue_.empty()) {
+                    self->do_write();
+                }
+            });
     }
     void WsSession::handle_command(const std::string &payload)
     {

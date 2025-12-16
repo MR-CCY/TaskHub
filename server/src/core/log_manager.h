@@ -6,6 +6,7 @@
 #include "log_record.h"
 #include "task_log_buffer.h"
 #include "runner/task_config.h"
+#include "log_sink.h"
 namespace taskhub::core {
 
 // M12.1：先只做 buffer + emit
@@ -18,6 +19,11 @@ public:
 
     // 统一入口：写入 TaskLogBuffer（后续再广播 sinks/ws）
     void emit(const LogRecord& rec);
+
+    // ✅ sinks 管理
+    void addSink(std::shared_ptr<ILogSink> sink);
+    void clearSinks();
+    void setSinks(std::vector<std::shared_ptr<ILogSink>> sinks);
 
     // 便捷：写 stdout/stderr
     void stdoutLine(const TaskId& taskId, const std::string& text);
@@ -37,6 +43,7 @@ private:
 private:
     mutable std::mutex _mu;
     std::unique_ptr<TaskLogBuffer> _buffer;
+    std::vector<std::shared_ptr<ILogSink>> _sinks;
 };
 void emitEvent(const TaskId& taskId, LogLevel level, const std::string& msg);
 void emitEvent(const TaskConfig& cfg,

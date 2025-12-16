@@ -8,6 +8,7 @@
 #include <string>
 #include <unordered_set>
 #include <mutex>
+#include <deque>
 
 namespace taskhub {
 
@@ -21,8 +22,8 @@ public:
     explicit WsSession(tcp::socket socket);
 
     void start();
-    void send(const std::string& text);   // 给当前 session 发消息
-    void send_text(const std::string& text); // alias for send
+    void send(const std::string& text);        // 给当前 session 发消息（异步、串行）
+    void send_text(const std::string& text);   // alias for send
     bool subscribed(const std::string& channel) const;
 
 private:
@@ -32,10 +33,12 @@ private:
 
     void do_read();
     void on_read(beast::error_code ec, std::size_t bytes_transferred);
+    void do_write();
 
     websocket::stream<tcp::socket> ws_;
+    net::any_io_executor exec_;
     beast::flat_buffer buffer_;
-    std::mutex send_mtx_;
+    std::deque<std::string> write_queue_;
     mutable std::mutex sub_mtx_;
     std::unordered_set<std::string> subscriptions_;
 };

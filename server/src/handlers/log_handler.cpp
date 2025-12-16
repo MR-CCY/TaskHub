@@ -136,7 +136,9 @@ void LogHandler::logs(const httplib::Request &req, httplib::Response &res)
     j["records"] = std::move(arr);
 
     res.status = 200;
-    res.set_content(j.dump(), "application/json");
+    // dump 时替换非法 UTF-8，避免异常终止
+    std::string body = j.dump(-1, ' ', false, json::error_handler_t::replace);
+    res.set_content(body, "application/json");
 }
 
 

@@ -324,7 +324,7 @@ core::TaskResult ShellExecutionStrategy::execute(const core::TaskConfig &cfg,
     // 输出日志记录执行情况
     Logger::info("ShellExecutionStrategy::execute, id=" + cfg.id.value +
                 ", name=" + cfg.name +
-                ", status=" + std::to_string(static_cast<int>(r.status)) +
+                ", status=" + core::TaskStatusTypetoString(r.status) +
                 ", message=" + r.message +
                 ", duration=" + std::to_string(r.durationMs) + "ms");
 
