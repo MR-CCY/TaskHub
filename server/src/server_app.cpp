@@ -16,6 +16,7 @@
 #include "dag/dag_types.h" 
 #include "worker/worker_registry.h"   
 #include <filesystem>
+#include <vector>
 #include "worker/worker_heartbeat_client.h"
 #include "core/log_manager.h"
 #include "core/log_sink_console.h"
@@ -250,11 +251,27 @@ namespace taskhub {
         int rc = sqlite3_open(db_path.c_str(), &db);
         // 这里已有错误检查...
 
-        std::string migrations_dir = "./migrations"; 
-        // 或 Config 里搞一个 migrations_dir，可配置化也行
+        // // 查找 migrations 目录：优先当前目录 ./migrations，其次 ../migrations，再到 build/bin/migrations、server/migrations
+        // namespace fs = std::filesystem;
+        // const std::vector<std::string> candidates = {
+        //     "./migrations",
+        //     "../migrations",
+            
+        //     "server/migrations"
+        // };
+        
+        std::string migrations_dir="build/bin/migrations";
+      
+        // if (migrations_dir.empty()) {
+        //     Logger::error("未找到 migrations 目录，尝试继续使用默认 ./migrations，迁移可能失败");
+        //     migrations_dir = "./migrations";
+        // } else {
+        //     Logger::info("使用 migrations 目录: " + migrations_dir);
+        // }
 
         taskhub::DbMigrator::migrate(db, migrations_dir);
     }
+
     void ServerApp::init_dag()
     {
         // 2. 用它构造 DagService
