@@ -3,7 +3,6 @@
 
 #include "server_app.h"
 
-
 int main() {
     taskhub::ServerApp app;
     return app.run();

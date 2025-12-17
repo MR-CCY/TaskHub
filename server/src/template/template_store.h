@@ -3,7 +3,7 @@
 #include <shared_mutex>
 #include <optional>
 #include "task_template.h"
-
+#include "db/db.h"
 namespace taskhub::tpl {
 
 class TemplateStore {
@@ -12,7 +12,7 @@ public:
 
     // CRUD（M13.1 先做最小：create/get/list/delete）
     bool create(const TaskTemplate& t);          // TODO: id 冲突处理
-    std::optional<TaskTemplate> get(const std::string& templateId) const;
+    std::optional<TaskTemplate> get(const std::string& templateId);
     std::vector<TaskTemplate> list() const;
     bool remove(const std::string& templateId);
 

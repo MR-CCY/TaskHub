@@ -23,7 +23,6 @@
 #include "core/log_sink_file.h"
 #include "core/log_rotation.h"
 namespace taskhub {
-
     ServerApp::ServerApp() {
     }
 
@@ -63,7 +62,7 @@ namespace taskhub {
     
             // 5. 初始化版本
             init_version();
-    
+            return 0;
             // 7. 监听 8090 端口启动 ws 服务（如果你希望任务日志通过 ws 实时推送，建议在 TaskRunner 之前启动）
             m_wsServer = std::make_unique<WsServer>("0.0.0.0", 8090);
             m_wsServer->start();
@@ -82,7 +81,7 @@ namespace taskhub {
             //10. 启动定时任务调度器
             scheduler::CronScheduler::instance().start();
             Logger::info("CronScheduler started");
-    
+           
             //11. 初始化工作节点心跳客户端或启动工作节点注册清理器
             if(Config::instance().get("work.is_work", false)){
                 m_host= Config::instance().get<std::string>("work.worker_host", "0.0.0.0");
@@ -260,7 +259,7 @@ namespace taskhub {
         //     "server/migrations"
         // };
         
-        std::string migrations_dir="build/bin/migrations";
+        std::string migrations_dir="./migrations";
       
         // if (migrations_dir.empty()) {
         //     Logger::error("未找到 migrations 目录，尝试继续使用默认 ./migrations，迁移可能失败");

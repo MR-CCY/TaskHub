@@ -2,6 +2,7 @@
 #include "core/logger.h"
 #include <fstream>
 #include <sstream>
+#include <filesystem>
 
 namespace taskhub {
     // constexpr const char* DbMigrator::PROGRAM_APP_VERSION = "v1.0.1";
@@ -13,7 +14,6 @@ namespace taskhub {
         if (db_ver == 0) {
             db_ver = infer_schema_version_and_bootstrap_meta(db, migrations_dir);
         }
-
         if (db_ver < PROGRAM_SCHEMA_VERSION) {
             apply_migrations(db, db_ver, PROGRAM_SCHEMA_VERSION, migrations_dir);
         } else if (db_ver > PROGRAM_SCHEMA_VERSION) {
@@ -135,7 +135,11 @@ namespace taskhub {
         for (int v = from_version + 1; v <= to_version; ++v) {
             if (v == 2) {
                 exec_sql_file(db, migrations_dir + "/002_v1_0_1_add_task_fields.sql");
-            } else {
+            }
+            else if(v==3){
+                exec_sql_file(db, migrations_dir + "/003_v1_0_2_add_template.sql");
+
+            }else {
                 Logger::error("未知的迁移版本: " + std::to_string(v));
                 break;
             }
@@ -149,6 +153,11 @@ namespace taskhub {
     }
     void DbMigrator::exec_sql_file(sqlite3 *db, const std::string &filepath)
     {
+        namespace fs = std::filesystem;
+        Logger::info("尝试加载迁移文件: " + filepath + ", cwd=" + fs::current_path().string());
+        if (!fs::exists(filepath)) {
+            Logger::error("迁移文件不存在: " + filepath);
+        }
         std::ifstream file(filepath);
         if (!file.is_open()) {
             Logger::error("无法打开 SQL 文件: " + filepath);
