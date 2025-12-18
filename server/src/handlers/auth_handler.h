@@ -6,6 +6,7 @@ namespace taskhub {
 
 class AuthHandler {
 public:
+    static void setup_routes(httplib::Server& server);
     static void login(const httplib::Request& req,
                       httplib::Response& res);
 };

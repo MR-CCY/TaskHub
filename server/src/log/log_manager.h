@@ -2,6 +2,7 @@
 #include <memory>
 #include <vector>
 #include <mutex>
+#include <chrono>
 
 #include "log_record.h"
 #include "task_log_buffer.h"
@@ -44,6 +45,9 @@ private:
     mutable std::mutex _mu;
     std::unique_ptr<TaskLogBuffer> _buffer;
     std::vector<std::shared_ptr<ILogSink>> _sinks;
+    std::chrono::milliseconds _maxBufferAge{std::chrono::minutes(30)};
+    std::size_t _pruneInterval{500};   // prune every N log writes
+    std::size_t _emitCounter{0};
 };
 void emitEvent(const TaskId& taskId, LogLevel level, const std::string& msg);
 void emitEvent(const TaskConfig& cfg,

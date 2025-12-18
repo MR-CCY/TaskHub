@@ -14,6 +14,7 @@ enum class CronTargetType {
     Unknown = 0,
     SingleTask,
     Dag,
+    Template,
 };
 
 /// 一个 CronJob 的基本信息
@@ -37,7 +38,11 @@ struct CronJob {
     // 1) 单任务：直接给 TaskRunner 一个 TaskConfig 模板
     std::optional<core::TaskConfig> taskTemplate;
     //
-    struct DagJobPayload { std::vector<dag::DagTaskSpec> specs; dag::DagConfig config;  dag::DagEventCallbacks callbacks;};
+    struct DagJobPayload { 
+        std::vector<dag::DagTaskSpec> specs; 
+        dag::DagConfig config; 
+        dag::DagEventCallbacks callbacks;
+    };
     std::optional<DagJobPayload> dagPayload;
 
     // 构造函数：从 spec 解析出 cronExpr，并且计算 nextTime

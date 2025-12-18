@@ -7,7 +7,7 @@
 #include "log/logger.h"
 #include "router.h"
 #include "core/task_runner.h"
-#include "core/auth_manager.h"
+#include "auth/auth_manager.h"
 #include "db/db.h"
 #include "db/migrator.h"
 #include "dag/dag_thread_pool.h"
@@ -246,35 +246,23 @@ namespace taskhub {
     {
         auto& cfg = Config::instance();
         std::string db_path = cfg.db_path();
-        sqlite3* db = nullptr;
-        int rc = sqlite3_open(db_path.c_str(), &db);
-        // 这里已有错误检查...
-
-        // // 查找 migrations 目录：优先当前目录 ./migrations，其次 ../migrations，再到 build/bin/migrations、server/migrations
-        // namespace fs = std::filesystem;
-        // const std::vector<std::string> candidates = {
-        //     "./migrations",
-        //     "../migrations",
-            
-        //     "server/migrations"
-        // };
-        
+        sqlite3* rawDb = nullptr;
+        int rc = sqlite3_open(db_path.c_str(), &rawDb);
+        std::unique_ptr<sqlite3, decltype(&sqlite3_close)> db(rawDb, sqlite3_close);
+        if (rc != SQLITE_OK || !rawDb) {
+            const std::string errMsg = rawDb ? sqlite3_errmsg(rawDb) : "null db handle";
+            Logger::error("init_version: failed to open db for migration: " + errMsg);
+            return;
+        }
         std::string migrations_dir="./migrations";
-      
-        // if (migrations_dir.empty()) {
-        //     Logger::error("未找到 migrations 目录，尝试继续使用默认 ./migrations，迁移可能失败");
-        //     migrations_dir = "./migrations";
-        // } else {
-        //     Logger::info("使用 migrations 目录: " + migrations_dir);
-        // }
-
-        taskhub::DbMigrator::migrate(db, migrations_dir);
+        taskhub::DbMigrator::migrate(db.get(), migrations_dir);
     }
 
     void ServerApp::init_dag()
     {
         // 2. 用它构造 DagService
         dag::DagThreadPool::instance().start(4);
+        // 3. 注册默认的执行策略
         taskhub::runner::registerDefaultExecutionStrategies();
     }
 }

@@ -34,6 +34,13 @@ namespace taskhub {
         auto self = shared_from_this();
         net::post(exec_, [self, text]() {
             const bool writing = !self->write_queue_.empty();
+            if (self->write_queue_.size() >= WsSession::kMaxPendingMessages) {
+                Logger::warn("WsSession backpressure: closing slow client");
+                beast::error_code ec;
+                self->ws_.close(websocket::close_reason("too many pending messages"), ec);
+                WsHub::instance().remove_session(self);
+                return;
+            }
             self->write_queue_.push_back(text);
             if (!writing) {
                 self->do_write();

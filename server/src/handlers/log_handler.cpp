@@ -6,6 +6,7 @@
 #include <json.hpp>
 // NOTE: adjust include path if your LogManager header lives elsewhere
 #include "log/log_manager.h"
+#include "core/http_response.h"
 
 namespace taskhub {
 
@@ -70,16 +71,20 @@ static json logRecordToJson(const taskhub::core::LogRecord& r) {
 void LogHandler::setup_routes(httplib::Server &server)
 {
     // GET /api/tasks/logs?task_id=xxx&from=1&limit=200
-    server.Get("/api/tasks/logs", &LogHandler::logs);
+    server.Get("/api/tasks/login", &LogHandler::logs);
 }
 
+// Request: GET /api/tasks/login?task_id=<id>&from=<seq>&limit=<n>
+//   from: optional, default 1; limit: optional, default 200 (1..2000)
+// Response: {"code":0,"message":"ok","data":{"task_id":string,"from":u64,"limit":int,"next_from":u64,"records":[{LogRecord...}]}}
+//   LogRecord fields: seq, task_id, dag_run_id, cron_job_id, worker_id, level(int), stream(int), message, ts_ms, duration_ms, attempt, fields(object)
+//   Errors: 400 missing task_id; 500 on query failure.
 void LogHandler::logs(const httplib::Request &req, httplib::Response &res)
 {
     // ---- parse query params ----
     // required
     if (!req.has_param("task_id")) {
-        res.status = 400;
-        res.set_content(R"({"ok":false,"code":400,"message":"missing task_id"})", "application/json");
+        resp::bad_request(res, "missing task_id");
         return;
     }
 
@@ -108,37 +113,35 @@ void LogHandler::logs(const httplib::Request &req, httplib::Response &res)
         records = std::move(qr.records);
         nextFrom = qr.nextFrom;
     } catch (const std::exception& e) {
-        json err;
-        err["ok"] = false;
-        err["code"] = 500;
-        err["message"] = std::string("log query failed: ") + e.what();
-        res.status = 500;
-        res.set_content(err.dump(), "application/json");
+        resp::error(res, 500, std::string("log query failed: ") + e.what(), 500);
         return;
     } catch (...) {
-        res.status = 500;
-        res.set_content(R"({"ok":false,"code":500,"message":"log query failed: unknown"})", "application/json");
+        resp::error(res, 500, "log query failed: unknown", 500);
         return;
     }
 
     // ---- build response ----
-    json j;
-    j["ok"] = true;
-    j["task_id"] = taskId;
-    j["from"] = from;
-    j["limit"] = limit;
-    j["next_from"] = nextFrom;
+    json data;
+    data["task_id"] = taskId;
+    data["from"] = from;
+    data["limit"] = limit;
+    data["next_from"] = nextFrom;
 
     json arr = json::array();
     for (const auto& r : records) {
         arr.push_back(logRecordToJson(r));
     }
-    j["records"] = std::move(arr);
+    data["records"] = std::move(arr);
 
+    // 构造统一 envelope：{code, message, data}，同时在 dump 时替换非法 UTF-8，避免异常终止
+    json envelope;
+    envelope["code"] = 0;
+    envelope["message"] = "ok";
+    envelope["data"] = std::move(data);
     res.status = 200;
-    // dump 时替换非法 UTF-8，避免异常终止
-    std::string body = j.dump(-1, ' ', false, json::error_handler_t::replace);
-    res.set_content(body, "application/json");
+    res.set_header("Content-Type", "application/json; charset=utf-8");
+    res.set_content(envelope.dump(-1, ' ', false, json::error_handler_t::replace),
+                    "application/json; charset=utf-8");
 }
 
 

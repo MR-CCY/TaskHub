@@ -27,6 +27,7 @@ file(GLOB SERVER_SOURCES CONFIGURE_DEPENDS
     src/log/*.cpp
     src/ws/*.cpp
     src/utils/*.cpp
+    src/auth/*.cpp
 )
 
 file(GLOB SERVER_HEADERS CONFIGURE_DEPENDS
@@ -43,6 +44,7 @@ file(GLOB SERVER_HEADERS CONFIGURE_DEPENDS
     src/log/*.h 
     src/ws/*.h
     src/utils/*.h
+    src/auth/*.h
 )
 
 # 包含目录

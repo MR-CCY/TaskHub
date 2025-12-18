@@ -2,27 +2,31 @@
 #include "runner/taskRunner.h"
 #include "dag/dag_thread_pool.h"
 #include "log/logger.h"
-namespace taskhub::api {
+
+namespace taskhub::dag {
     DagService::DagService(runner::TaskRunner &runner):
     _executor(runner)
     {
-        dag::DagThreadPool::instance().start(4);
     }
     DagService &DagService::instance()
     {
         static DagService instance(taskhub::runner::TaskRunner::instance());
         return instance;
-        // TODO: 在此处插入 return 语句
-    }
+    }  
+    /* 执行DAG任务
+    * @param specs DAG中各个任务的规格说明列表
+    * @param config DAG运行配置参数
+    * @param callbacks DAG事件回调函数集合
+    * @return 执行结果，包括状态和消息*/
     core::TaskResult DagService::runDag(const std::vector<dag::DagTaskSpec> &specs, const dag::DagConfig &config, const dag::DagEventCallbacks &callbacks)
     {
-        // TODO Step 1：构建 builder，添加所有任务
+        // 构建DAG任务图
         dag::DagBuilder builder;
         for (const auto& spec : specs) {
             builder.addTask(spec);
         }
-
-        // TODO Step 2：validate
+        
+        // 验证DAG结构是否有效
         auto validateResult = builder.validate();
         if (!validateResult.ok) {
             core::TaskResult r;
@@ -30,18 +34,18 @@ namespace taskhub::api {
             r.message = validateResult.errorMessage;
             return r;
         }
-
-        // TODO Step 3：构建图 + 运行
-        auto graph = builder.build();
         
+        // 构建最终的DAG图并执行
+        auto graph = builder.build();
         dag::DagRunContext ctx(config, std::move(graph), callbacks);
         return _executor.execute(ctx);
     }
-    std::map<core::TaskId, core::TaskResult> DagService::runDag(const json &body)
+
+    DagResult DagService::runDag(const json &body)
     {
         std::map<core::TaskId, core::TaskResult> result;
         core::TaskResult tr;
-
+        DagResult dr;
         // ===== 1. 解析 DagConfig =====
         dag::DagConfig cfg;
         if (body.contains("config") && body["config"].is_object()) {
@@ -55,22 +59,19 @@ namespace taskhub::api {
             cfg.maxParallel = jcfg.value("max_parallel", 4u);
         }
 
-               // ===== 2. tasks 校验 =====
+         // ===== 2. tasks 校验 =====
         //创建json数组
         json jTasks;
-        Logger::debug(body.dump());
         if(body.contains("tasks") && body["tasks"].is_array()){ 
             jTasks = body["tasks"];
         }else if(body.contains("task") && body["task"].is_object()){
             jTasks = json::array();
             jTasks.push_back(body["task"]);
         }else{
-            tr.status = core::TaskStatus::Failed;
-            tr.message = "missing or invalid tasks array or object";
-            result[core::TaskId{"_system"}] = tr;
-            return result;
+            dr.success = false;
+            dr.message = "missing or invalid tasks array or object";
+            return dr;
         }
-        Logger::debug(jTasks.dump());
         // ===== 3. 构造 DagTaskSpec =====
         std::vector<dag::DagTaskSpec> specs;
         try {
@@ -91,24 +92,20 @@ namespace taskhub::api {
                 specs.emplace_back(std::move(spec));
             }
         } catch (const std::exception& ex) {
-            tr.status = core::TaskStatus::Failed;
-            tr.message = std::string("parse task failed: ") + ex.what();
-            result[core::TaskId{"_system"}] = tr;
-            return result;
+            dr.success = false;
+            dr.message = std::string("parse task failed: ") + ex.what();
+            return dr;
         }
 
         // ===== 4. callbacks =====
-        std::vector<json> nodeStates;
+        std::vector<core::TaskId> nodeStates;
         std::mutex nodeStatesMutex;
 
         dag::DagEventCallbacks callbacks;
         callbacks.onNodeStatusChanged =
             [&nodeStates, &nodeStatesMutex](const core::TaskId& id, core::TaskStatus st) {
                 std::lock_guard<std::mutex> lk(nodeStatesMutex);
-                nodeStates.push_back({
-                    {"id", id.value},
-                    {"status", static_cast<int>(st)}
-                });
+                nodeStates.emplace_back(id);
             };
 
         callbacks.onDagFinished = [](bool success) {
@@ -123,9 +120,9 @@ namespace taskhub::api {
         auto validateResult = builder.validate();
         if (!validateResult.ok) {
             Logger::error(validateResult.errorMessage);
-            tr.status = core::TaskStatus::Failed;
-            tr.message = validateResult.errorMessage;
-            return result;
+            dr.success = false;
+            dr.message = validateResult.errorMessage;
+            return dr;
         }
 
          // ===== 6. Execute =====
@@ -136,8 +133,10 @@ namespace taskhub::api {
 
          // ===== 7. 汇总结果 =====
         const auto& finalMap = ctx.taskResults();
-        
-        return finalMap;
+        for (const auto& [id, res] : finalMap) {
+            dr.taskResults[id] = res;
+        }
+        return dr;
 
     }
 }

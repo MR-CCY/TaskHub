@@ -33,6 +33,7 @@ struct TaskResult {
     std::unordered_map<std::string, std::string> metadata;
 
     bool ok() const { return status == TaskStatus::Success; }
+
 };
 
 inline TaskResult parseResultJson(const json& j)
@@ -61,7 +62,6 @@ inline TaskResult parseResultJson(const json& j)
     r.attempt     = jr.value("attempt", 1);
     r.maxAttempts = jr.value("max_attempts", 1);
 
-    // metadata (可选)
     if (jr.contains("metadata") && jr["metadata"].is_object()) {
         for (auto it = jr["metadata"].begin(); it != jr["metadata"].end(); ++it) {
             if (it.value().is_string()) {

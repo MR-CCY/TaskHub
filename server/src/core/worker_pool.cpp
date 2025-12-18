@@ -14,11 +14,13 @@ namespace taskhub {
         int finished;
     };
     PoolStats stats();
-    
+
     WorkerPool* WorkerPool::instance()
     {
-        static WorkerPool* instance =new WorkerPool();
-        return instance;
+        // Use function-local static to ensure destruction happens at program exit
+        // so worker threads get joined and resources released.
+        static WorkerPool instance;
+        return &instance;
     }
 
     taskhub::WorkerPool::~WorkerPool()

@@ -1,5 +1,5 @@
 #include "template_handler.h"
-#include "core/auth_manager.h"
+#include "auth/auth_manager.h"
 #include "httplib.h"
 #include "log/logger.h"
 #include "json.hpp"
@@ -22,17 +22,9 @@ namespace taskhub {
         server.Post("/template/run", run);
     }
 
-    /*请求示例：{
-        "template_id": "t1",
-        "name": "echo template",
-        "description": "simple echo",
-        "task_json_template": { ... },
-        "schema": {
-            "params": [
-            { "name": "cmd", "type": "string", "required": true }
-            ]
-        }
-    }*/
+    // Request: POST /template
+    //   Body: {"template_id":"t1","name":"echo template","description":"...","task_json_template":{...},"schema":{...}}
+    // Response: {"ok":true,"template_id":"t1"} or {"ok":false,"error":"..."} (duplicate id / missing fields / bad json).
     void TemplateHandler::create(const httplib::Request &req, httplib::Response &res)
     {
         Logger::info("Post /template/create");
@@ -79,7 +71,8 @@ namespace taskhub {
         }
     }
 
-    //GET /api/templates/{template_id}
+    // Request: GET /template/{id}
+    // Response: {"ok":true,"data":{template json}} or {"ok":false,"error":"template not found"}.
     void TemplateHandler::get(const httplib::Request &req, httplib::Response &res)
     {
         Logger::info("Get /template/get");
@@ -103,6 +96,8 @@ namespace taskhub {
             return;
         }
     }
+    // Request: GET /templates
+    // Response: {"ok":true,"data":[{template...}]}
     void TemplateHandler::list(const httplib::Request &req, httplib::Response &res)
     {
         Logger::info("Get /template/list");
@@ -125,6 +120,8 @@ namespace taskhub {
             return;
         }
     }
+    // Request: DELETE /template/{id}
+    // Response: {"ok":true} or {"ok":false,"error":"template not found"}.
     void TemplateHandler::delete_(const httplib::Request &req, httplib::Response &res)
     {
         Logger::info("Delete /template/delete");
@@ -147,16 +144,16 @@ namespace taskhub {
             return;
         }
     }
+    // Request: POST /template/update/{id}
+    //   Body: partial fields to update (name/description/task_json_template/schema)
+    // Response: {"ok":true} or {"ok":false,"error":"..."} (not yet implemented).
     void TemplateHandler::update(const httplib::Request &req, httplib::Response &res)
     {
         // TODO(M13.3): implement update
     }
-    /*请求示例：{
-        "template_id": "t1",
-        "params": {
-          "cmd": "echo hello"
-        }
-      } */
+    // Request: POST /template/render
+    //   Body: {"template_id":"t1","params":{...}}
+    // Response: {"ok":true,"data":{rendered task json}}; {"ok":false,"error":"..."} on validation/render failure.
     void TemplateHandler::render(const httplib::Request &req, httplib::Response &res)
     {
         Logger::info("Post /template/render");
@@ -207,12 +204,9 @@ namespace taskhub {
             return;
         }
     }
-    // 请求示例：{
-    //     "template_id": "t1",
-    //     "params": {
-    //       "cmd": "echo hello"
-    //     }
-    //   }
+    // Request: POST /template/run
+    //   Body: {"template_id":"t1","params":{...}}
+    // Response: {"ok":true,"nodes":{...},"summary":{total,success,failed,skipped}} or {"ok":false,"error":"..."}.
     void TemplateHandler::run(const httplib::Request &req, httplib::Response &res)
     {
         Logger::info("Post /template/run");
@@ -251,12 +245,11 @@ namespace taskhub {
                 res.set_content(out.dump(), "application/json");
                 return;
             }
-            auto dagResultMap = api::DagService::instance().runDag(r.rendered);
-            if(dagResultMap.size()==1 && dagResultMap.begin()->first.value=="_system"){
-                const auto& tr = dagResultMap.begin()->second;
+            auto dagResult= dag::DagService::instance().runDag(r.rendered);
+            if(!dagResult.success){
                 json out;
                 out["ok"] = false;
-                out["error"] = tr.message;
+                out["error"] = dagResult.message;
                 res.status = 500;
                 res.set_content(out.dump(), "application/json");
                 return;
@@ -265,7 +258,7 @@ namespace taskhub {
             std::vector<std::string> successIds;
             std::vector<std::string> failedIds;
             std::vector<std::string> skippedIds;
-            for (const auto& kv : dagResultMap) {
+            for (const auto& kv : dagResult.taskResults) {
                 const auto& id = kv.first;
                 auto status = kv.second.status;
                 const std::string idStr = id.value;
@@ -286,12 +279,11 @@ namespace taskhub {
             }
 
             json respJson;
-            // respJson["ok"]      = dagResult.ok();
-            // respJson["status"]  = static_cast<int>(dagResult.status);
-            // respJson["message"] = dagResult.message;
-            // respJson["nodes"]   = nodeStates;
+            respJson["ok"]      = dagResult.success;
+            respJson["message"] = dagResult.message;
+            respJson["nodes"]= dagResult.to_json();
             json summary;
-            summary["total"]   = dagResultMap.size();
+            summary["total"]   = dagResult.taskResults.size();
             summary["success"] = successIds;
             summary["failed"]  = failedIds;
             summary["skipped"] = skippedIds;

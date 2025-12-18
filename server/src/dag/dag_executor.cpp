@@ -111,17 +111,6 @@ namespace taskhub::dag {
     }
     void DagExecutor::initReadyQueue(DagRunContext &ctx)
     {
-        // TODO：
-        //   遍历 ctx.graph().nodes()
-        //   把 indegree()==0 且 初始状态为 Pending 的节点加入 readyQueue_
-        //
-        //   for (auto& [idStr, node] : ctx.graph().nodes()) {
-        //       if (node->indegree() == 0) {
-        //           std::lock_guard<std::mutex> lk(readyMutex_);
-        //           readyQueue_.push(node->id());
-        //       }
-        //   }
-
         for (const auto& [idStr, node] : ctx.graph().nodes()) {
             Logger::info("initReadyQueue node id=" + node->id().value +
                          ", indegree=" + std::to_string(node->indegree()));
@@ -140,35 +129,30 @@ namespace taskhub::dag {
             }
         }
     }
+    /**
+     * 提交一个DAG节点以异步执行
+     * 
+     * 该方法会获取指定ID的节点，将其状态设置为运行中，
+     * 并启动一个异步任务来执行节点任务，最后调用完成回调。
+     * 
+     * @param ctx DAG运行上下文，包含图结构和执行状态信息
+     * @param id 要执行的节点的任务ID
+     * @return std::future<void> 可用于等待节点执行完成的对象
+     */
     std::future<void> DagExecutor::submitNode(DagRunContext &ctx, const core::TaskId &id)
     {
         auto* graph = &ctx.graph();
         auto node = graph->getNode(id);
         if (!node) return {};
     
-        // TODO Step 1：更新状态为 Running
         ctx.setNodeStatus(id, core::TaskStatus::Running);
         ctx.incrementRunning();
     
-        // TODO Step 2：把任务提交到线程池或 async
-        //
-        //   示例（你可以改成使用自己的线程池）：
-        //
-        //   std::async(std::launch::async, [this, &ctx, id]() {
-        //       auto node = ctx.graph().getNode(id);
-        //       auto cfg  = node->runnerConfig();
-        //       core::TaskResult result = runner_.run(cfg, /*cancelFlag*/ nullptr);
-        //       onNodeFinished(ctx, id, result);
-        //   });
-        //
-        //   注意：onNodeFinished 里会更新 indegree、状态、ready 队列等
-    
+        // 异步执行节点任务并在完成后调用onNodeFinished处理结果
         return std::async(std::launch::async, [this, &ctx, id]() {
             auto nodeInner = ctx.graph().getNode(id);
             core::TaskResult result;
-    
             if (nodeInner) {
-                // 这里调用你自己的 TaskRunner 实现
                 result = _runner.run(nodeInner->runnerConfig(), nullptr);
             } else {
                 result.status = core::TaskStatus::Failed;

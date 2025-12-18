@@ -26,6 +26,8 @@ void CronHandler::setup_routes(httplib::Server& server)
     server.Delete(R"(/api/cron/jobs/(\w+))", &CronHandler::delete_job);
 }
 
+// Request: GET /api/cron/jobs
+// Response: {"ok":true,"jobs":[{id,name,spec,enabled,target_type,next_time_epoch,summary:{...}}]}
 void CronHandler::list_jobs(const httplib::Request& req,
                             httplib::Response& res)
 {
@@ -67,6 +69,9 @@ void CronHandler::list_jobs(const httplib::Request& req,
     res.set_content(j.dump(), "application/json; charset=utf-8");
 }
 
+// Request: POST /api/cron/jobs
+//   Body: {"name":"job1","spec":"*/1 * * * *","target_type":"SingleTask"|"Dag", ... task/dag payload ...}
+// Response: {"ok":true,"job_id":"job_x"}; 400 with {"ok":false,"message":"..."} on validation errors.
 void CronHandler::create_job(const httplib::Request& req,
                              httplib::Response& res)
 {
@@ -240,6 +245,8 @@ void CronHandler::create_job(const httplib::Request& req,
     }
 }
 
+// Request: DELETE /api/cron/jobs/{id}
+// Response: {"ok":true} or 400 if id missing.
 void CronHandler::delete_job(const httplib::Request& req,
                              httplib::Response& res)
 {

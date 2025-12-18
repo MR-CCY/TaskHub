@@ -15,6 +15,7 @@ void LogManager::init(std::size_t perTaskMaxRecords) {
 void LogManager::emit(const LogRecord& rec) {
     LogRecord stored;
     std::vector<std::shared_ptr<ILogSink>> sinksSnapshot;
+    bool shouldPrune = false;
 
     {
         std::lock_guard<std::mutex> lk(_mu);
@@ -25,6 +26,7 @@ void LogManager::emit(const LogRecord& rec) {
 
         // ✅ 拷贝 sinks（避免锁内做 IO）
         sinksSnapshot = _sinks;
+        shouldPrune = (++_emitCounter % _pruneInterval == 0);
     }
 
     // ✅ WS 推送（用带 seq 的 stored）
@@ -33,6 +35,11 @@ void LogManager::emit(const LogRecord& rec) {
     // ✅ sinks 消费
     for (auto& s : sinksSnapshot) {
         if (s) s->consume(stored);
+    }
+
+    if (shouldPrune) {
+        std::lock_guard<std::mutex> lk(_mu);
+        if (_buffer) _buffer->pruneOlderThan(_maxBufferAge);
     }
 }
 
@@ -58,6 +65,7 @@ void LogManager::setSinks(std::vector<std::shared_ptr<ILogSink>> sinks)
 void LogManager::stdoutLine(const TaskId& taskId, const std::string& text) {
     LogRecord stored;
     std::vector<std::shared_ptr<ILogSink>> sinksSnapshot;
+    bool shouldPrune = false;
 
     {
         std::lock_guard<std::mutex> lk(_mu);
@@ -66,15 +74,22 @@ void LogManager::stdoutLine(const TaskId& taskId, const std::string& text) {
         // ✅ appendStdout 返回带 seq 的记录（你也要把它内部改成返回 stored）
         stored = _buffer->appendStdout(taskId, text);
         sinksSnapshot = _sinks;
+        shouldPrune = (++_emitCounter % _pruneInterval == 0);
     }
 
     ws::WsLogStreamer::instance().pushLog(stored);
     for (auto& s : sinksSnapshot) if (s) s->consume(stored);
+
+    if (shouldPrune) {
+        std::lock_guard<std::mutex> lk(_mu);
+        if (_buffer) _buffer->pruneOlderThan(_maxBufferAge);
+    }
 }
 
 void LogManager::stderrLine(const TaskId& taskId, const std::string& text) {
     LogRecord stored;
     std::vector<std::shared_ptr<ILogSink>> sinksSnapshot;
+    bool shouldPrune = false;
 
     {
         std::lock_guard<std::mutex> lk(_mu);
@@ -82,10 +97,16 @@ void LogManager::stderrLine(const TaskId& taskId, const std::string& text) {
 
         stored = _buffer->appendStderr(taskId, text);
         sinksSnapshot = _sinks;
+        shouldPrune = (++_emitCounter % _pruneInterval == 0);
     }
 
     ws::WsLogStreamer::instance().pushLog(stored);
     for (auto& s : sinksSnapshot) if (s) s->consume(stored);
+
+    if (shouldPrune) {
+        std::lock_guard<std::mutex> lk(_mu);
+        if (_buffer) _buffer->pruneOlderThan(_maxBufferAge);
+    }
 }
 
 TaskLogBuffer::QueryResult LogManager::query(const TaskId& taskId, std::uint64_t fromSeq, std::size_t limit) const {

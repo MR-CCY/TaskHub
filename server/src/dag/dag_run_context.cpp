@@ -29,30 +29,29 @@ namespace taskhub::dag {
     void DagRunContext::setNodeStatus(const core::TaskId &id, core::TaskStatus st)
     {
         //Step 1：更新节点自身状态
-        //   auto node = graph_.getNode(id);
-        //   if (node) node->setStatus(st);
+        std::function<void(const core::TaskId&, core::TaskStatus)> cb;
         {
+            std::lock_guard<std::mutex> lk(_mutex);
             auto node = _graph.getNode(id);
             if (node) {
                 node->setStatus(st);
-                _finalStatus[id] = st;  // 总是覆盖成“最后一次”状态
+                // _finalStatus[id] = st;  // 总是覆盖成“最后一次”状态
             }
+            cb = _callbacks.onNodeStatusChanged;
         }
         //Step 2：调用回调（注意要判空）
-        //   如果 callbacks_.onNodeStatusChanged 被设置，则调用之
-
-        if (_callbacks.onNodeStatusChanged) {
-            _callbacks.onNodeStatusChanged(id, st);
+        if (cb) {
+            cb(id, st);
         }
     }
     void DagRunContext::setTaskResults(const core::TaskId &id, core::TaskResult st)
     {
-        {
-            _taskResults[id] = st;
-        }
+        std::lock_guard<std::mutex> lk(_mutex);
+        _taskResults[id] = st;
     }
     std::map<core::TaskId, core::TaskResult> DagRunContext::taskResults()
     {
+        std::lock_guard<std::mutex> lk(_mutex);
         return _taskResults;
     }
     void DagRunContext::finish(bool success)
@@ -60,12 +59,14 @@ namespace taskhub::dag {
         // DAG 完成时调用，可做：
         //   - 打日志
         //   - 调用 onDagFinished 回调
-        if (_callbacks.onDagFinished) {
-            _callbacks.onDagFinished(success);
+        auto cb = _callbacks.onDagFinished;
+        if (cb) {
+            cb(success);
         }
     }
-    std::map<core::TaskId, core::TaskStatus> DagRunContext::finalStatus()
-    {
-        return _finalStatus;
-    }
+    // std::map<core::TaskId, core::TaskStatus> DagRunContext::finalStatus()
+    // {
+    //     std::lock_guard<std::mutex> lk(_mutex);
+    //     return _finalStatus;
+    // }
 }

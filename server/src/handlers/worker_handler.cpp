@@ -31,6 +31,9 @@ namespace taskhub
 
         server.Post("/api/worker/execute", &WorkHandler::worker_execute);
     }
+    // Request: POST /api/workers/register
+    //   Body JSON: {"id":"worker-1","host":"127.0.0.1","port":8083,"queues":["default"],"labels":["gpu"],"running_tasks":0}
+    // Response: {"ok":true} or {"code":400/404/500,"message":"..."} via resp::error
     void WorkHandler::workers_register(const httplib::Request &req, httplib::Response &res)
     {
         Logger::info("Worker register request: " + req.body);
@@ -82,6 +85,9 @@ namespace taskhub
             resp::error(res, 500, "internal error: unknown", 500);
         }
     }
+    // Request: POST /api/workers/heartbeat
+    //   Body JSON: {"id":"worker-1","running_tasks":2}
+    // Response: {"ok":true} or error json (400 missing id, 404 not found, 500 internal)
     void WorkHandler::workers_heartbeat(const httplib::Request &req, httplib::Response &res)
     {
        Logger::info("Worker heartbeat request: " + req.body);
@@ -109,6 +115,8 @@ namespace taskhub
             resp::error(res, 500, "internal error", 500);
         }
     }
+    // Request: GET /api/workers
+    // Response: {"ok":true,"workers":[{id,host,port,running_tasks,alive,last_seen_ms_ago,queues[],labels[]}]}
     void WorkHandler::workers_list(const httplib::Request &req, httplib::Response &res)
     {
         Logger::info("Worker list request");
@@ -149,6 +157,9 @@ namespace taskhub
             resp::error(res, 500, "internal error: unknown", 500);
         }
     }
+    // Request: POST /api/worker/execute
+    //   Body JSON: task config (see TaskConfig fields), exec_type must not be Remote
+    // Response: TaskResult JSON with status/exit_code/stdout/stderr etc., or error via resp::error
     void WorkHandler::worker_execute(const httplib::Request &req, httplib::Response &res)
     {
         Logger::info("Worker execute task request: " + req.body);

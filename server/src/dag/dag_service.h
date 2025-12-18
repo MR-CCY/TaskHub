@@ -1,9 +1,9 @@
 #pragma once
 #include "dag_builder.h"
 #include "dag_executor.h"
+#include "dag_types.h"
 //todo：需要和handnle里面的抽成一个
-namespace taskhub::api {
-
+namespace taskhub::dag {
 class DagService {
 public:
     DagService(runner::TaskRunner& runner);
@@ -14,7 +14,7 @@ public:
                             const dag::DagConfig& config,
                             const dag::DagEventCallbacks& callbacks);
                             
-    std::map<core::TaskId, core::TaskResult> runDag(const json& body);                    
+    DagResult runDag(const json& body);                    
 
 private:
     dag::DagExecutor _executor;

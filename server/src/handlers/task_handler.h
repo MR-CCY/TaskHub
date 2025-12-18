@@ -8,6 +8,7 @@
 namespace taskhub {
     class TaskHandler {
     public:
+        static void setup_routes(httplib::Server& server);
         static void create(const httplib::Request& req, httplib::Response& res);
         static void list(const httplib::Request& req, httplib::Response& res);
         static void detail(const httplib::Request& req, httplib::Response& res);

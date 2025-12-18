@@ -43,7 +43,7 @@ public:
     // 最终结束时调用
     void finish(bool success);
     //返回总结
-    std::map<core::TaskId, core::TaskStatus> finalStatus();
+    // std::map<core::TaskId, core::TaskStatus> finalStatus();
 private:
     DagConfig _config;
     DagGraph _graph;
@@ -53,7 +53,7 @@ private:
     std::atomic_bool _failed{false};
 
     mutable std::mutex _mutex; // 保护必要的共享数据（如回调调用时的顺序）
-    std::map<core::TaskId, core::TaskStatus> _finalStatus;
+    // std::map<core::TaskId, core::TaskStatus> _finalStatus;
     std::map<core::TaskId, core::TaskResult> _taskResults;
     core::TaskResult _finalResults;
 };

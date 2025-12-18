@@ -19,6 +19,8 @@ using tcp = net::ip::tcp;
 
 class WsSession : public std::enable_shared_from_this<WsSession> {
 public:
+    static constexpr std::size_t kMaxPendingMessages = 512;
+
     explicit WsSession(tcp::socket socket);
 
     void start();

@@ -1,26 +1,28 @@
 #include "auth_handler.h"
-#include "core/auth_manager.h"
+#include "auth/auth_manager.h"
 #include "log/logger.h"
 #include "json.hpp"
+#include "core/http_response.h"
 
 using nlohmann::json;
 namespace taskhub {
-    static void make_json_response(httplib::Response& res,int code,const std::string& message,const json& data = json(nullptr))
+    void AuthHandler::setup_routes(httplib::Server &server)
     {
-        json resp;
-        resp["code"] = code;
-        resp["message"] = message;
-        resp["data"] = data;
-
-        res.status = (code == 0 ? 200 : 400);
-        res.set_content(resp.dump(), "application/json");
+        server.Post("/api/login", AuthHandler::login);
     }
+
+    // Request: POST /api/login
+    //   Headers: Content-Type: application/json
+    //   Body: {"username":"admin","password":"123456"}
+    // Response: {"code":0,"message":"ok","data":{"token":"<jwt-like>","username":"admin"}} on success;
+    //           {"code":1004,"message":"invalid_username_or_password","data":null} on auth failure;
+    //           4xx with code/message for bad JSON or missing fields.
     void taskhub::AuthHandler::login(const httplib::Request &req, httplib::Response &res)
     {
         Logger::info("POST /api/login");
 
         if (req.get_header_value("Content-Type").find("application/json") == std::string::npos) {
-            make_json_response(res, 1001, "Content-Type must be application/json");
+            resp::bad_request(res, "Content-Type must be application/json", 1001);
             return;
         }
     
@@ -28,13 +30,13 @@ namespace taskhub {
         try {
             body = json::parse(req.body);
         } catch (const std::exception& ex) {
-            make_json_response(res, 1002, "Invalid JSON body");
+            resp::bad_request(res, "Invalid JSON body", 1002);
             return;
         }
     
         if (!body.contains("username") || !body.contains("password") ||
             !body["username"].is_string() || !body["password"].is_string()) {
-            make_json_response(res, 1003, "username and password required");
+            resp::bad_request(res, "username and password required", 1003);
             return;
         }
     
@@ -43,7 +45,7 @@ namespace taskhub {
     
         auto token_opt = AuthManager::instance().login(username, password);
         if (!token_opt) {
-            make_json_response(res, 1004, "invalid_username_or_password");
+            resp::error(res, 1004, "invalid_username_or_password");
             return;
         }
     
@@ -51,6 +53,6 @@ namespace taskhub {
         data["token"] = *token_opt;
         data["username"] = username;
     
-        make_json_response(res, 0, "ok", data);
+        resp::ok(res, data);
     }
 }

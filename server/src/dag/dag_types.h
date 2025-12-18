@@ -1,5 +1,9 @@
 #pragma once
 #include <cstdint>
+#include <string>
+#include <vector>
+#include <map>
+#include "runner/task_result.h"
 
 namespace taskhub::dag {
 
@@ -14,5 +18,23 @@ struct DagConfig {
     FailPolicy failPolicy{ FailPolicy::SkipDownstream };
     std::uint32_t maxParallel{ 4 }; // 最大并行度（可约束线程池并发）
 };
+struct DagResult
+{
+    bool success{false};
+    std::string message;
+    std::vector<core::TaskId> taskIds;
+    std::map<core::TaskId, core::TaskResult> taskResults;
+    json to_json() const {
+        json j = json::array();
+        for(const auto& id : taskIds){
+            auto it = taskResults.find(id);
+            if (it != taskResults.end()) {
+                j.push_back(core::taskResultToJson(it->second));
+            }
+        }
+        return j;
+    }
+};
+
 
 } // namespace taskhub::dag

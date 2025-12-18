@@ -148,7 +148,7 @@ namespace taskhub::scheduler {
                             }
                         } else if (jobCopy.targetType == CronTargetType::Dag) {
                             //todo:返回值处理
-                            auto& dagService=api::DagService::instance();
+                            auto& dagService=dag::DagService::instance();
 
                             if (jobCopy.dagPayload.has_value()) {
                                 auto& d = *jobCopy.dagPayload;
