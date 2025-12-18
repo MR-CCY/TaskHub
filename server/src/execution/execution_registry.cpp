@@ -4,7 +4,7 @@
 #include "http_strategy.h"
 #include "script_strategy.h"
 #include "remote_strategy.h"
-#include "core/logger.h"
+#include "log/logger.h"
 namespace taskhub::runner {
     ExecutionStrategyRegistry &ExecutionStrategyRegistry::instance()
     {

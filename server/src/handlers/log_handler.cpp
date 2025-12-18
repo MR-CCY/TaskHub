@@ -5,7 +5,7 @@
 #include <string>
 #include <json.hpp>
 // NOTE: adjust include path if your LogManager header lives elsewhere
-#include "core/log_manager.h"
+#include "log/log_manager.h"
 
 namespace taskhub {
 

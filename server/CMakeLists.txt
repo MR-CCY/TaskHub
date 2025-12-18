@@ -24,6 +24,9 @@ file(GLOB SERVER_SOURCES CONFIGURE_DEPENDS
     src/scheduler/*.cpp
     src/worker/*.cpp
     src/template/*.cpp
+    src/log/*.cpp
+    src/ws/*.cpp
+    src/utils/*.cpp
 )
 
 file(GLOB SERVER_HEADERS CONFIGURE_DEPENDS
@@ -37,6 +40,9 @@ file(GLOB SERVER_HEADERS CONFIGURE_DEPENDS
     src/scheduler/*.h
     src/worker/*.h
     src/template/*.h
+    src/log/*.h 
+    src/ws/*.h
+    src/utils/*.h
 )
 
 # 包含目录

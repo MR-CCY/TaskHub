@@ -1,6 +1,6 @@
 #include "auth_handler.h"
 #include "core/auth_manager.h"
-#include "core/logger.h"
+#include "log/logger.h"
 #include "json.hpp"
 
 using nlohmann::json;

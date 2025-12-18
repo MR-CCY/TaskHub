@@ -1,8 +1,8 @@
 // #include "runner/taskRunner.h"
 #include "runner/task_config.h"
 #include "runner/task_result.h"
-#include "core/logger.h"
-#include "core/utils.h"
+#include "log/logger.h"
+#include "utils/utils.h"
 #include "runner/local_task_registry.h"
 using namespace taskhub;
 using namespace taskhub::runner;

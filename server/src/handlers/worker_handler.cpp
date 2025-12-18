@@ -1,6 +1,6 @@
 #include "worker_handler.h"
 #include "worker/worker_registry.h"
-#include "core/logger.h"
+#include "log/logger.h"
 #include "json.hpp"
 #include "runner/task_config.h"
 #include "runner/taskRunner.h"

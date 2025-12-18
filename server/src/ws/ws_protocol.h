@@ -2,8 +2,8 @@
 #include <string>
 #include <unordered_set>
 #include "json.hpp"
-#include "core/log_record.h"
-#include "core/utils.h"
+#include "log/log_record.h"
+#include "utils/utils.h"
 using json = nlohmann::json;
 namespace taskhub::ws {
 

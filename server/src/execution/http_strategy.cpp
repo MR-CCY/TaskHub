@@ -1,5 +1,5 @@
-#include "core/log_manager.h"
-#include "core/log_record.h"
+#include "log/log_manager.h"
+#include "log/log_record.h"
 #include "http_strategy.h"
 #include "httplib.h"
 namespace taskhub::runner {

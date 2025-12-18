@@ -1,9 +1,9 @@
 #include "task_runner.h"
-#include "core/logger.h"
+#include "log/logger.h"
 #include "task_manager.h"
 #include <array>
 #include <cstdio>
-#include "core/ws_task_events.h"
+#include "ws/ws_task_events.h"
 #include "core/http_response.h"
 namespace taskhub {
 

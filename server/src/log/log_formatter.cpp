@@ -1,6 +1,6 @@
 #include "log_formatter.h"
 #include <sstream>
-#include "utils.h"
+#include "utils/utils.h"
 namespace taskhub::core {
 
 LogFormatter& LogFormatter::instance() {

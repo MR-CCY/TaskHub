@@ -1,9 +1,9 @@
 #include "template_store.h"
 #include <mutex>  
 #include <unordered_set>
-#include "core/logger.h"
+#include "log/logger.h"
 #include "json.hpp"
-#include "core/utils.h"
+#include "utils/utils.h"
 using json = nlohmann::json;
 namespace taskhub::tpl {
     TemplateStore &TemplateStore::instance()

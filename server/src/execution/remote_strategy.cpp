@@ -5,11 +5,11 @@
 #include "worker/worker_info.h"
 #include "runner/task_config.h"
 #include "runner/task_result.h"
-#include "core/logger.h"
-#include "core/log_manager.h"
-#include "core/log_record.h"
+#include "log/logger.h"
+#include "log/log_manager.h"
+#include "log/log_record.h"
 #include <chrono>
-#include "core/ws_log_streamer.h"
+#include "ws/ws_log_streamer.h"
 using json = nlohmann::json;
 
 namespace {

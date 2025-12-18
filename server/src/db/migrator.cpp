@@ -1,5 +1,5 @@
 #include "migrator.h"
-#include "core/logger.h"
+#include "log/logger.h"
 #include <fstream>
 #include <sstream>
 #include <filesystem>

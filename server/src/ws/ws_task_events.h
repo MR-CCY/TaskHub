@@ -1,12 +1,12 @@
 #pragma once
 
-#include "core/ws_hub.h"
-#include "core/utils.h"          // 为了 now_string，如果你用到了
+#include "ws/ws_hub.h"
+#include "utils/utils.h"          // 为了 now_string，如果你用到了
 #include "core/task_manager.h"   // 或定义 Task 的头文件
 #include "json.hpp"
 #include <string>
 #include "core/task.h"
-#include "core/logger.h"
+#include "log/logger.h"
 namespace taskhub {
 
 using nlohmann::json;

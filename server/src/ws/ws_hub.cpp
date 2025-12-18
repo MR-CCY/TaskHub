@@ -1,7 +1,7 @@
 #include "ws_hub.h"
-#include "core/logger.h"
+#include "log/logger.h"
 #include <boost/beast/websocket.hpp>
-#include "core/ws_server_beast.h"
+#include "ws/ws_server_beast.h"
 
 namespace taskhub {
     WsHub &taskhub::WsHub::instance()

@@ -1,10 +1,10 @@
 #include "worker_pool.h"
-#include "core/logger.h"
+#include "log/logger.h"
 #include <atomic>
 #include <memory>
 #include "core/blocking_queue.h"
-#include "core/utils_exec.h"
-#include "core/utils.h"
+#include "utils/utils_exec.h"
+#include "utils/utils.h"
 namespace taskhub {
     struct PoolStats {
         int workers;

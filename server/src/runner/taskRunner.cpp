@@ -1,5 +1,5 @@
 #include "taskRunner.h"
-#include "core/logger.h"
+#include "log/logger.h"
 #include <thread>
 #include <functional>
 #include <unordered_map>
@@ -9,8 +9,8 @@
 #include "httplib.h"
 #include "local_task_registry.h"
 #include "execution/execution_registry.h"
-#include "core/log_manager.h"
-#include "core/ws_log_streamer.h"
+#include "log/log_manager.h"
+#include "ws/ws_log_streamer.h"
 namespace taskhub::runner {
 using namespace core;
 

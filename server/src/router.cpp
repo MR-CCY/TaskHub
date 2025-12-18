@@ -5,9 +5,9 @@
 #include "router.h"
 #include "httplib.h"
 #include "handlers/handlers.h"
-#include "core/ws_hub.h"
+#include "ws/ws_hub.h"
 #include  "core/http_response.h"
-#include   "core/logger.h"
+#include   "log/logger.h"
 namespace taskhub {
     void Router::setup_routes(httplib::Server& server){
         // 系统信息类接口

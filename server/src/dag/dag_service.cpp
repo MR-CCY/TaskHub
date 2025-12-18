@@ -1,7 +1,7 @@
 #include "dag_service.h"
 #include "runner/taskRunner.h"
 #include "dag/dag_thread_pool.h"
-#include "core/logger.h"
+#include "log/logger.h"
 namespace taskhub::api {
     DagService::DagService(runner::TaskRunner &runner):
     _executor(runner)

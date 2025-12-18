@@ -2,7 +2,7 @@
 #include <future>
 #include <chrono>
 #include <utility>
-#include "core/utils.h"
+#include "utils/utils.h"
 
 namespace taskhub {
     ExecResult run_with_timeout(const std::string &cmd, int timeout_sec)

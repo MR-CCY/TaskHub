@@ -1,7 +1,7 @@
 #include "worker_registry.h"
 #include <algorithm>  // std::find
-#include "core/logger.h"
-#include "core/utils.h"
+#include "log/logger.h"
+#include "utils/utils.h"
 
 namespace taskhub::worker {
     WorkerRegistry& WorkerRegistry::instance()

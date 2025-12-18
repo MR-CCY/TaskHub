@@ -4,7 +4,7 @@
 
 #include "server_app.h"
 #include "core/config.h"
-#include "core/logger.h"
+#include "log/logger.h"
 #include "router.h"
 #include "core/task_runner.h"
 #include "core/auth_manager.h"
@@ -18,10 +18,10 @@
 #include <filesystem>
 #include <vector>
 #include "worker/worker_heartbeat_client.h"
-#include "core/log_manager.h"
-#include "core/log_sink_console.h"
-#include "core/log_sink_file.h"
-#include "core/log_rotation.h"
+#include "log/log_manager.h"
+#include "log/log_sink_console.h"
+#include "log/log_sink_file.h"
+#include "log/log_rotation.h"
 namespace taskhub {
     ServerApp::ServerApp() {
     }

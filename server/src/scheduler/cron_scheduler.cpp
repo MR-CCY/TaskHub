@@ -1,5 +1,5 @@
 #include "cron_scheduler.h"
-#include "core/logger.h"
+#include "log/logger.h"
 #include "runner/taskRunner.h"
 #include "dag/dag_service.h"
 namespace taskhub::scheduler {

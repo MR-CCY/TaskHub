@@ -1,7 +1,7 @@
 #include "ws_log_streamer.h"
-#include "core/utils.h"
-#include "core/ws_protocol.h"
-#include "core/ws_hub.h"
+#include "utils/utils.h"
+#include "ws/ws_protocol.h"
+#include "ws/ws_hub.h"
 
 namespace taskhub::ws {
 WsLogStreamer &WsLogStreamer::instance()

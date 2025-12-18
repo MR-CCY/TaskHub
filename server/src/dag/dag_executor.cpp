@@ -1,9 +1,9 @@
 #include "dag_executor.h"
 #include <future>
 #include <unordered_set>
-#include "core/logger.h"
+#include "log/logger.h"
 #include "dag_thread_pool.h"
-#include "core/ws_log_streamer.h"
+#include "ws/ws_log_streamer.h"
 namespace taskhub::dag {
     DagExecutor::DagExecutor(runner::TaskRunner &runner):
     _runner(runner)

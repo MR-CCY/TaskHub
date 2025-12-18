@@ -5,8 +5,8 @@
 
 #include "runner/task_config.h"
 #include "runner/task_result.h"
-#include "core/logger.h"
-#include "core/log_manager.h"
+#include "log/logger.h"
+#include "log/log_manager.h"
 namespace taskhub::runner {
 
 using SteadyClock = std::chrono::steady_clock;

@@ -1,5 +1,5 @@
 #pragma once
-#include "core/log_record.h"
+#include "log/log_record.h"
 #include "json.hpp"
 using json = nlohmann::json;
 namespace taskhub::ws {

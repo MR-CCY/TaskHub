@@ -1,5 +1,5 @@
 #include "log_manager.h"
-#include "ws_log_streamer.h"
+#include "ws/ws_log_streamer.h"
 namespace taskhub::core {
 
 LogManager& LogManager::instance() {

@@ -1,5 +1,5 @@
 #include "ws_server_beast.h"
-#include "logger.h"
+#include "log/logger.h"
 #include "ws_hub.h"
 #include "ws_protocol.h"
 #include <boost/beast/core/buffers_to_string.hpp>

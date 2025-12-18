@@ -5,7 +5,7 @@
 #pragma once
 #include <memory>
 #include "httplib.h"
-#include "core/ws_server_beast.h"
+#include "ws/ws_server_beast.h"
 #include "core/worker_pool.h"
 #include "runner/taskRunner.h"
 namespace taskhub::worker {

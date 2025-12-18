@@ -1,7 +1,7 @@
 #include "template_handler.h"
 #include "core/auth_manager.h"
 #include "httplib.h"
-#include "core/logger.h"
+#include "log/logger.h"
 #include "json.hpp"
 #include "template/template_store.h"
 #include "template/template_renderer.h"
