@@ -12,6 +12,13 @@ struct RenderResult {
     bool ok{true};
     std::string error;
     json rendered;     // 结果仍为 A 格式 { "task": {...} }
+    json to_json() const {
+        json j;
+        j["ok"] = ok;
+        j["error"] = error;
+        j["rendered"] = rendered;
+        return j;
+    };
 };
 
 class TemplateRenderer {

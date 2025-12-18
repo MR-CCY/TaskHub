@@ -32,22 +32,9 @@ namespace taskhub::tpl {
                 sqlite3_bind_text(stmt, 3, t.description.c_str(), -1    , SQLITE_TRANSIENT);
                 std::string task_json_str = t.taskJsonTemplate.dump();
                 sqlite3_bind_text(stmt, 4, task_json_str.c_str(), -1,   SQLITE_TRANSIENT);
-    
-                // 将schema参数转换为JSON格式并绑定
-                json schema_json = json::object();
-                if (!t.schema.params.empty()) {
-                    json params_array = json::array();
-                    for (const auto& param : t.schema.params) {
-                        json param_json = json::object();
-                        param_json["name"] = param.name;
-                        param_json["type"] = static_cast<int>(param.type);
-                        param_json["required"] = param.required;
-                        param_json["defaultValue"] = param.defaultValue;
-                        params_array.push_back(param_json);
-                    }
-                    schema_json["params"] = params_array;
-                }
+                json schema_json = param_schema_to_json(t.schema);
                 std::string schema_json_str = schema_json.dump();
+                Logger::debug("INSERT template schema_json: " + schema_json_str);
                 sqlite3_bind_text(stmt, 5, schema_json_str.c_str(), -1, SQLITE_TRANSIENT);
                 
                 // 设置创建和更新时间戳
@@ -118,8 +105,7 @@ namespace taskhub::tpl {
                         for (const auto& param_json : schema_json["params"]) {      
                             tpl::ParamDef param;
                             param.name = param_json.value("name", "");
-                            param.type = static_cast<tpl::ParamType>(param_json.value("type",
-                                static_cast<int>(tpl::ParamType::String)));
+                            param.type = StringToParamType(param_json.value("type", ""));
                             param.required = param_json.value("required", false);
                             param.defaultValue = param_json.value("defaultValue", json());
                             t.schema.params.push_back(param);
@@ -172,8 +158,7 @@ namespace taskhub::tpl {
                             for (const auto& param_json : schema_json["params"]) {
                                 tpl::ParamDef param;
                                 param.name = param_json.value("name", "");
-                                param.type = static_cast<tpl::ParamType>(
-                                    param_json.value("type", static_cast<int>(tpl::ParamType::String)));
+                                param.type = StringToParamType(param_json.value("type", ""));
                                 param.required = param_json.value("required", false);
                                 param.defaultValue = param_json.value("defaultValue", json());
                                 t.schema.params.push_back(param);

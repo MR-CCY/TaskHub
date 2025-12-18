@@ -51,6 +51,11 @@ RenderResult TemplateRenderer::render(const TaskTemplate& t,
         return rr;
     }
 
+    // ✅ DAG template: contains tasks array, only render JSON, skip TaskConfig validation
+    if (rr.rendered.contains("tasks") && rr.rendered["tasks"].is_array()) {
+        return rr;
+    }
+
     // 获取实际的 task 节点用于后续处理；如果不存在则直接使用整个渲染结果
     const json& jt = (rr.rendered.contains("task") && rr.rendered["task"].is_object())
                          ? rr.rendered["task"]

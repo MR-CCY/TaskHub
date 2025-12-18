@@ -375,8 +375,6 @@ namespace taskhub {
             res.body    = err.dump();
             resp::ok(res); 
         }
-       
-
     }
 }
  

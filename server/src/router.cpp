@@ -38,5 +38,6 @@ namespace taskhub {
         //M11
         WorkHandler::setup_routes(server);
         LogHandler::setup_routes(server);
+        TemplateHandler::setup_routes(server);
     }
 }

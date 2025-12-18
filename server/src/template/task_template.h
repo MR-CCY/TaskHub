@@ -16,7 +16,17 @@ struct TaskTemplate {
     json taskJsonTemplate;
 
     ParamSchema schema;
-
+    json to_json() const {
+        json j;
+        j["template_id"] = templateId;
+        j["name"] = name;
+        j["description"] = description;
+        j["task_json_template"] = taskJsonTemplate;
+        // schema 序列化
+        json schema_json = param_schema_to_json(schema);
+        j["schema"] = schema_json;
+        return j;
+    }
     // version / createdAt 先不做（M13.2 + DB 时再加）
 };
 

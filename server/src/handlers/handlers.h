@@ -4,3 +4,4 @@
 #include "cron_handler.h"
 #include "worker_handler.h"
 #include "log_handler.h"
+#include "template_handler.h"

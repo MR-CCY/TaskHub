@@ -44,6 +44,20 @@ namespace taskhub::dag {
                     break;
                 }
 
+                // 如果该节点已经被标记为不可运行（例如被上游失败 SkipDownstream 标成 Skipped），
+                // 即使还留在 readyQueue 里，也必须丢弃，避免“本该跳过却被执行”的竞态。
+                if (auto n = ctx.graph().getNode(id)) {
+                    auto st = n->status();
+                    if (st == core::TaskStatus::Skipped ||
+                        st == core::TaskStatus::Failed ||
+                        st == core::TaskStatus::Timeout ||
+                        st == core::TaskStatus::Canceled ||
+                        st == core::TaskStatus::Success ||
+                        st == core::TaskStatus::Running) {
+                        continue;
+                    }
+                }
+
                 // FailFast 模式下，如果已经失败，就不再提交新任务（但会等待已有任务跑完）
                 if (ctx.config().failPolicy == FailPolicy::FailFast && ctx.isFailed()) {
                     // 直接丢弃这个 id，不提交
@@ -169,7 +183,19 @@ namespace taskhub::dag {
         auto* graph = &ctx.graph();
         auto node = graph->getNode(id);
         if (!node) return;
-    
+
+        // 二次防线：节点可能在进入 readyQueue 后，被上游失败标记为 Skipped。
+        // 这里必须再次检查，避免竞态下仍然被提交执行。
+        auto cur = node->status();
+        if (cur == core::TaskStatus::Skipped ||
+            cur == core::TaskStatus::Failed ||
+            cur == core::TaskStatus::Timeout ||
+            cur == core::TaskStatus::Canceled ||
+            cur == core::TaskStatus::Success ||
+            cur == core::TaskStatus::Running) {
+            return;
+        }
+
         ctx.setNodeStatus(id, core::TaskStatus::Running);
         ctx.incrementRunning();
         // WS event: node execution starts
@@ -293,6 +319,9 @@ namespace taskhub::dag {
                         }
 
                         ctx.setNodeStatus(childId, core::TaskStatus::Skipped);
+                        ctx.setTaskResults(childId, core::TaskResult{
+                            .status = core::TaskStatus::Skipped
+                        });
                         // WS event: node skipped due to upstream failure
                         ws::WsLogStreamer::instance().pushTaskEvent(
                             childId.value,

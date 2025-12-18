@@ -7,6 +7,10 @@ namespace taskhub::core {
 
 void ConsoleLogSink::consume(const LogRecord& rec) {
     const std::string line =LogFormatter::instance().formatLine(rec);
-    std::cout << line << "\n";
+    if(rec.level >= LogLevel::Error){
+        std::cerr << line << "\n";
+    }else{ 
+        std::cout << line << "\n";
+    }
 }
 }

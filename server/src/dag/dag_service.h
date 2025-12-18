@@ -13,6 +13,8 @@ public:
     core::TaskResult runDag(const std::vector<dag::DagTaskSpec>& specs,
                             const dag::DagConfig& config,
                             const dag::DagEventCallbacks& callbacks);
+                            
+    std::map<core::TaskId, core::TaskResult> runDag(const json& body);                    
 
 private:
     dag::DagExecutor _executor;

@@ -1,4 +1,5 @@
 #include "task_log_buffer.h"
+#include <utility>
 
 namespace taskhub::core {
 
@@ -24,18 +25,18 @@ const TaskLogBuffer::PerTaskBuf* TaskLogBuffer::find_(const TaskId& taskId) cons
     return &it->second;
 }
 
-LogRecord TaskLogBuffer::append(const LogRecord& rec) {
+LogRecord TaskLogBuffer::append(LogRecord rec) {
     std::lock_guard<std::mutex> lk(_mu);
     auto& b = getOrCreate_(rec.taskId);
 
-    LogRecord r = rec;
-    r.seq = b.nextSeq++;
-    b.q.push_back(r);      
+    rec.seq = b.nextSeq++;
+    b.q.emplace_back(std::move(rec));
+    LogRecord stored = b.q.back();      
 
     while (b.q.size() > _perTaskMaxRecords) {
         b.q.pop_front();
     }
-    return r;                    
+    return stored;                    
 }
 
 LogRecord TaskLogBuffer::appendStdout(const TaskId& taskId, const std::string& text) {
@@ -44,7 +45,7 @@ LogRecord TaskLogBuffer::appendStdout(const TaskId& taskId, const std::string& t
     r.level    = LogLevel::Info;
     r.stream   = LogStream::Stdout;
     r.message  = text;
-    return append(r);   // ✅ 返回带 seq 的那条
+    return append(std::move(r));   // ✅ 返回带 seq 的那条
 }
 
 LogRecord TaskLogBuffer::appendStderr(const TaskId& taskId, const std::string& text) {
@@ -53,7 +54,7 @@ LogRecord TaskLogBuffer::appendStderr(const TaskId& taskId, const std::string& t
     r.level    = LogLevel::Warn;      // 你要也可用 Error，看你定义
     r.stream   = LogStream::Stderr;
     r.message  = text;
-    return append(r);   // ✅ 返回带 seq 的那条
+    return append(std::move(r));   // ✅ 返回带 seq 的那条
 }
 
 TaskLogBuffer::QueryResult TaskLogBuffer::get(const TaskId& taskId, std::uint64_t fromSeq, std::size_t limit) const {

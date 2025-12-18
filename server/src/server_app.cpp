@@ -62,7 +62,7 @@ namespace taskhub {
     
             // 5. 初始化版本
             init_version();
-            return 0;
+            
             // 7. 监听 8090 端口启动 ws 服务（如果你希望任务日志通过 ws 实时推送，建议在 TaskRunner 之前启动）
             m_wsServer = std::make_unique<WsServer>("0.0.0.0", 8090);
             m_wsServer->start();
