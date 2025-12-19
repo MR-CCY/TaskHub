@@ -16,6 +16,9 @@
 #include "dag/dag_executor.h"
 #include "runner/taskRunner.h"
 #include "dag/dag_service.h"
+#include "dag/dag_thread_pool.h"
+#include "utils/utils.h"
+#include <unordered_map>
 
 namespace taskhub {
     void TaskHandler::setup_routes(httplib::Server &server)
@@ -28,15 +31,15 @@ namespace taskhub {
         server.Post(R"(/api/tasks/(\d+)/cancel)", TaskHandler::cancel_task);
         //M8
         server.Post("/api/dag/run", TaskHandler::runDag);
+        server.Post("/api/dag/run_async", TaskHandler::runDagAsync);
     }
 
-    // Request: POST /api/tasks
-    //   Headers: Content-Type: application/json, Auth token header used by AuthManager
-    //   Body: {"name":"task1","type":0,"params":{"cmd":"echo hi"},"max_retries":0,"timeout_sec":0}
-    // Response: {"code":0,"message":"ok","data":{"id":<taskId>}} on success;
-    //           {"code":1001,"message":"Missing 'name' field"} for missing required fields;
-    //           {"code":1002,"message":"Invalid JSON"} for bad JSON;
-    //           {"code":401,"message":"unauthorized"} when token invalid.
+    // Request: POST /api/tasks （需要 Auth）
+    //   Body JSON: {"name":"task1","type":0,"params":{"cmd":"echo hi"},...} 其余字段忽略
+    // Response:
+    //   200 {"code":0,"message":"ok","data":{"id":<int>}}
+    //   400 {"code":1001,"message":"Missing 'name' field","data":null} 或 {"code":1002,"message":"Invalid JSON","data":null}
+    //   401 {"code":401,"message":"unauthorized","data":null}
     void TaskHandler::create(const httplib::Request &req, httplib::Response &res)
     {
         auto user_opt = AuthManager::instance().user_from_request(req);
@@ -85,9 +88,8 @@ namespace taskhub {
         }
     }
 
-    // Request: GET /api/tasks (Auth required)
-    // Query: none
-    // Response: {"code":0,"message":"ok","data":[{task objects...}]}
+    // Request: GET /api/tasks （需要 Auth）
+    // Response: 200 {"code":0,"message":"ok","data":[{id,name,type,status,create_time,update_time,params,exit_code,last_output,last_error,max_retries,retry_count,timeout_sec,cancel_flag}]}; 401 未鉴权
     void TaskHandler::list(const httplib::Request &req, httplib::Response &res)
     {
         auto user_opt = AuthManager::instance().user_from_request(req);
@@ -126,8 +128,10 @@ namespace taskhub {
         resp::ok(res, resp["data"]);
     }
 
-    // Request: GET /api/tasks/{id} (Auth required)
-    // Response: {"code":0,"message":"ok","data":{task fields...}}; 404 if not found; 401 if unauthorized.
+    // Request: GET /api/tasks/{id} （需要 Auth）
+    // Response:
+    //   200 {"code":0,"message":"ok","data":{同 list 单项}}
+    //   404 {"code":404,"message":"Task not found","data":null}; 401 未鉴权
     void TaskHandler::detail(const httplib::Request &req, httplib::Response &res)
     {
         auto user_opt = AuthManager::instance().user_from_request(req);
@@ -173,11 +177,12 @@ namespace taskhub {
         resp::ok(res, resp["data"]);
     }
 
-    // Request: POST /api/tasks/{id}/cancel (Auth required)
-    // Body: empty
-    // Response: {"code":0,"message":"ok","data":null} on success;
-    //           {"code":1003,"message":"Task not found"} if id missing;
-    //           {"code":1004,"message":"Task already finished"} if terminal state.
+    // Request: POST /api/tasks/{id}/cancel （需要 Auth）
+    // Response:
+    //   200 {"code":0,"message":"ok","data":null}
+    //   {"code":1003,"message":"Task not found","data":null}（任务不存在）
+    //   {"code":1004,"message":"Task already finished","data":null}（终态不能取消）
+    //   401 未鉴权
     void TaskHandler::cancel_task(const httplib::Request &req, httplib::Response &res)
     {
         auto user_opt = AuthManager::instance().user_from_request(req);
@@ -220,9 +225,10 @@ namespace taskhub {
 
     }
    // Request: POST /api/dag/run
-   //   Body: {"config":{"fail_policy":"SkipDownstream","max_parallel":4},"tasks":[{"id":"a","exec_type":0,...,"deps":["b"]},...]}
-   // Response: {"ok":true/false,"status":<int TaskStatus>,"message":string,"nodes":[{"id":"a","status":int},...],
-   //            "summary":{"total":N,"success":[ids],"failed":[ids],"skipped":[ids]}}
+   //   Body JSON: {"config":{"fail_policy":"SkipDownstream","max_parallel":4},"tasks":[{"id":"a","exec_type":0,...,"deps":["b"]},...]}
+   // Response:
+   //   200 {"ok":true,"message":string,"nodes":[{"id":"a","run_id":"...","result":{status(int),message,exit_code,duration_ms,stdout,stderr,attempt,max_attempts,metadata}}],"run_id":string,"summary":{"total":N,"success":[ids],"failed":[ids],"skipped":[ids]}}
+   //   500 {"ok":false,"error":<dag error>} （DagService 失败）
    void TaskHandler::runDag(const httplib::Request &req, httplib::Response &res)
     {
         // auto user_opt = AuthManager::instance().user_from_request(req);
@@ -240,7 +246,8 @@ namespace taskhub {
         try {
             // 1. 解析请求 JSON
             json body = json::parse(req.body);
-            auto dagResult= dag::DagService::instance().runDag(body);
+            const std::string runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
+            auto dagResult= dag::DagService::instance().runDag(body, runId);
             if(!dagResult.success){
                 json out;
                 out["ok"] = false;
@@ -277,6 +284,7 @@ namespace taskhub {
             respJson["ok"]      = dagResult.success;
             respJson["message"] = dagResult.message;
             respJson["nodes"]= dagResult.to_json();
+            respJson["run_id"] = runId;
             json summary;
             summary["total"]   = dagResult.taskResults.size();
             summary["success"] = successIds;
@@ -293,6 +301,55 @@ namespace taskhub {
             res.body    = err.dump();
             resp::ok(res); 
         }
+    }
+
+    // Request: POST /api/dag/run_async
+    //   Body JSON 同 /api/dag/run，必须有 tasks 数组
+    // Response:
+    //   200 {"code":0,"message":"ok","data":{"run_id":string,"task_ids":[{"logical":<id>,"task_id":<id>},...]}}
+    //   400 {"code":1002,"message":"Invalid JSON","data":null} 或 {"code":400,"message":"{\"error\":\"tasks must be array\"}","data":null}
+    void TaskHandler::runDagAsync(const httplib::Request &req, httplib::Response &res)
+    {
+        Logger::info("POST /api/run_dag_async");
+        json body;
+        try {
+            body = json::parse(req.body);
+        } catch (const std::exception& e) {
+            resp::bad_request(res, "Invalid JSON", 1002);
+            return;
+        }
+        if (!body.contains("tasks") || !body["tasks"].is_array()) {
+            resp::bad_request(res, R"({"error":"tasks must be array"})", 400);
+            return;
+        }
+
+        std::vector<json> taskList;
+        for (auto& jt : body["tasks"]) {
+            if (!jt.contains("id") || !jt["id"].is_string()) {
+                resp::bad_request(res, "task id is required", 400);
+                return;
+            }
+            taskList.push_back({{"logical", jt["id"]}, {"task_id", jt["id"]}});
+        }
+
+        const std::string runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
+        for (auto& jt : body["tasks"]) {
+            jt["run_id"] = runId;
+        }
+
+        // 用 DAG 线程池执行，避免为每个请求创建 detached 线程
+        dag::DagThreadPool::instance().post([body = std::move(body), runId]() mutable {
+            try {
+                dag::DagService::instance().runDag(body, runId);
+            } catch (const std::exception& e) {
+                Logger::error(std::string("runDagAsync thread exception: ") + e.what());
+            }
+        });
+
+        json data;
+        data["run_id"] = runId;
+        data["task_ids"] = taskList;
+        resp::ok(res, data);
     }
 }
  

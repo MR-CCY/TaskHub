@@ -2,6 +2,7 @@
 #include "log/logger.h"
 #include "runner/taskRunner.h"
 #include "dag/dag_service.h"
+#include "utils/utils.h"
 namespace taskhub::scheduler {
     CronScheduler &CronScheduler::instance()
     {
@@ -125,6 +126,7 @@ namespace taskhub::scheduler {
                     Logger::info("CronScheduler::trigger job, id=" + jobCopy.id +
                                  ", name=" + jobCopy.name +
                                  ", spec=" + jobCopy.spec);
+                    const std::string runTag = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
 
                                 // ===== 真正执行逻辑（同步调用） =====
                     try {
@@ -136,8 +138,7 @@ namespace taskhub::scheduler {
                             } else {
                                 core::TaskConfig cfg = *jobCopy.taskTemplate;
 
-                                // 给这个任务打个 “cron 前缀”，方便在日志/DB 中区分
-                                cfg.id.value = "cron_" + jobCopy.id + "_" + cfg.id.value;
+                                cfg.id.runId = "cron_" + jobCopy.id + "_" + runTag;
 
                                 Logger::info("CronScheduler: execute SingleTask job, taskId=" + cfg.id.value);
                                 core::TaskResult r = runner.run(cfg, nullptr);
@@ -151,8 +152,8 @@ namespace taskhub::scheduler {
                             auto& dagService=dag::DagService::instance();
 
                             if (jobCopy.dagPayload.has_value()) {
-                                auto& d = *jobCopy.dagPayload;
-                                core::TaskResult r = dagService.runDag(d.specs, d.config, d.callbacks);
+                                auto d = *jobCopy.dagPayload; // copy to mutate runId
+                                core::TaskResult r = dagService.runDag(d.specs, d.config, d.callbacks, "cron_" + jobCopy.id + "_" + runTag);
                                 Logger::info("CronScheduler: Dag job result, id=" + jobCopy.id +
                                                 ", status=" + std::to_string(static_cast<int>(r.status)) +
                                                 ", message=" + r.message);

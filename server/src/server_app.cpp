@@ -52,16 +52,13 @@ namespace taskhub {
             // Logger::info("WorkerPool started with 4 workers");
             // 3. 创建 HTTP Server
             init_http_server();
-    
+
             // 4. 注册路由
             setup_routes();
             Logger::info("Routes registered");
 
-            // 5. 初始化数据库连接
+            // 5. 初始化数据库并完成迁移
             init_db();
-    
-            // 5. 初始化版本
-            init_version();
             
             // 7. 监听 8090 端口启动 ws 服务（如果你希望任务日志通过 ws 实时推送，建议在 TaskRunner 之前启动）
             m_wsServer = std::make_unique<WsServer>("0.0.0.0", 8090);
@@ -216,46 +213,14 @@ namespace taskhub {
             Logger::error("Failed to open database, exiting");
             exit(1);
         }
-         // 建表：tasks
-        const char* sql = R"(
-            CREATE TABLE IF NOT EXISTS tasks (
-                id           INTEGER PRIMARY KEY,
-                name         TEXT NOT NULL,
-                type         INTEGER NOT NULL,
-                status       TEXT NOT NULL,
-                params       TEXT,
-                create_time  TEXT,
-                update_time  TEXT,
-                exit_code    INTEGER,
-                last_output  TEXT,
-                last_error   TEXT,
-                timeout_sec  INTEGER NOT NULL DEFAULT 0,
-                max_retries  INTEGER NOT NULL DEFAULT 0,
-                retry_count  INTEGER NOT NULL DEFAULT 0,
-                cancel_flag  INTEGER NOT NULL DEFAULT 0
-            );
-        )";
-
-        if (! Db::instance().exec(sql)) {
-            Logger::error("Create table tasks failed, exit.");
+        auto* handle = Db::instance().handle();
+        if (!handle) {
+            Logger::error("Database handle is null after open(), exiting");
             std::exit(1);
         }
-        Logger::info("Database initialized");
-    }
-    void ServerApp::init_version()
-    {
-        auto& cfg = Config::instance();
-        std::string db_path = cfg.db_path();
-        sqlite3* rawDb = nullptr;
-        int rc = sqlite3_open(db_path.c_str(), &rawDb);
-        std::unique_ptr<sqlite3, decltype(&sqlite3_close)> db(rawDb, sqlite3_close);
-        if (rc != SQLITE_OK || !rawDb) {
-            const std::string errMsg = rawDb ? sqlite3_errmsg(rawDb) : "null db handle";
-            Logger::error("init_version: failed to open db for migration: " + errMsg);
-            return;
-        }
-        std::string migrations_dir="./migrations";
-        taskhub::DbMigrator::migrate(db.get(), migrations_dir);
+        const std::string migrations_dir = "./migrations";
+        taskhub::DbMigrator::migrate(handle, migrations_dir);
+        Logger::info("Database initialized and migrated via DbMigrator");
     }
 
     void ServerApp::init_dag()

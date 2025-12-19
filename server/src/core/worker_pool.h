@@ -9,6 +9,14 @@ namespace taskhub {
 
 using TaskPtr = std::shared_ptr<Task>;
 
+struct PoolStats {
+    int workers{0};
+    std::size_t queued{0};
+    int running{0};
+    int submitted{0};
+    int finished{0};
+};
+
 class WorkerPool {
 public:
     static WorkerPool* instance();
@@ -26,6 +34,7 @@ public:
 
     // 停止线程池
     void stop();
+    PoolStats stats() const;
 
 private:
     void worker_loop(std::size_t worker_id);

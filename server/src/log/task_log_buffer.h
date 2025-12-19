@@ -17,6 +17,20 @@ public:
         std::vector<LogRecord> records;
     };
 
+    struct TaskKey {
+        std::string id;
+        std::string runId;
+        bool operator==(const TaskKey& other) const {
+            return id == other.id && runId == other.runId;
+        }
+    };
+
+    struct TaskKeyHash {
+        std::size_t operator()(const TaskKey& k) const noexcept {
+            return std::hash<std::string>()(k.id) ^ (std::hash<std::string>()(k.runId) << 1);
+        }
+    };
+
     // 每个 task 默认最多保留多少条 record（防止内存爆）
     explicit TaskLogBuffer(std::size_t perTaskMaxRecords = 2000);
 
@@ -53,7 +67,7 @@ private:
 private:
     std::size_t _perTaskMaxRecords;
     mutable std::mutex _mu;
-    std::unordered_map<std::string, PerTaskBuf> _bufs; // key = taskId.value
+    std::unordered_map<TaskKey, PerTaskBuf, TaskKeyHash> _bufs; // key = (taskId.value, runId)
 };
 
 } // namespace taskhub::core

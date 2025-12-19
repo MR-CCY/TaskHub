@@ -123,7 +123,8 @@ namespace taskhub::dag {
                     node->id().value,
                     "dag_node_ready",
                     {
-                        {"indegree", node->indegree()}
+                        {"indegree", node->indegree()},
+                        {"run_id", node->id().runId}
                     }
                 );
             }
@@ -188,7 +189,8 @@ namespace taskhub::dag {
             "dag_node_start",
             {
                 {"exec_type", TaskExecTypetoString(node->runnerConfig().execType)},
-                {"queue", node->runnerConfig().queue}
+                {"queue", node->runnerConfig().queue},
+                {"run_id", id.runId}
             }
         );
 
@@ -224,7 +226,8 @@ namespace taskhub::dag {
             {
                 {"status", core::TaskStatusTypetoString(st)},
                 {"duration_ms", result.durationMs},
-                {"exit_code", result.exitCode}
+                {"exit_code", result.exitCode},
+                {"run_id", id.runId}
             }
         );
         if (result.ok()) {
@@ -248,14 +251,15 @@ namespace taskhub::dag {
                         _readyQueue.push(childId);
                     }
                     // WS event: child becomes ready
-                    ws::WsLogStreamer::instance().pushTaskEvent(
-                        childId.value,
-                        "dag_node_ready",
-                        {
-                            {"indegree", 0},
-                            {"parent", id.value}
-                        }
-                    );
+                        ws::WsLogStreamer::instance().pushTaskEvent(
+                            childId.value,
+                            "dag_node_ready",
+                            {
+                                {"indegree", 0},
+                                {"parent", id.value},
+                                {"run_id", childId.runId}
+                            }
+                        );
                 }
             }
         } else {
@@ -312,7 +316,8 @@ namespace taskhub::dag {
                             "dag_node_skipped",
                             {
                                 {"reason", "skip_downstream"},
-                                {"upstream", id.value}
+                                {"upstream", id.value},
+                                {"run_id", childId.runId}
                             }
                         );
                         for (const auto& grandChildId : child->downstream()) {

@@ -6,15 +6,6 @@
 #include "utils/utils_exec.h"
 #include "utils/utils.h"
 namespace taskhub {
-    struct PoolStats {
-        int workers;
-        int queued;
-        int running;
-        int submitted;
-        int finished;
-    };
-    PoolStats stats();
-
     WorkerPool* WorkerPool::instance()
     {
         // Use function-local static to ensure destruction happens at program exit
@@ -65,7 +56,17 @@ namespace taskhub {
         Logger::info("WorkerPool stopped");
     }
 
-    //
+    PoolStats WorkerPool::stats() const
+    {
+        PoolStats s;
+        s.workers   = static_cast<int>(m_workers.size());
+        s.queued    = m_queue.size();
+        s.running   = m_current_running.load();
+        s.submitted = m_total_submitted.load();
+        s.finished  = m_total_finished.load();
+        return s;
+    }
+
     void WorkerPool::worker_loop(std::size_t worker_id)
     {
         Logger::info("Worker " + std::to_string(worker_id) + " started");
@@ -202,6 +203,7 @@ namespace taskhub {
                     + ", status="
                     + std::to_string(static_cast<int>(task->status))
                     + ", exit=" + std::to_string(task->exit_code));
-
+        m_total_finished++;
+        m_current_running--;
     }
 }

@@ -9,6 +9,7 @@
 #include <unordered_set>
 #include <mutex>
 #include <deque>
+#include <chrono>
 
 namespace taskhub {
 
@@ -43,6 +44,8 @@ private:
     std::deque<std::string> write_queue_;
     mutable std::mutex sub_mtx_;
     std::unordered_set<std::string> subscriptions_;
+    bool authed_{false};
+    std::deque<std::chrono::steady_clock::time_point> cmd_timestamps_;
 };
 
 class WsServer {

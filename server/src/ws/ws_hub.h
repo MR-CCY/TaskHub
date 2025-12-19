@@ -19,12 +19,13 @@ public:
     void broadcast(const std::string& text);
     // ✅ 新接口：按 channel 广播（M12.2 核心）
     void broadcast(const std::string& channel, const std::string& text);
+    std::size_t session_count() const;
 private:
     WsHub() = default;
     WsHub(const WsHub&) = delete;
     WsHub& operator=(const WsHub&) = delete;
 
-    std::mutex mtx_;
+    mutable std::mutex mtx_;
     std::vector<std::weak_ptr<WsSession>> sessions_;
 };
 

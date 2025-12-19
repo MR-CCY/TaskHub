@@ -33,7 +33,10 @@ namespace taskhub
     }
     // Request: POST /api/workers/register
     //   Body JSON: {"id":"worker-1","host":"127.0.0.1","port":8083,"queues":["default"],"labels":["gpu"],"running_tasks":0}
-    // Response: {"ok":true} or {"code":400/404/500,"message":"..."} via resp::error
+    // Response:
+    //   200 {"ok":true}
+    //   400 {"code":400,"message":"invalid json"|"missing required fields: id/port","data":null}
+    //   500 {"code":500,"message":"internal error: ...","data":null}
     void WorkHandler::workers_register(const httplib::Request &req, httplib::Response &res)
     {
         Logger::info("Worker register request: " + req.body);
@@ -87,7 +90,9 @@ namespace taskhub
     }
     // Request: POST /api/workers/heartbeat
     //   Body JSON: {"id":"worker-1","running_tasks":2}
-    // Response: {"ok":true} or error json (400 missing id, 404 not found, 500 internal)
+    // Response:
+    //   200 {"ok":true}
+    //   400 {"code":400,"message":"missing worker id","data":null}; 404 {"code":404,"message":"worker not found","data":null}; 500 {"code":500,"message":"internal error","data":null}
     void WorkHandler::workers_heartbeat(const httplib::Request &req, httplib::Response &res)
     {
        Logger::info("Worker heartbeat request: " + req.body);
@@ -116,7 +121,9 @@ namespace taskhub
         }
     }
     // Request: GET /api/workers
-    // Response: {"ok":true,"workers":[{id,host,port,running_tasks,alive,last_seen_ms_ago,queues[],labels[]}]}
+    // Response:
+    //   200 {"ok":true,"workers":[{id,host,port,running_tasks,alive,last_seen_ms_ago,queues[],labels[]}]}
+    //   500 {"code":500,"message":"internal error: ...","data":null}
     void WorkHandler::workers_list(const httplib::Request &req, httplib::Response &res)
     {
         Logger::info("Worker list request");
@@ -158,8 +165,10 @@ namespace taskhub
         }
     }
     // Request: POST /api/worker/execute
-    //   Body JSON: task config (see TaskConfig fields), exec_type must not be Remote
-    // Response: TaskResult JSON with status/exit_code/stdout/stderr etc., or error via resp::error
+    //   Body JSON: TaskConfig（同 Dag/Runner），exec_type 不能为 Remote
+    // Response:
+    //   200 {status:int,message,exit_code,duration_ms,stdout,stderr,attempt,max_attempts,metadata:{...}}
+    //   400 {"code":400,"message":"invalid json"|"worker cannot execute Remote task","data":null}; 500 {"code":500,"message":"internal error: ...","data":null}
     void WorkHandler::worker_execute(const httplib::Request &req, httplib::Response &res)
     {
         Logger::info("Worker execute task request: " + req.body);

@@ -33,7 +33,8 @@ TaskResult TaskRunner::run(const TaskConfig &cfg, std::atomic_bool *cancelFlag) 
         "task_start",
         {
             {"exec_type", TaskExecTypetoString(cfg.execType)},
-            {"queue", cfg.queue}
+            {"queue", cfg.queue},
+            {"run_id", cfg.id.runId}
         }
     );
     TaskResult r = runWithRetry(cfg, cancelFlag);
@@ -41,6 +42,7 @@ TaskResult TaskRunner::run(const TaskConfig &cfg, std::atomic_bool *cancelFlag) 
     // ===== M12: end event (structured) =====
     core::LogRecord rec;
     rec.taskId   = cfg.id;
+    rec.runId    = cfg.id.runId;
     rec.level    = r.ok() ? LogLevel::Info : LogLevel::Warn;
     rec.stream   = core::LogStream::Event;
     rec.message  = "TaskRunner::run end";
@@ -79,7 +81,8 @@ TaskResult TaskRunner::run(const TaskConfig &cfg, std::atomic_bool *cancelFlag) 
             {"message",   r.message},
             {"duration_ms", rec.durationMs},
             {"attempt",   r.attempt},
-            {"max_attempts", r.maxAttempts}
+            {"max_attempts", r.maxAttempts},
+            {"run_id", cfg.id.runId}
         }
     );
     return r;
@@ -139,7 +142,8 @@ TaskResult TaskRunner::runWithRetry(const TaskConfig &cfg, std::atomic_bool *ext
             "attempt_start",
             {
                 {"attempt", attempt + 1},
-                {"max_attempts", maxAttempts}
+                {"max_attempts", maxAttempts},
+                {"run_id", cfg.id.runId}
             }
         );
 
@@ -158,7 +162,8 @@ TaskResult TaskRunner::runWithRetry(const TaskConfig &cfg, std::atomic_bool *ext
             {
                 {"attempt", attempt + 1},
                 {"status", TaskStatusTypetoString(lastResult.status)},
-                {"message", lastResult.message}
+                {"message", lastResult.message},
+                {"run_id", cfg.id.runId}
             }
         );
          // 添加 attempt 字段

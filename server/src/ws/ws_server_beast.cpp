@@ -4,6 +4,7 @@
 #include "ws_protocol.h"
 #include <boost/beast/core/buffers_to_string.hpp>
 #include <json.hpp>
+#include "auth/auth_manager.h"
 namespace taskhub {
     WsSession::WsSession(tcp::socket socket)
     : ws_(std::move(socket)),
@@ -115,18 +116,63 @@ namespace taskhub {
                 }
             });
     }
+    // 处理客户端指令：
+    //   - 首条消息必须包含 "token":"<jwt>"，校验通过后 authed_=true（可只发 token，收到 {"type":"authed"}）。
+    //   - 订阅/退订：{"token":"...","op":"subscribe|unsubscribe","topic":"task_logs|task_events","task_id":"t1","run_id":"r1?"}
+    //   - 心跳：{"token":"...","op":"ping"} -> 返回 {"type":"pong"}
+    // 收到的消息解析失败或超过速率会直接关闭连接。
     void WsSession::handle_command(const std::string &payload)
     {
+        constexpr std::size_t kMaxCommandsPerWindow = 30;
+        constexpr auto kWindow = std::chrono::seconds(10);
+        const auto now = std::chrono::steady_clock::now();
+        // rate limit client commands to protect server resources
+        while (!cmd_timestamps_.empty() && now - cmd_timestamps_.front() > kWindow) {
+            cmd_timestamps_.pop_front();
+        }
+        if (cmd_timestamps_.size() >= kMaxCommandsPerWindow) {
+            Logger::warn("WsSession rate limit exceeded, closing connection");
+            beast::error_code ec;
+            ws_.close(websocket::close_reason("rate limit"), ec);
+            WsHub::instance().remove_session(shared_from_this());
+            return;
+        }
+        cmd_timestamps_.push_back(now);
         try {
             auto j = nlohmann::json::parse(payload);
+            // 简单鉴权：要求携带 token 并校验一次
+            if (!authed_) {
+                auto it = j.find("token");
+                if (it == j.end() || !it->is_string()) {
+                    Logger::warn("WsSession missing token, closing");
+                    beast::error_code ec;
+                    ws_.close(websocket::close_reason("unauthorized"), ec);
+                    WsHub::instance().remove_session(shared_from_this());
+                    return;
+                }
+                auto user = AuthManager::instance().validate_token(it->get<std::string>());
+                if (!user) {
+                    Logger::warn("WsSession invalid token, closing");
+                    beast::error_code ec;
+                    ws_.close(websocket::close_reason("unauthorized"), ec);
+                    WsHub::instance().remove_session(shared_from_this());
+                    return;
+                }
+                authed_ = true;
+                // 纯认证消息：允许没有 op 的第一条消息，避免误报错误
+                if (!j.contains("op")) {
+                    send_text(R"({"type":"authed"})");
+                    return;
+                }
+            }
             auto cmd = ws::parseClientCommand(j);
             switch (cmd.op) {
                 case ws::WsOp::Subscribe: {
                     std::string ch;
                     if (cmd.topic == ws::WsTopic::TaskLogs) {
-                        ch = ws::channelTaskLogs(cmd.taskId);
+                        ch = ws::channelTaskLogs(cmd.taskId, cmd.runId);
                     } else if (cmd.topic == ws::WsTopic::TaskEvents) {
-                        ch = ws::channelTaskEvents(cmd.taskId);
+                        ch = ws::channelTaskEvents(cmd.taskId, cmd.runId);
                     }
                     if (!ch.empty()) {
                         subscribe(ch);
@@ -136,9 +182,9 @@ namespace taskhub {
                 case ws::WsOp::Unsubscribe: {
                     std::string ch;
                     if (cmd.topic == ws::WsTopic::TaskLogs) {
-                        ch = ws::channelTaskLogs(cmd.taskId);
+                        ch = ws::channelTaskLogs(cmd.taskId, cmd.runId);
                     } else if (cmd.topic == ws::WsTopic::TaskEvents) {
-                        ch = ws::channelTaskEvents(cmd.taskId);
+                        ch = ws::channelTaskEvents(cmd.taskId, cmd.runId);
                     }
                     if (!ch.empty()) {
                         unsubscribe(ch);

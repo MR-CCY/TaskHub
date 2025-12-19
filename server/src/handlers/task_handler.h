@@ -15,6 +15,7 @@ namespace taskhub {
         static void cancel_task(const httplib::Request& req, httplib::Response& res);
           // ★ 新增：运行 DAG（同步版）
         static void runDag(const httplib::Request& req, httplib::Response& resp);
+        static void runDagAsync(const httplib::Request& req, httplib::Response& resp);
     };
 
 }

@@ -14,6 +14,7 @@ std::string now_string();
 long long now_millis();
 
 std::string formatTimestampMs(const std::chrono::system_clock::time_point& ts);
+std::string random_string(int len);
 
 std::pair<int, std::string> run_command(const std::string& cmd);
 } // namespace utils

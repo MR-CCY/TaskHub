@@ -29,7 +29,11 @@ struct DagResult
         for(const auto& id : taskIds){
             auto it = taskResults.find(id);
             if (it != taskResults.end()) {
-                j.push_back(core::taskResultToJson(it->second));
+                json item;
+                item["id"] = id.value;
+                if (!id.runId.empty()) item["run_id"] = id.runId;
+                item["result"] = core::taskResultToJson(it->second);
+                j.push_back(std::move(item));
             }
         }
         return j;

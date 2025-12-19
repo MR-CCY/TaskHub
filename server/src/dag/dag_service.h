@@ -12,9 +12,10 @@ public:
     // 高层接口：传入一组 DagTaskSpec，执行整个 DAG
     core::TaskResult runDag(const std::vector<dag::DagTaskSpec>& specs,
                             const dag::DagConfig& config,
-                            const dag::DagEventCallbacks& callbacks);
+                            const dag::DagEventCallbacks& callbacks,
+                            const std::string& runId = "");
                             
-    DagResult runDag(const json& body);                    
+    DagResult runDag(const json& body, const std::string& runId = "");
 
 private:
     dag::DagExecutor _executor;

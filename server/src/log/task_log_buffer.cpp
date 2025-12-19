@@ -6,21 +6,28 @@ namespace taskhub::core {
 TaskLogBuffer::TaskLogBuffer(std::size_t perTaskMaxRecords)
     : _perTaskMaxRecords(perTaskMaxRecords) {}
 
+TaskLogBuffer::TaskKey makeKey(const TaskId& taskId) {
+    return TaskLogBuffer::TaskKey{taskId.value, taskId.runId};
+}
+
 TaskLogBuffer::PerTaskBuf& TaskLogBuffer::getOrCreate_(const TaskId& taskId) {
-    auto& b = _bufs[taskId.value];
+    auto key = makeKey(taskId);
+    auto& b = _bufs[key];
     b.lastTouch = std::chrono::steady_clock::now();
     return b;
 }
 
 TaskLogBuffer::PerTaskBuf* TaskLogBuffer::find_(const TaskId& taskId) {
-    auto it = _bufs.find(taskId.value);
+    auto key = makeKey(taskId);
+    auto it = _bufs.find(key);
     if (it == _bufs.end()) return nullptr;
     it->second.lastTouch = std::chrono::steady_clock::now();
     return &it->second;
 }
 
 const TaskLogBuffer::PerTaskBuf* TaskLogBuffer::find_(const TaskId& taskId) const {
-    auto it = _bufs.find(taskId.value);
+    auto key = makeKey(taskId);
+    auto it = _bufs.find(key);
     if (it == _bufs.end()) return nullptr;
     return &it->second;
 }
@@ -28,6 +35,9 @@ const TaskLogBuffer::PerTaskBuf* TaskLogBuffer::find_(const TaskId& taskId) cons
 LogRecord TaskLogBuffer::append(LogRecord rec) {
     std::lock_guard<std::mutex> lk(_mu);
     auto& b = getOrCreate_(rec.taskId);
+    if (rec.runId.empty()) {
+        rec.runId = rec.taskId.runId;
+    }
 
     rec.seq = b.nextSeq++;
     b.q.emplace_back(std::move(rec));
@@ -42,6 +52,7 @@ LogRecord TaskLogBuffer::append(LogRecord rec) {
 LogRecord TaskLogBuffer::appendStdout(const TaskId& taskId, const std::string& text) {
     LogRecord r;
     r.taskId   = taskId;
+    r.runId    = taskId.runId;
     r.level    = LogLevel::Info;
     r.stream   = LogStream::Stdout;
     r.message  = text;
@@ -51,6 +62,7 @@ LogRecord TaskLogBuffer::appendStdout(const TaskId& taskId, const std::string& t
 LogRecord TaskLogBuffer::appendStderr(const TaskId& taskId, const std::string& text) {
     LogRecord r;
     r.taskId   = taskId;
+    r.runId    = taskId.runId;
     r.level    = LogLevel::Warn;      // 你要也可用 Error，看你定义
     r.stream   = LogStream::Stderr;
     r.message  = text;
@@ -103,7 +115,7 @@ std::vector<LogRecord> TaskLogBuffer::tail(const TaskId& taskId, std::size_t n) 
 
 void TaskLogBuffer::clear(const TaskId& taskId) {
     std::lock_guard<std::mutex> lk(_mu);
-    _bufs.erase(taskId.value);
+    _bufs.erase(makeKey(taskId));
 }
 
 void TaskLogBuffer::pruneOlderThan(std::chrono::milliseconds maxAge) {

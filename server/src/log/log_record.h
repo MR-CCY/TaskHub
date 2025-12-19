@@ -21,6 +21,7 @@ struct LogRecord {
     std::string dagRunId;                  // 可选：DAG run
     std::string cronJobId;                 // 可选：Cron job
     std::string workerId;                  // 可选：Worker
+    std::string runId;                     // 可选：显式 runId（同 taskId.runId，方便过滤）
 
     // ---- content ----
     LogLevel level{LogLevel::Info};

@@ -3,6 +3,9 @@
 #include <ctime>
 #include <iomanip>
 #include <sstream>
+#include <random>
+#include <array>
+#include "utils.h"
 
 namespace taskhub {
 namespace utils {
@@ -56,6 +59,23 @@ std::string formatTimestampMs(const std::chrono::system_clock::time_point &ts)
     return ss.str();
 }
 
+std::string random_string(int len)
+{
+    static constexpr char kCharset[] =
+        "0123456789"
+        "abcdefghijklmnopqrstuvwxyz"
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    static thread_local std::mt19937 rng{std::random_device{}()};
+    static thread_local std::uniform_int_distribution<std::size_t> dist(0, sizeof(kCharset) - 2);
+
+    if (len <= 0) return {};
+    std::string out;
+    out.reserve(static_cast<std::size_t>(len));
+    for (int i = 0; i < len; ++i) {
+        out.push_back(kCharset[dist(rng)]);
+    }
+    return out;
+}
 std::pair<int, std::string> run_command(const std::string &cmd)
 {
     std::array<char, 256> buffer{};

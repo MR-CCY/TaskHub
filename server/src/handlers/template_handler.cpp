@@ -7,7 +7,9 @@
 #include "template/template_renderer.h"
 #include "core/http_response.h"
 #include "dag/dag_service.h"
-
+#include "dag/dag_thread_pool.h"
+#include "utils/utils.h"
+#include <unordered_map>
 using json=nlohmann::json;
 
 namespace taskhub {
@@ -20,11 +22,15 @@ namespace taskhub {
         server.Post(R"(/template/update/([^/]+))", update);
         server.Post("/template/render", render);
         server.Post("/template/run", run);
+        server.Post("/template/run_async", runAsync);
     }
 
     // Request: POST /template
-    //   Body: {"template_id":"t1","name":"echo template","description":"...","task_json_template":{...},"schema":{...}}
-    // Response: {"ok":true,"template_id":"t1"} or {"ok":false,"error":"..."} (duplicate id / missing fields / bad json).
+    //   Body JSON: {"template_id":"t1","name":"echo template","description":"...","task_json_template":{...},"schema":{...}}
+    // Response:
+    //   200 {"ok":true,"template_id":"t1"}
+    //   400 {"ok":false,"error":"bad request" | "missing required fields"}
+    //   404 n/a; 500 {"ok":false,"error":"template id already exists" | "internal server error"}
     void TemplateHandler::create(const httplib::Request &req, httplib::Response &res)
     {
         Logger::info("Post /template/create");
@@ -72,7 +78,9 @@ namespace taskhub {
     }
 
     // Request: GET /template/{id}
-    // Response: {"ok":true,"data":{template json}} or {"ok":false,"error":"template not found"}.
+    // Response:
+    //   200 {"ok":true,"data":{template json}}
+    //   404 {"ok":false,"error":"template not found"}; 500 {"ok":false,"error":"internal server error"}
     void TemplateHandler::get(const httplib::Request &req, httplib::Response &res)
     {
         Logger::info("Get /template/get");
@@ -97,7 +105,7 @@ namespace taskhub {
         }
     }
     // Request: GET /templates
-    // Response: {"ok":true,"data":[{template...}]}
+    // Response: 200 {"ok":true,"data":[{template...}]}; 500 {"ok":false,"error":"internal server error"}
     void TemplateHandler::list(const httplib::Request &req, httplib::Response &res)
     {
         Logger::info("Get /template/list");
@@ -121,7 +129,9 @@ namespace taskhub {
         }
     }
     // Request: DELETE /template/{id}
-    // Response: {"ok":true} or {"ok":false,"error":"template not found"}.
+    // Response:
+    //   200 {"ok":true}
+    //   404 {"ok":false,"error":"template not found"}; 500 {"ok":false,"error":"internal server error"}
     void TemplateHandler::delete_(const httplib::Request &req, httplib::Response &res)
     {
         Logger::info("Delete /template/delete");
@@ -145,15 +155,18 @@ namespace taskhub {
         }
     }
     // Request: POST /template/update/{id}
-    //   Body: partial fields to update (name/description/task_json_template/schema)
-    // Response: {"ok":true} or {"ok":false,"error":"..."} (not yet implemented).
+    //   Body: 部分字段更新（name/description/task_json_template/schema）
+    // Response: 未实现（TODO M13.3）
     void TemplateHandler::update(const httplib::Request &req, httplib::Response &res)
     {
         // TODO(M13.3): implement update
     }
     // Request: POST /template/render
-    //   Body: {"template_id":"t1","params":{...}}
-    // Response: {"ok":true,"data":{rendered task json}}; {"ok":false,"error":"..."} on validation/render failure.
+    //   Body JSON: {"template_id":"t1","params":{...}}
+    // Response:
+    //   200 {"ok":true,"data":{"ok":true,"error":"","rendered":{...}}}
+    //   400 {"ok":false,"error":"missing required fields" | <render error>,"data":{RenderResult}}
+    //   404 {"ok":false,"error":"template not found"}; 500 {"ok":false,"error":"internal server error"}
     void TemplateHandler::render(const httplib::Request &req, httplib::Response &res)
     {
         Logger::info("Post /template/render");
@@ -205,8 +218,13 @@ namespace taskhub {
         }
     }
     // Request: POST /template/run
-    //   Body: {"template_id":"t1","params":{...}}
-    // Response: {"ok":true,"nodes":{...},"summary":{total,success,failed,skipped}} or {"ok":false,"error":"..."}.
+    //   Body JSON: {"template_id":"t1","params":{...}}
+    //   行为：渲染模板、为每个 task/task_list 注入 run_id，调用 DagService::runDag
+    // Response:
+    //   200 {"ok":true,"message":string,"nodes":[{"id":"a","run_id":"...","result":{status(int),message,exit_code,duration_ms,stdout,stderr,attempt,max_attempts,metadata}}],"run_id":string,"summary":{"total":N,"success":[ids],"failed":[ids],"skipped":[ids]}}
+    //   400 {"ok":false,"error":"missing required fields" | <render error>,"data":{RenderResult}}
+    //   404 {"ok":false,"error":"template not found"}
+    //   500 {"ok":false,"error":<dag error> | "internal server error"}
     void TemplateHandler::run(const httplib::Request &req, httplib::Response &res)
     {
         Logger::info("Post /template/run");
@@ -245,7 +263,30 @@ namespace taskhub {
                 res.set_content(out.dump(), "application/json");
                 return;
             }
-            auto dagResult= dag::DagService::instance().runDag(r.rendered);
+            const std::string runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
+            if (r.rendered.contains("tasks") && r.rendered["tasks"].is_array()) {
+                for (auto& jt : r.rendered["tasks"]) {
+                    if (!jt.contains("id") || !jt["id"].is_string()) {
+                        resp::error(res, 400, R"({"ok":false,"error":"task id is required"})");
+                        return;
+                    }
+                    jt["run_id"] = runId;
+                }
+            } else if (r.rendered.contains("task") && r.rendered["task"].is_object()) {
+                if (!r.rendered["task"].contains("id") || !r.rendered["task"]["id"].is_string()) {
+                    resp::error(res, 400, R"({"ok":false,"error":"task id is required"})");
+                    return;
+                }
+                r.rendered["task"]["run_id"] = runId;
+            } else {
+                if (!r.rendered.contains("id") || !r.rendered["id"].is_string()) {
+                    resp::error(res, 400, R"({"ok":false,"error":"task id is required"})");
+                    return;
+                }
+                r.rendered["run_id"] = runId;
+            }
+
+            auto dagResult= dag::DagService::instance().runDag(r.rendered, runId);
             if(!dagResult.success){
                 json out;
                 out["ok"] = false;
@@ -282,6 +323,7 @@ namespace taskhub {
             respJson["ok"]      = dagResult.success;
             respJson["message"] = dagResult.message;
             respJson["nodes"]= dagResult.to_json();
+            respJson["run_id"] = runId;
             json summary;
             summary["total"]   = dagResult.taskResults.size();
             summary["success"] = successIds;
@@ -295,4 +337,90 @@ namespace taskhub {
             return;
         }
     }
-}
+    // Request: POST /template/run_async
+    //   Body JSON: {"template_id":"t1","params":{...}}
+    //   行为：渲染模板、为每个 task 注入 run_id，后台线程调用 DagService::runDag
+    // Response:
+    //   200 {"code":0,"message":"ok","data":{"run_id":string,"task_ids":[{"logical":<task logical id>,"task_id":<task id>},...]}}
+    //   400/404 通过 resp::error 返回：code=400 (bad request/render error) 或 404 (template not found)，data=null
+    void TemplateHandler::runAsync(const httplib::Request &req, httplib::Response &res)
+    {
+        Logger::info("Post /template/run_async");
+        json req_json;
+        try {
+            req_json = json::parse(req.body);
+        } catch (json::exception& e) {
+            resp::error(res, 400, R"({"ok":false,"error":"bad request"})");
+            return;
+        }
+        try {
+            auto template_id = req_json.value("template_id", "");
+            auto params = req_json.value("params", json::object());
+            if (template_id.empty() || !params.is_object()) {
+                resp::error(res, 400, R"({"ok":false,"error":"missing required fields"})");
+                return;
+            }
+            auto& store = tpl::TemplateStore::instance();
+            auto tpl_opt = store.get(template_id);
+            if (!tpl_opt) {
+                resp::error(res, 404, R"({"ok":false,"error":"template not found"})");
+                return;
+            }
+            tpl::ParamMap p;
+            for (auto& [k, v] : params.items()) {
+                p[k] = v;
+            }
+            auto r = tpl::TemplateRenderer::render(*tpl_opt, p);
+            if (!r.ok) {
+                resp::error(res, 400, r.error);
+                return;
+            }
+
+            const std::string runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
+            std::vector<json> taskList;
+            if (r.rendered.contains("tasks") && r.rendered["tasks"].is_array()) {
+                for (auto& jt : r.rendered["tasks"]) {
+                    if (!jt.contains("id") || !jt["id"].is_string()) {
+                        resp::error(res, 400, R"({"ok":false,"error":"task id is required"})");
+                        return;
+                    }
+                    taskList.push_back({{"logical", jt["id"]}, {"task_id", jt["id"]}});
+                    jt["run_id"] = runId;
+                }
+            } else if (r.rendered.contains("task") && r.rendered["task"].is_object()) {
+                auto& t = r.rendered["task"];
+                if (!t.contains("id") || !t["id"].is_string()) {
+                    resp::error(res, 400, R"({"ok":false,"error":"task id is required"})");
+                    return;
+                }
+                taskList.push_back({{"logical", t["id"]}, {"task_id", t["id"]}});
+                t["run_id"] = runId;
+            } else {
+                if (!r.rendered.contains("id") || !r.rendered["id"].is_string()) {
+                    resp::error(res, 400, R"({"ok":false,"error":"task id is required"})");
+                    return;
+                }
+                taskList.push_back({{"logical", r.rendered["id"]}, {"task_id", r.rendered["id"]}});
+                r.rendered["run_id"] = runId;
+            }
+
+            // 通过 DAG 线程池执行，避免为每个请求创建新的 detached 线程
+            dag::DagThreadPool::instance().post([rendered = r.rendered, runId]() mutable {
+                try {
+                    dag::DagService::instance().runDag(rendered, runId);
+                } catch (const std::exception& e) {
+                    Logger::error(std::string("template run_async thread exception: ") + e.what());
+                }
+            });
+
+            json data;
+            data["run_id"] = runId;
+            data["task_ids"] = taskList;
+            resp::ok(res, data);
+        } catch (const std::exception& e) {
+            Logger::error(std::string("Failed to run template async: ") + e.what());
+            resp::error(res, 500, std::string(R"({"ok":false,"error":")") + e.what() + R"("})");
+            return;
+        }
+    }
+} 

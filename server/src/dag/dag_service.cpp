@@ -18,13 +18,18 @@ namespace taskhub::dag {
     * @param config DAG运行配置参数
     * @param callbacks DAG事件回调函数集合
     * @return 执行结果，包括状态和消息*/
-    core::TaskResult DagService::runDag(const std::vector<dag::DagTaskSpec> &specs, const dag::DagConfig &config, const dag::DagEventCallbacks &callbacks)
-    {
-        // 构建DAG任务图
-        dag::DagBuilder builder;
-        for (const auto& spec : specs) {
-            builder.addTask(spec);
+core::TaskResult DagService::runDag(const std::vector<dag::DagTaskSpec> &specs, const dag::DagConfig &config, const dag::DagEventCallbacks &callbacks, const std::string& runId)
+{
+    // 构建DAG任务图
+    dag::DagBuilder builder;
+    for (auto spec : specs) {
+        // runId 由外层传入时，写入节点 id 和依赖
+        if (!runId.empty()) {
+            spec.id.runId = runId;
+            for (auto& dep : spec.deps) dep.runId = runId;
         }
+        builder.addTask(spec);
+    }
         
         // 验证DAG结构是否有效
         auto validateResult = builder.validate();
@@ -37,15 +42,15 @@ namespace taskhub::dag {
         
         // 构建最终的DAG图并执行
         auto graph = builder.build();
-        dag::DagRunContext ctx(config, std::move(graph), callbacks);
-        return _executor.execute(ctx);
-    }
+    dag::DagRunContext ctx(config, std::move(graph), callbacks);
+    return _executor.execute(ctx);
+}
 
-    DagResult DagService::runDag(const json &body)
-    {
-        std::map<core::TaskId, core::TaskResult> result;
-        core::TaskResult tr;
-        DagResult dr;
+DagResult DagService::runDag(const json &body, const std::string& runId)
+{
+    std::map<core::TaskId, core::TaskResult> result;
+    core::TaskResult tr;
+    DagResult dr;
         // ===== 1. 解析 DagConfig =====
         dag::DagConfig cfg;
         if (body.contains("config") && body["config"].is_object()) {
@@ -80,12 +85,13 @@ namespace taskhub::dag {
                 dag::DagTaskSpec spec;
 
                 core::TaskConfig cfgTask = core::parseTaskConfigFromReq(jtask);
+                cfgTask.id.runId = runId;
                 spec.id        = cfgTask.id;
                 spec.runnerCfg = cfgTask;
 
                 if (jtask.contains("deps") && jtask["deps"].is_array()) {
                     for (const auto& d : jtask["deps"]) {
-                        spec.deps.emplace_back(core::TaskId{ d.get<std::string>() });
+                        spec.deps.emplace_back(core::TaskId{ d.get<std::string>(), runId });
                     }
                 }
 
@@ -127,6 +133,17 @@ namespace taskhub::dag {
 
          // ===== 6. Execute =====
         auto graph = builder.build();
+        // 将 runId 写入节点/依赖
+        if (!runId.empty()) {
+            for (auto& [idStr, node] : graph.nodes()) {
+                node->setRunnerConfig([&]{
+                    auto cfg = node->runnerConfig();
+                    cfg.id.runId = runId;
+                    return cfg;
+                }());
+            }
+        }
+
         dag::DagRunContext ctx(cfg, std::move(graph), callbacks);
         dag::DagExecutor executor(runner::TaskRunner::instance());
         core::TaskResult dagResult = executor.execute(ctx);

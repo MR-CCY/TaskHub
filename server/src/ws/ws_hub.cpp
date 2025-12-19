@@ -62,4 +62,15 @@ namespace taskhub {
             }
         }
     }
+    std::size_t WsHub::session_count() const
+    {
+        std::lock_guard<std::mutex> lock(mtx_);
+        std::size_t alive = 0;
+        for (const auto& weak : sessions_) {
+            if (weak.lock()) {
+                ++alive;
+            }
+        }
+        return alive;
+    }
 }

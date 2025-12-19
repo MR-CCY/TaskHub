@@ -18,6 +18,7 @@ private:
     static void update(const httplib::Request& req, httplib::Response& res);
     static void render(const httplib::Request& req, httplib::Response& res);
     static void run(const httplib::Request& req, httplib::Response& res);
+    static void runAsync(const httplib::Request& req, httplib::Response& res);
 };
 
 } // namespace taskhub::handlers

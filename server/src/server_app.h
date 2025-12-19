@@ -26,7 +26,6 @@ private:
     void init_http_server();
     void setup_routes();
     void init_db(); 
-    void init_version();
     void init_dag();
 private:
     // HTTP 服务对象

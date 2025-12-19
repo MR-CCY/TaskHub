@@ -38,6 +38,7 @@ static json logRecordToJson(const taskhub::core::LogRecord& r) {
 
     // identity
     j["task_id"] = r.taskId.value;
+    if (!r.taskId.runId.empty()) j["run_id"] = r.taskId.runId;
     if (!r.dagRunId.empty())  j["dag_run_id"] = r.dagRunId;
     if (!r.cronJobId.empty()) j["cron_job_id"] = r.cronJobId;
     if (!r.workerId.empty())  j["worker_id"] = r.workerId;
@@ -71,14 +72,14 @@ static json logRecordToJson(const taskhub::core::LogRecord& r) {
 void LogHandler::setup_routes(httplib::Server &server)
 {
     // GET /api/tasks/logs?task_id=xxx&from=1&limit=200
-    server.Get("/api/tasks/login", &LogHandler::logs);
+    server.Get("/api/tasks/logs", &LogHandler::logs);
 }
 
-// Request: GET /api/tasks/login?task_id=<id>&from=<seq>&limit=<n>
-//   from: optional, default 1; limit: optional, default 200 (1..2000)
-// Response: {"code":0,"message":"ok","data":{"task_id":string,"from":u64,"limit":int,"next_from":u64,"records":[{LogRecord...}]}}
-//   LogRecord fields: seq, task_id, dag_run_id, cron_job_id, worker_id, level(int), stream(int), message, ts_ms, duration_ms, attempt, fields(object)
-//   Errors: 400 missing task_id; 500 on query failure.
+// Request: GET /api/tasks/logs?task_id=<id>&run_id=<rid?>&from=<seq?>&limit=<n?>
+//   from: 默认 1；limit: 默认 200，范围 1..2000
+// Response:
+//   200 {"code":0,"message":"ok","data":{"task_id":string,"from":u64,"limit":int,"next_from":u64,"records":[{seq,task_id,run_id?,dag_run_id?,cron_job_id?,worker_id?,level:int,stream:int,message,ts_ms,duration_ms,attempt,fields:{}}]}}
+//   400 {"code":400,"message":"missing task_id","data":null}; 500 {"code":500,"message":"log query failed: ...","data":null}
 void LogHandler::logs(const httplib::Request &req, httplib::Response &res)
 {
     // ---- parse query params ----
@@ -89,6 +90,7 @@ void LogHandler::logs(const httplib::Request &req, httplib::Response &res)
     }
 
     const std::string taskId = req.get_param_value("task_id");
+    const std::string runId  = req.has_param("run_id") ? req.get_param_value("run_id") : "";
     const std::uint64_t from = req.has_param("from")
         ? parse_u64_or(req.get_param_value("from"), 1)
         : 1;
@@ -109,7 +111,7 @@ void LogHandler::logs(const httplib::Request &req, httplib::Response &res)
 
     try {
         auto qr = taskhub::core::LogManager::instance().query(
-            taskhub::core::TaskId{taskId}, from, static_cast<std::size_t>(limit));
+            taskhub::core::TaskId{taskId, runId}, from, static_cast<std::size_t>(limit));
         records = std::move(qr.records);
         nextFrom = qr.nextFrom;
     } catch (const std::exception& e) {

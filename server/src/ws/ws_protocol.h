@@ -7,6 +7,25 @@
 using json = nlohmann::json;
 namespace taskhub::ws {
 
+// WebSocket 协议（ws_server_beast + WsLogStreamer）
+// 1）握手与鉴权：连接后首条消息必须带 token，形如 {"token":"<jwt>"}。
+//    - 只发 token（无 op）会收到 {"type":"authed"}，后续再发送订阅指令。
+//    - 也可在首条消息里同时带 op/ topic（下面 2、3）。
+// 2）订阅/退订日志或事件：
+//    {"token":"<jwt>","op":"subscribe","topic":"task_logs","task_id":"t1","run_id":"r1?"}
+//    {"token":"<jwt>","op":"unsubscribe","topic":"task_events","task_id":"t1","run_id":"r1?"}
+//    topic 取值 task_logs / task_events，task_id 必填，run_id 选填。
+//    对应频道名：
+//      task_logs   → task.logs.<task_id>[.<run_id>]
+//      task_events → task.events.<task_id>[.<run_id>]
+// 3）心跳：{"token":"<jwt>","op":"ping"}，服务端回复 {"type":"pong"}。
+// 4）服务端推送（订阅频道才会收到）：
+//    - 日志：{"type":"log","task_id":"t1","run_id":"r1?","seq":1,"ts_ms":<ms>,"level":int,"stream":int,"message":"...","duration_ms":<ms>,"attempt":1,"fields":{...}}
+//    - 事件：{"type":"event","task_id":"t1","run_id":"r1?","event":"task_start","ts_ms":<ms>,"extra":{...}}
+// 5）全局广播（无需订阅，直接所有 session 收到）：
+//    例如 broadcast_task_event 发送 {"event":"task_updated","data":{task...}}，
+//    SystemHandler::broadcast 发送 {"event":"debug","data":{"msg":"..."}}。
+
 // ---------- 基础枚举 ----------
 
 // 客户端指令类型
@@ -33,6 +52,7 @@ struct ClientCommand {
 
     // 目前只支持 task_id 级别
     std::string taskId;
+    std::string runId;
 };
 
 // ---------- 服务端推送 ----------
@@ -131,6 +151,9 @@ inline ClientCommand parseClientCommand(const json& j){
     if (auto it = j.find("task_id"); it != j.end() && it->is_string()) {
         cmd.taskId = it->get<std::string>();
     }
+    if (auto it = j.find("run_id"); it != j.end() && it->is_string()) {
+        cmd.runId = it->get<std::string>();
+    }
     return cmd;
 };
 
@@ -143,18 +166,21 @@ inline json buildServerMessage(const ServerMessage& msg){
     };
 };
 
-inline std::string channelTaskLogs(const std::string& taskId) {
-    return "task.logs." + taskId;     // 订阅某个 task 的日志
+inline std::string channelTaskLogs(const std::string& taskId, const std::string& runId = "") {
+    if (runId.empty()) return "task.logs." + taskId;
+    return "task.logs." + taskId + "." + runId;     // 订阅某个 task 的日志
 }
 
-inline std::string channelTaskEvents(const std::string& taskId) {
-    return "task.events." + taskId;   // 订阅某个 task 的事件（预留）
+inline std::string channelTaskEvents(const std::string& taskId, const std::string& runId = "") {
+    if (runId.empty()) return "task.events." + taskId;
+    return "task.events." + taskId + "." + runId;   // 订阅某个 task 的事件（预留）
 }
 
 inline json buildLogJson(const core::LogRecord& r) {
     json j;
     j["type"]      = "log";
     j["task_id"]   = r.taskId.value;
+    if (!r.taskId.runId.empty()) j["run_id"] = r.taskId.runId;
     j["seq"]       = r.seq;
     j["ts_ms"]     = utils::now_millis();
     j["level"]     = static_cast<int>(r.level);
@@ -172,10 +198,12 @@ inline json buildLogJson(const core::LogRecord& r) {
 }
 inline json buildTaskEventJson(const std::string& taskId,
     const std::string& event,
-    const json& extra) {
+    const json& extra,
+    const std::string& runId = "") {
     json j;
     j["type"]    = "event";
     j["task_id"] = taskId;
+    if (!runId.empty()) j["run_id"] = runId;
     j["event"]   = event;
     j["ts_ms"]   = utils::now_millis();
     j["extra"]   = extra;

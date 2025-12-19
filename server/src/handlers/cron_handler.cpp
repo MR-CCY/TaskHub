@@ -27,7 +27,7 @@ void CronHandler::setup_routes(httplib::Server& server)
 }
 
 // Request: GET /api/cron/jobs
-// Response: {"ok":true,"jobs":[{id,name,spec,enabled,target_type,next_time_epoch,summary:{...}}]}
+// Response: 200 {"ok":true,"jobs":[{id,name,spec,enabled,target_type,next_time_epoch,summary:{exec_type,exec_command?}}]}
 void CronHandler::list_jobs(const httplib::Request& req,
                             httplib::Response& res)
 {
@@ -70,8 +70,12 @@ void CronHandler::list_jobs(const httplib::Request& req,
 }
 
 // Request: POST /api/cron/jobs
-//   Body: {"name":"job1","spec":"*/1 * * * *","target_type":"SingleTask"|"Dag", ... task/dag payload ...}
-// Response: {"ok":true,"job_id":"job_x"}; 400 with {"ok":false,"message":"..."} on validation errors.
+//   Body JSON:
+//     SingleTask: {"name":"job1","spec":"*/1 * * * *","target_type":"SingleTask","task":{"id":"task","name":"...","exec_type":"Local|Remote|Shell", "exec_command":"...", "timeout_ms":0,"retry_count":0,"priority":"Normal|Low|High|Critical"}}
+//     Dag: {"name":"job1","spec":"*/1 * * * *","target_type":"Dag","dag":{"config":{"fail_policy":"SkipDownstream"|"FailFast","max_parallel":4},"tasks":[{"id":"a","deps":["b"],"name":"a","timeout_ms":0,"retry_count":0,"retryDelay":1000,"exec_type":"Local","exec_command":"..."}]}}
+// Response:
+//   200 {"ok":true,"job_id":"job_x"}
+//   400 {"ok":false,"message":"..."}（缺字段/解析失败）
 void CronHandler::create_job(const httplib::Request& req,
                              httplib::Response& res)
 {
@@ -246,7 +250,7 @@ void CronHandler::create_job(const httplib::Request& req,
 }
 
 // Request: DELETE /api/cron/jobs/{id}
-// Response: {"ok":true} or 400 if id missing.
+// Response: 200 {"ok":true}; 400 {"ok":false,"message":"missing job id"}
 void CronHandler::delete_job(const httplib::Request& req,
                              httplib::Response& res)
 {

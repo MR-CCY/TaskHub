@@ -28,6 +28,7 @@ inline json task_to_json(const Task& t) {
     return j;
 }
 
+// WebSocket 全局广播格式：{"event":<event_name>,"data":{task...}}，无需订阅即可收到。
 // 统一封装：发送任务相关事件
 inline void broadcast_task_event(const std::string& event, const Task& t) {
     json wrapper;
