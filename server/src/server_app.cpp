@@ -29,87 +29,77 @@ namespace taskhub {
     ServerApp::~ServerApp() {
     }
 
-    // ... existing code ...
-    
-        /**
-         * @brief 启动并运行服务器应用程序
-         * 
-         * 该方法负责初始化整个TaskHub服务器，包括配置加载、日志系统、数据库、HTTP服务等组件，
-         * 并启动相关的工作线程和服务监听。
-         * 
-         * @return int 返回0表示成功启动服务器
-         */
-        int ServerApp::run() {
-            // 1. 加载配置
-            init_config();
-    
-            // 2. 初始化日志系统
-            init_logger();
-            Logger::info("===== TaskHub Server Starting =====");
-    
-            WorkerPool::instance()->start(1);
-            
-            // Logger::info("WorkerPool started with 4 workers");
-            // 3. 创建 HTTP Server
-            init_http_server();
+    int ServerApp::run() {
+        // 1. 加载配置
+        init_config();
 
-            // 4. 注册路由
-            setup_routes();
-            Logger::info("Routes registered");
+        // 2. 初始化日志系统
+        init_logger();
+        Logger::info("===== TaskHub Server Starting =====");
 
-            // 5. 初始化数据库并完成迁移
-            init_db();
-            
-            // 7. 监听 8090 端口启动 ws 服务（如果你希望任务日志通过 ws 实时推送，建议在 TaskRunner 之前启动）
-            m_wsServer = std::make_unique<WsServer>("0.0.0.0", 8090);
-            m_wsServer->start();
-            Logger::info("WsServer started at 0.0.0.0:8090");
-    
-            // 8. 启动后台任务执行线程
-            TaskRunner::instance().start();
-            Logger::info("TaskRunner started");
-    
-            AuthManager::instance().init();
-            Logger::info("AuthManager initialized");
-    
-             //9. 初始化 DAG 子系统
-            init_dag();
-            Logger::info("DagService initialized");
-            //10. 启动定时任务调度器
-            scheduler::CronScheduler::instance().start();
-            Logger::info("CronScheduler started");
-           
-            //11. 初始化工作节点心跳客户端或启动工作节点注册清理器
-            if(Config::instance().get("work.is_work", false)){
-                m_host= Config::instance().get<std::string>("work.worker_host", "0.0.0.0");
-                m_port= Config::instance().get("work.worker_port", 8083);
-                std::string masterHost= Config::instance().get<std::string>("work.master_host", "127.0.0.1");
-                int masterPort= Config::instance().get("work.master_port", 8082);
-                std::string workerId= Config::instance().get<std::string>("work.worker_id", "worker-1");
-                int intervalMs= Config::instance().get("work.heartbeat_interval_ms", 2000);
-                std::vector<std::string> queues= Config::instance().get<std::vector<std::string>>("work.queues");
-                std::vector<std::string> labels= Config::instance().get<std::vector<std::string>>("work.labels");
-                auto test=[]() -> int {
-                    return 0;
-                };
-    
-                g_heartbeat = std::make_unique<worker::WorkerHeartbeatClient>();
-                g_heartbeat->start(masterHost,masterPort,workerId,m_host,m_port,queues,labels,test,std::chrono::milliseconds(intervalMs));
-            
-                Logger::info("WorkerHeartbeatClient started, interval=" +
-                             std::to_string(intervalMs) + "ms");
-    
-            }else{
-                worker::WorkerRegistry::instance().startSweeper(std::chrono::seconds(5),
-                                                          std::chrono::seconds(60));
-            }
-            
-            // 12. 启动监听（阻塞）
-            Logger::info("Listening at " + m_host + ":" + std::to_string(m_port));
-            m_server->listen(m_host.c_str(), m_port);
-            
-            return 0;
+        WorkerPool::instance()->start(1);
+        
+        // Logger::info("WorkerPool started with 4 workers");
+        // 3. 创建 HTTP Server
+        init_http_server();
+
+        // 4. 注册路由
+        setup_routes();
+        Logger::info("Routes registered");
+
+        // 5. 初始化数据库并完成迁移
+        init_db();
+        
+        // 7. 监听 8090 端口启动 ws 服务（如果你希望任务日志通过 ws 实时推送，建议在 TaskRunner 之前启动）
+        m_wsServer = std::make_unique<WsServer>("0.0.0.0", 8090);
+        m_wsServer->start();
+        Logger::info("WsServer started at 0.0.0.0:8090");
+
+        // 8. 启动后台任务执行线程
+        TaskRunner::instance().start();
+        Logger::info("TaskRunner started");
+
+        AuthManager::instance().init();
+        Logger::info("AuthManager initialized");
+
+            //9. 初始化 DAG 子系统
+        init_dag();
+        Logger::info("DagService initialized");
+        //10. 启动定时任务调度器
+        scheduler::CronScheduler::instance().start();
+        Logger::info("CronScheduler started");
+        
+        //11. 初始化工作节点心跳客户端或启动工作节点注册清理器
+        if(Config::instance().get("work.is_work", false)){
+            m_host= Config::instance().get<std::string>("work.worker_host", "0.0.0.0");
+            m_port= Config::instance().get("work.worker_port", 8083);
+            std::string masterHost= Config::instance().get<std::string>("work.master_host", "127.0.0.1");
+            int masterPort= Config::instance().get("work.master_port", 8082);
+            std::string workerId= Config::instance().get<std::string>("work.worker_id", "worker-1");
+            int intervalMs= Config::instance().get("work.heartbeat_interval_ms", 2000);
+            std::vector<std::string> queues= Config::instance().get<std::vector<std::string>>("work.queues");
+            std::vector<std::string> labels= Config::instance().get<std::vector<std::string>>("work.labels");
+            auto test=[]() -> int {
+                return 0;
+            };
+
+            g_heartbeat = std::make_unique<worker::WorkerHeartbeatClient>();
+            g_heartbeat->start(masterHost,masterPort,workerId,m_host,m_port,queues,labels,test,std::chrono::milliseconds(intervalMs));
+        
+            Logger::info("WorkerHeartbeatClient started, interval=" +
+                            std::to_string(intervalMs) + "ms");
+
+        }else{
+            worker::WorkerRegistry::instance().startSweeper(std::chrono::seconds(5),
+                                                        std::chrono::seconds(60));
         }
+        
+        // 12. 启动监听（阻塞）
+        Logger::info("Listening at " + m_host + ":" + std::to_string(m_port));
+        m_server->listen(m_host.c_str(), m_port);
+        
+        return 0;
+    }
     
 
     void ServerApp::init_config() {
@@ -192,15 +182,6 @@ namespace taskhub {
 
     void ServerApp::init_http_server() {
         m_server=std::make_unique<httplib::Server>();
-
-        // TODO:
-        // - 启用 HTTPS 时在这里切换为 httplib::SSLServer
-        // - 设置 Server 的超时、线程数等参数
-// #if defined(DEBUG) || defined(_DEBUG)
-//         // 调试时将线程池限制为 1，方便单步不被其他 worker 线程打断
-//         m_server->new_task_queue = [] { return new httplib::ThreadPool(1); };
-//         Logger::info("HTTP server thread pool set to 1 (debug build)");
-// #endif
     }
     void ServerApp::setup_routes() {
         Router::setup_routes(*m_server);
@@ -218,7 +199,7 @@ namespace taskhub {
             Logger::error("Database handle is null after open(), exiting");
             std::exit(1);
         }
-        const std::string migrations_dir = "./migrations";
+        const std::string migrations_dir = Config::instance().get<std::string>("database.migrations_dir", "./migrations");
         taskhub::DbMigrator::migrate(handle, migrations_dir);
         Logger::info("Database initialized and migrated via DbMigrator");
     }

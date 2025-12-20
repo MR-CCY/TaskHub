@@ -17,7 +17,8 @@
   "database": {
     "host": "0.0.0.0",
     "port": 8082,
-    "db_path": "./taskhub.db"
+    "db_path": "./taskhub.db",
+    "migrations_dir": "./migrations"
   },
   "log": {
     "path": "./logs/taskhub.log",

@@ -10,6 +10,7 @@ find_package(Qt6 REQUIRED COMPONENTS
         Core
         Widgets
         WebSockets
+        
         Network)
 
 # 收集所有 cpp/h 文件
@@ -18,6 +19,13 @@ file(GLOB CLIENT_SOURCES
     src/core/*.cpp
     src/models/*.cpp
     src/ui/*.cpp
+    src/net/*.cpp
+    src/graph/*.cpp
+    src/view/*.cpp
+    src/commands/*.cpp
+    src/view/items/*.cpp
+    src/tasks/*.cpp
+    src/editor/*.cpp
 )
 
 file(GLOB CLIENT_HEADERS
@@ -25,6 +33,13 @@ file(GLOB CLIENT_HEADERS
     src/core/*.h
     src/models/*.h
     src/ui/*.h
+    src/net/*.h
+    src/graph/*.h
+    src/view/*.h
+    src/commands/*.h
+    src/view/items/*.h
+    src/tasks/*.h
+    src/editor/*.h
 )
 
 file(GLOB SCLIENT_UI

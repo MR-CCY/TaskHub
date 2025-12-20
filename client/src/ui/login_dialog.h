@@ -3,6 +3,7 @@
 #include <QLabel>
 #include "http_client.h"
 #include <QPushButton>
+#include "net/api_client.h"
 class LoginDialog : public QDialog {
     Q_OBJECT
 public:
@@ -12,9 +13,7 @@ private slots:
     void onLoginClicked();
 
 private:
-    QLineEdit* m_editBaseUrl;
     QLineEdit* m_editUsername;
     QLineEdit* m_editPassword;
-    QLabel*    m_labelError;
-    HttpClient* m_http;
+    ApiClient* m_appApiClient;
 };

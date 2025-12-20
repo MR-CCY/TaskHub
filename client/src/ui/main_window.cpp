@@ -10,79 +10,20 @@
 #include <QMessageBox>
 #include "app_context.h"
 #include "core/task_ws_client.h"
+#include "view/workflow_bench.h"
 
 MainWindow::MainWindow(QWidget *parent):
-    QMainWindow(parent),
-    m_http(this)
+    QMainWindow(parent)
 {
     setWindowTitle("TaskHub Client");
-    resize(800,600);
-    m_view= new QTableView(this);
-    ui=new Ui::MainWindowUi();
-    ui->setupUi(this);
-    ui->centralwidget->installEventFilter(this);
-    ui->widget->installEventFilter(this);
-    ui->centralwidget->setMouseTracking(true);
-    ui->widget->setMouseTracking(true);
-    ui->centralwidget->setAutoFillBackground(true);
-    
-    QPalette pal = ui->centralwidget->palette();
-    pal.setColor(QPalette::Window, Qt::white);
-    ui->centralwidget->setPalette(pal);
-    m_view=new QTableView(this);
-    ui->widget->layout()->addWidget(m_view); 
-    m_model=new TaskListModel(this);
-    m_view->setModel(m_model);
-    m_view->verticalHeader()->setVisible(false); // hide row numbers column
-    m_view->setCornerButtonEnabled(false);       // hide top-left square corner
-
-    connect(ui->pushButton, &QPushButton::clicked, this, &MainWindow::onRefreshTasks);
-    connect(ui->pushButton_2, &QPushButton::clicked, this, &MainWindow::onNewTask);
-    connect(m_view, &QTableView::doubleClicked, [this](const QModelIndex & index){
-        if(!index.isValid()){
-            return;
-        }
-        TaskDetailDialog dlg(this);
-        dlg.setTaskDetail( m_model->taskAt(index.row()) );
-        dlg.exec();
-    });
-    connect(&m_http, &HttpClient::unauthorized, this, &MainWindow::onUnauthorized);
-    onRefreshTasks();
-    QString info = QString("用户：%1   服务器：%2   登陆时间：%3")
-    .arg(AppContext::instance().username())
-    .arg(AppContext::instance().baseUrl())
-    .arg(AppContext::instance().loginTime());
-
-    auto label = new QLabel(info, this);
-    statusBar()->addPermanentWidget(label);
-
-    for (auto child : centralWidget()->children()) {
-        qDebug() << "Child:" << child << child->metaObject()->className();
-    }
-    m_wsClient = new TaskWsClient(this);
-    setupWs();
-}
-
-
-void MainWindow::onNewTask()
-{
-    NewTaskDialog dlg(this);
-    if(dlg.exec()!=QDialog::Accepted){
-        return;
-    }
-    QJsonObject body;
-    body["name"]=dlg.taskName();
-    body["params"]= QJsonObject{{"cmd", dlg.cmd()}};
-
-    m_http.postJson("/api/tasks", body, [this](bool ok, QJsonObject resp){
-        if(!ok||resp["code"] != 0){
-            ui->statusbar->showMessage("创建任务失败："+resp["message"].toString(), 5000);
-            return;
-        }
-        ui->statusbar->showMessage("创建任务成功", 5000);
-        onRefreshTasks();
-    });
-}
+    resize(2000,2000);
+    bench_ = new WorkflowBench(this);
+    setCentralWidget(bench_);
+    setupConsole();
+    setupClients();
+    wireSignals();
+}   
+     
 void MainWindow::onUnauthorized()
 {
     QMessageBox::warning(this, "登录失效", "登录已过期，请重新登录。");
@@ -90,76 +31,120 @@ void MainWindow::onUnauthorized()
     close();   // 关闭主窗口
     emit logoutRequested(); // 通知应用程序显示登录对话框
 }
-void MainWindow::onRefreshTasks()
-{
-    ui->pushButton->setEnabled(false);
-    statusBar()->showMessage("正在加载任务列表...");
 
-        
-    m_http.getJson("/api/tasks", [this](bool ok, QJsonObject resp){
-        ui->pushButton->setEnabled(true);
-        statusBar()->clearMessage();
-        if(!ok||resp["code"] != 0){
-            ui->statusbar->showMessage("获取任务列表失败："+resp["message"].toString(), 5000);
-            return;
-        }
-        QJsonArray tasks=resp["data"].toArray();
-        QList<TaskItem> items;
-        for(const QJsonValue & val: tasks){
-            QJsonObject obj=val.toObject();
-            TaskItem item;
-            item.id=obj["id"].toInt();
-            item.name=obj["name"].toString();
-            item.status=obj["status"].toString();
-            item.cmd=obj["params"].toObject()["cmd"].toString();
-            item.createTime=obj["create_time"].toString();
-            item.updateTime=obj["update_time"].toString();
-            item.exitCode=obj["exit_code"].toInt();
-            item.output=obj["last_output"].toString();
-            item.errorMsg=obj["last_error"].toString();
-            items.append(item);
-        }
-        m_model->setTasks(items);
-        ui->statusbar->showMessage(QString("获取到 %1 个任务").arg(items.size()), 5000);
-    });
+
+void MainWindow::setupConsole() {
+    console_ = new ConsoleDock(this);
+    addDockWidget(Qt::BottomDockWidgetArea, console_);
+    console_->appendInfo("App started");
 }
 
-bool MainWindow::eventFilter(QObject* obj, QEvent* event)
-{
-    if (event->type() == QEvent::MouseButtonPress) {
-        auto* me = static_cast<QMouseEvent*>(event);
-        QWidget* target = nullptr;
+void MainWindow::setupClients() {
+    api_ = new ApiClient(this);
+    ws_  = new WsClient(this);
+    ws_->setToken( AppContext::instance().token());
+    api_->setToken( AppContext::instance().token());
 
-        if (obj == ui->centralwidget) {
-            target = ui->centralwidget->childAt(me->pos());
-        } else if (obj == ui->widget) {
-            target = ui->widget->childAt(me->pos());
-        } else if (auto* w = qobject_cast<QWidget*>(obj)) {
-            target = w->childAt(w->mapFromGlobal(me->globalPos()));
-        }
+    // 你自己的 baseUrl 放这里（或从 Settings 读）
+    api_->setBaseUrl("http://127.0.0.1:8082");
+    wsUrl_ = QUrl("ws://127.0.0.1:8090/ws"); 
+    ws_->connectTo(wsUrl_);
 
-        QString cls = target ? target->metaObject()->className() : QStringLiteral("<none>");
-        QString name = target ? target->objectName() : QStringLiteral("<none>");
-        statusBar()->showMessage(QString("Clicked widget: %1 (objectName=%2)").arg(cls, name), 5000);
+    api_->getHealth();
+    api_->getInfo();
+   
+}
+void MainWindow::wireSignals() {
+    // ApiClient raw json -> console
+
+    connect(api_, &ApiClient::unauthorized, this, &MainWindow::onUnauthorized);
+    connect(api_, &ApiClient::rawJson, this, [this](const QString& name, const QJsonObject& obj) {
+        console_->appendInfo(QString("HTTP %1: %2")
+                             .arg(name, QString::fromUtf8(QJsonDocument(obj).toJson(QJsonDocument::Compact))));
+    });
+
+    connect(api_, &ApiClient::requestFailed, this, [this](const QString& apiName, int st, const QString& msg) {
+        console_->appendError(QString("HTTP %1 failed (%2): %3").arg(apiName).arg(st).arg(msg));
+    });
+
+    connect(api_, &ApiClient::healthOk, this, [this](const QJsonObject& data) {
+        console_->appendInfo(QString("health ok: %1")
+                             .arg(QString::fromUtf8(QJsonDocument(data).toJson(QJsonDocument::Compact))));
+    });
+
+    connect(api_, &ApiClient::infoOk, this, [this](const QJsonObject& data) {
+        console_->appendInfo(QString("info ok: %1")
+                             .arg(QString::fromUtf8(QJsonDocument(data).toJson(QJsonDocument::Compact))));
+    });
+
+    connect(api_, &ApiClient::loginOk, this, [this](const QString& token, const QString& username) {
+        onLoginOk(token, username);
+    });
+
+    connect(api_, &ApiClient::loginFailed, this, [this](int st, const QString& msg) {
+        console_->appendError(QString("login failed (%1): %2").arg(st).arg(msg));
+    });
+
+    // WsClient -> console
+    connect(ws_, &WsClient::connected, this, [this]() {
+        console_->appendInfo("WS connected, sent token");
+    });
+
+    connect(ws_, &WsClient::authed, this, [this]() {
+        console_->appendInfo("WS authed");
+        ws_->subscribeTaskLogs("_system");   // ✅ 先订阅系统日志
+    });
+
+    connect(ws_, &WsClient::messageReceived, this, [this](const QJsonObject& obj) {
+        const QString type = obj.value("type").toString();
+
+    if (type == "log") {
+        const QString taskId = obj.value("task_id").toString();
+        const QString msg    = obj.value("message").toString();
+        const int level      = obj.value("level").toInt(-1);
+        const qint64 tsMs    = obj.value("ts_ms").toVariant().toLongLong();
+        console_->appendInfo(QString("LOG[%1] task=%2 ts=%3 %4")
+            .arg(level).arg(taskId).arg(tsMs).arg(msg));
+        return;
     }
 
-    return QMainWindow::eventFilter(obj, event);
+    // 非 log 才输出 raw（事件/调试/未知消息）
+    console_->appendInfo(QString("WS msg: %1")
+        .arg(QString::fromUtf8(QJsonDocument(obj).toJson(QJsonDocument::Compact))));
+    });
+
+    connect(ws_, &WsClient::error, this, [this](const QString& msg) {
+        console_->appendError(QString("WS error: %1").arg(msg));
+    });
+
+    connect(ws_, &WsClient::closed, this, [this]() {
+        console_->appendError("WS closed");
+    });
+
+    connect(bench_, &WorkflowBench::debugUndoStateChanged, this,
+        [this](bool u, bool r, const QString& ut, const QString& rt){
+        console_->appendInfo(QString("[UNDO] canUndo=%1 canRedo=%2 undoTop=%3 redoTop=%4")
+        .arg(u ? "true" : "false")
+        .arg(r ? "true" : "false")
+        .arg(ut.isEmpty() ? "-" : ut)
+        .arg(rt.isEmpty() ? "-" : rt));
+});
 }
 
-void MainWindow::setupWs()
-{
-    connect(m_wsClient, &TaskWsClient::taskCreated, m_model, &TaskListModel::upsertFromJson);
-    connect(m_wsClient, &TaskWsClient::taskUpdated, m_model, &TaskListModel::upsertFromJson);
-    connect(m_wsClient, &TaskWsClient::connected, this, []{
-        qDebug() << "[UI] WS connected";
-    });
-    connect(m_wsClient, &TaskWsClient::disconnected, this, []{
-        qDebug() << "[UI] WS disconnected";
-    });
-    connect(m_wsClient, &TaskWsClient::errorOccurred, this, [](const QString &msg){
-        qWarning() << "[UI] WS error:" << msg;
-    });
+void MainWindow::onLoginOk(const QString& token, const QString& username) {
+    console_->appendInfo(QString("login ok: %1").arg(username));
 
-// 暂时先在启动时直接连本机，后面你可以改成根据配置 / 登录信息拼 URL
-m_wsClient->connectToServer(QUrl(QStringLiteral("ws://127.0.0.1:8090/ws/tasks")));
+    api_->setToken(token);
+    ws_->setToken(token);
+
+    api_->getHealth();
+    api_->getInfo();
+
+    // connect WS after login
+    ws_->connectTo(wsUrl_);
+}
+
+bool MainWindow::eventFilter(QObject *obj, QEvent *event)
+{
+    return false;
 }
