@@ -10,15 +10,16 @@
 #include <QMessageBox>
 #include "app_context.h"
 #include "core/task_ws_client.h"
-#include "view/workflow_bench.h"
+#include "view/canvasbench.h"
 
 MainWindow::MainWindow(QWidget *parent):
     QMainWindow(parent)
 {
     setWindowTitle("TaskHub Client");
-    resize(2000,2000);
-    bench_ = new WorkflowBench(this);
-    setCentralWidget(bench_);
+    resize(1024, 768);
+
+    auto* bench = new CanvasBench(this);
+    setCentralWidget(bench);
     setupConsole();
     setupClients();
     wireSignals();
@@ -120,15 +121,6 @@ void MainWindow::wireSignals() {
     connect(ws_, &WsClient::closed, this, [this]() {
         console_->appendError("WS closed");
     });
-
-    connect(bench_, &WorkflowBench::debugUndoStateChanged, this,
-        [this](bool u, bool r, const QString& ut, const QString& rt){
-        console_->appendInfo(QString("[UNDO] canUndo=%1 canRedo=%2 undoTop=%3 redoTop=%4")
-        .arg(u ? "true" : "false")
-        .arg(r ? "true" : "false")
-        .arg(ut.isEmpty() ? "-" : ut)
-        .arg(rt.isEmpty() ? "-" : rt));
-});
 }
 
 void MainWindow::onLoginOk(const QString& token, const QString& username) {

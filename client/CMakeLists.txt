@@ -23,6 +23,8 @@ file(GLOB CLIENT_SOURCES
     src/graph/*.cpp
     src/view/*.cpp
     src/commands/*.cpp
+    src/operator/*.cpp
+    src/Item/*.cpp
     src/view/items/*.cpp
     src/tasks/*.cpp
     src/editor/*.cpp
@@ -37,6 +39,8 @@ file(GLOB CLIENT_HEADERS
     src/graph/*.h
     src/view/*.h
     src/commands/*.h
+    src/operator/*.h
+    src/Item/*.h
     src/view/items/*.h
     src/tasks/*.h
     src/editor/*.h
@@ -60,6 +64,11 @@ target_include_directories(TaskHubClient PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core
     ${CMAKE_CURRENT_SOURCE_DIR}/src/models
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/view
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/tasks
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/commands
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Item
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/operator
 )
 
 

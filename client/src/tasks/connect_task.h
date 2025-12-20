@@ -1,20 +1,21 @@
-// ConnectTask.h
+// connect_task.h
 #pragma once
-#include <QString>
+#include "task.h"
+#include <QGraphicsLineItem>
 
-class GraphModel;
-class GraphViewAdapter;
-class UndoStack;
+class RectItem;
 
-class ConnectTask {
+class ConnectTask : public Task {
 public:
-    ConnectTask(GraphModel& m, GraphViewAdapter& v, UndoStack& u);
-
-    void onNodeClicked(const QString& nodeId);
-
+    explicit ConnectTask(QObject* parent = nullptr);
+    ~ConnectTask() override;
+    
+    // 优先级高(200)，盖在 SelectTask 上
+    bool dispatch(QEvent* e) override;
+    
 private:
-    GraphModel& model_;
-    GraphViewAdapter& view_;
-    UndoStack& undo_;
-    QString pendingSource_;
+    void cancel(); // 取消连线状态
+    
+    RectItem* startItem_ = nullptr;
+    QGraphicsLineItem* dragLine_ = nullptr; // 临时的视觉虚线
 };

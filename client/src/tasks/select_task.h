@@ -1,20 +1,15 @@
-// SelectTask.h
 #pragma once
-#include <QString>
 #include <QPointF>
 
-class GraphModel;
-class GraphViewAdapter;
-class UndoStack;
+#include "task.h"
 
-class SelectTask {
+class SelectTask : public Task {
+    Q_OBJECT
 public:
-    SelectTask(GraphModel& m, GraphViewAdapter& v, UndoStack& u);
-
-    void onNodeDragFinished(const QString& nodeId, const QPointF& oldPos, const QPointF& newPos);
+    // Level = 10，常驻底层
+    explicit SelectTask(QObject* parent = nullptr);
+    bool dispatch(QEvent* e) override;
 
 private:
-    GraphModel& model_;
-    GraphViewAdapter& view_;
-    UndoStack& undo_;
+    bool handlePress(QEvent* e);
 };
