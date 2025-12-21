@@ -3,14 +3,33 @@
 
 #include <QDebug>
 #include <QPainter>
+#include <QLineF>
 
 #include "commands/command.h"
 #include "rect_item.h"
 
+// 计算从矩形中心指向目标点的射线与矩形边的交点（scene 坐标）
+static QPointF projectToRectEdge(const QRectF& rect, const QPointF& target) {
+    QPointF center = rect.center();
+    QLineF ray(center, target);
+    const QPointF tl = rect.topLeft();
+    const QPointF tr = rect.topRight();
+    const QPointF br = rect.bottomRight();
+    const QPointF bl = rect.bottomLeft();
+    const QLineF edges[] = { QLineF(tl, tr), QLineF(tr, br), QLineF(br, bl), QLineF(bl, tl) };
+    QPointF inter;
+    for (const auto& edge : edges) {
+        if (ray.intersects(edge, &inter) == QLineF::BoundedIntersection) {
+            return inter;
+        }
+    }
+    return target; // 退化情况直接返回目标
+}
+
 LineItem::LineItem(RectItem* start, RectItem* end, QGraphicsItem* parent)
     : BaseItem(Kind::Edge, parent), start_(start), end_(end)
 {
-    setZValue(0); // 线在底层
+    setZValue(-1); // 线在底层
     setFlag(QGraphicsItem::ItemIsSelectable);
     
     // 告诉 RectItem：我有连着你 (简单的观察者模式)
@@ -29,10 +48,15 @@ LineItem::~LineItem() {
 void LineItem::trackNodes() {
     if (!start_ || !end_) return;
     prepareGeometryChange();
-    // 核心：线本身不移动位置(0,0)，而是不断重绘路径
     path_ = QPainterPath();
-    QPointF p1 = mapFromItem(start_, start_->boundingRect().center());
-    QPointF p2 = mapFromItem(end_, end_->boundingRect().center());
+
+    // 锚点取矩形边缘，避免穿过节点中心
+    QRectF startRectScene = start_->mapRectToScene(start_->boundingRect());
+    QRectF endRectScene   = end_->mapRectToScene(end_->boundingRect());
+    QPointF sceneP1 = projectToRectEdge(startRectScene, endRectScene.center());
+    QPointF sceneP2 = projectToRectEdge(endRectScene,   startRectScene.center());
+    QPointF p1 = mapFromScene(sceneP1);
+    QPointF p2 = mapFromScene(sceneP2);
     
     path_.moveTo(p1);
     

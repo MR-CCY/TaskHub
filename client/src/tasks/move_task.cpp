@@ -7,7 +7,7 @@
 #include <QDebug>
 
 MoveTask::MoveTask(QGraphicsItem* target, QPointF startScenePos, QObject* parent)
-    : Task(10, parent), target_(target)
+    : Task(100, parent), target_(target)
 {
     // 初始化记录原始状态
     if (auto* rect = dynamic_cast<RectItem*>(target_)) {

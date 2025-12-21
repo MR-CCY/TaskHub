@@ -9,6 +9,8 @@
 
 #include "commands/undostack.h"
 #include "tasks/task_manager.h"
+#include "tasks/straight_line_task.h"
+#include "Item/line_item.h"
 
 
 CanvasView::CanvasView(QWidget* parent)
@@ -42,6 +44,11 @@ void CanvasView::setTaskManager(TaskManager* mgr)
    * 所有鼠标/触控事件都会从这里进来
    */
 bool CanvasView::viewportEvent(QEvent* e) {
+    // 优先处理线条双击直线化
+    if (e->type() == QEvent::MouseButtonDblClick && handleLineDoubleClick(e)) {
+        return true;
+    }
+
     // 1️⃣ 先给 Task 栈（STOC：交互解释权在 Task）
     if (dispatchEventToTasks(e)) {
         return true;   // 被某个 Task accept，终止传播
@@ -132,6 +139,25 @@ bool CanvasView::dispatchEventToTasks(QEvent* e) {
     if (!taskManager_) return false;
     // 语义：top task → next → …，谁 accept 就停
     return taskManager_->dispatch(e);
+}
+
+bool CanvasView::handleLineDoubleClick(QEvent* e) {
+    if (!taskManager_ || e->type() != QEvent::MouseButtonDblClick) return false;
+    auto* me = static_cast<QMouseEvent*>(e);
+    if (me->button() != Qt::LeftButton) return false;
+
+    const QPointF scenePos = mapToScene(me->pos());
+    const auto itemsAtPos = scene()->items(scenePos);
+    for (auto* it : itemsAtPos) {
+        if (auto* line = dynamic_cast<LineItem*>(it)) {
+            auto* task = new StraightLineTask(line, this);
+            taskManager_->push(task);
+            task->straighten();
+            e->accept();
+            return true;
+        }
+    }
+    return false;
 }
 
 /**

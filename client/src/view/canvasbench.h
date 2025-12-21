@@ -4,6 +4,7 @@
 class QToolBar;
 class QAction;
 class QVBoxLayout;
+enum class NodeType;
 
 // 前置声明 (Forward Declarations)
 class CanvasScene;
@@ -20,6 +21,11 @@ public:
 
     // 对外接口：切换到“创建矩形”模式
     void startCreateRectMode(); 
+    void startCreateShellMode();
+    void startCreateHttpMode();
+    void startCreateRemoteMode();
+    void startCreateLocalMode();
+    CanvasView* view() const{return view_;};
  
 public slots:
     void undo();
@@ -31,6 +37,7 @@ private:
     void buildUi();   // 初始化工具栏和布局
     void wireUi();    // 绑定信号槽
     void startSelectMode();
+    void startCreateNodeMode(NodeType type);
 private:
     // ===== 核心对象 (STOC) =====
     CanvasScene* scene_ = nullptr;
@@ -44,6 +51,10 @@ private:
     // ===== UI 组件 =====
     QToolBar* toolbar_ = nullptr;
     QAction* actCreateRect_ = nullptr;
+    QAction* actCreateShell_ = nullptr;
+    QAction* actCreateHttp_ = nullptr;
+    QAction* actCreateRemote_ = nullptr;
+    QAction* actCreateLocal_ = nullptr;
     QAction* actUndo_ = nullptr;
     QAction* actRedo_ = nullptr;
     QAction* actConnect_ = nullptr;

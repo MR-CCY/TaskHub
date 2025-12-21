@@ -34,6 +34,9 @@ public:
     void execCreateCmd(bool canUndo) override;
     void execMoveCmd(const QPointF& newPos, bool canUndo) override; // 这里的 Move 指调整形状
 
+protected:
+    const QPainterPath& currentPath() const { return path_; }
+
 private:
     RectItem* start_;
     RectItem* end_;

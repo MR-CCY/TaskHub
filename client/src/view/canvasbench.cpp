@@ -16,6 +16,8 @@
 #include "tasks/connect_task.h"
 #include "commands/command.h"
 #include "tasks/main_task.h"
+#include "tasks/delete_task.h"
+#include "Item/node_type.h"
 
 CanvasBench::CanvasBench(QWidget* parent)
     : QWidget(parent)
@@ -66,6 +68,10 @@ void CanvasBench::buildUi()
     // 创建工具栏
     toolbar_ = new QToolBar(this);
     actCreateRect_ = toolbar_->addAction("画矩形");
+    actCreateShell_ = toolbar_->addAction("Shell 节点");
+    actCreateHttp_ = toolbar_->addAction("HTTP 节点");
+    actCreateRemote_ = toolbar_->addAction("Remote 节点");
+    actCreateLocal_ = toolbar_->addAction("Local 节点");
     toolbar_->addSeparator();
     actUndo_ = toolbar_->addAction("撤销");
     actRedo_ = toolbar_->addAction("重做");
@@ -88,6 +94,10 @@ void CanvasBench::wireUi()
 {
     // 按钮 -> 功能
     connect(actCreateRect_, &QAction::triggered, this, &CanvasBench::startCreateRectMode);
+    connect(actCreateShell_, &QAction::triggered, this, &CanvasBench::startCreateShellMode);
+    connect(actCreateHttp_, &QAction::triggered, this, &CanvasBench::startCreateHttpMode);
+    connect(actCreateRemote_, &QAction::triggered, this, &CanvasBench::startCreateRemoteMode);
+    connect(actCreateLocal_, &QAction::triggered, this, &CanvasBench::startCreateLocalMode);
     connect(actUndo_, &QAction::triggered, this, &CanvasBench::undo);
     connect(actRedo_, &QAction::triggered, this, &CanvasBench::redo);
 
@@ -123,23 +133,29 @@ void CanvasBench::startCreateRectMode()
     qDebug() << "Pushing CreateTask...";
     taskMgr_->push(task); 
 }
+void CanvasBench::startCreateNodeMode(NodeType type) {
+    auto* task = new CreateTask(type, this);
+    task->setView(view_);
+    qDebug() << "Pushing CreateTask for node type" << static_cast<int>(type);
+    taskMgr_->push(task);
+}
+
+void CanvasBench::startCreateShellMode() { startCreateNodeMode(NodeType::Shell); }
+void CanvasBench::startCreateHttpMode()  { startCreateNodeMode(NodeType::Http); }
+void CanvasBench::startCreateRemoteMode(){ startCreateNodeMode(NodeType::Remote); }
+void CanvasBench::startCreateLocalMode() { startCreateNodeMode(NodeType::Local); }
 void CanvasBench::startConnectMode() {
     // 开启连线任务，Level 200，压在 Level 10 的 SelectTask 上
     // 这样 SelectTask 就收不到事件了（实现了“连线任务期间不可触发移动任务”）
     auto* task = new ConnectTask(this);
-    task->setView(view_);
+    // task->setView(view_);
     taskMgr_->push(task);
 }
 
 void CanvasBench::deleteSelected() {
-    // 删除不是一个持久 Task，而是一个瞬时动作 Operator
-    auto items = scene_->selectedItems();
-    if (items.isEmpty()) return;
-
-    // 创建删除命令
-    // 注意：这里简单处理。实际工程中可能需要 DeleteOperator 来分析是否要级联删除连线
-    auto* cmd = new DeleteCommand(scene_, items);
-    undoStack_->push(cmd);
+    auto* task = new DeleteTask(scene_, undoStack_, this);
+    taskMgr_->push(task);
+    task->execute();
 }
 void CanvasBench::undo() { undoStack_->undo(); }
 void CanvasBench::redo() { undoStack_->redo(); }

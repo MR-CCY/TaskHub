@@ -3,12 +3,17 @@
 #include "view/canvasview.h"
 #include "view/canvasscene.h"
 #include "Item/rect_item.h"
+#include "Item/node_item_factory.h"
 #include "operator/create_rect_operator.h"
 #include <QMouseEvent>
 #include <QDebug>
 
 CreateTask::CreateTask(QObject* parent) 
-    : Task(100, parent) // Level 100, 假设比 SelectTask 高
+    : Task(200, parent) // Level 100, 假设比 SelectTask 高
+{}
+
+CreateTask::CreateTask(NodeType type, QObject* parent)
+    : Task(200, parent), useFactory_(true), nodeType_(type)
 {}
 
 bool CreateTask::dispatch(QEvent* e) {
@@ -25,7 +30,17 @@ bool CreateTask::dispatch(QEvent* e) {
 
             // 2. 创建 Item (Model)
             auto pos = v->mapToScene(me->pos());
-            auto* item = new RectItem(QRectF(0, 0, 100, 100));
+            RectItem* item = nullptr;
+            if (useFactory_) {
+                item = NodeItemFactory::createNode(nodeType_, QRectF(0, 0, 100, 100));
+            } else {
+                item = new RectItem(QRectF(0, 0, 100, 100));
+            }
+            if (!item) {
+                qWarning() << "CreateTask failed to create item";
+                removeSelf();
+                return true;
+            }
             item->setPos(pos);
             
             // 3. 注入上下文 (Crucial Step)

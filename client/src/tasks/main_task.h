@@ -10,4 +10,5 @@ public:
 
     // 核心职责：如果发现自己裸露在栈顶，立刻复活 SelectTask
     bool dispatch(QEvent* e) override;
+    bool handleBaseKeyEvent(QEvent* e) override { Q_UNUSED(e); return false; } // MainTask 不自销毁
 };

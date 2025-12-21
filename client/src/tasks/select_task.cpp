@@ -5,7 +5,7 @@
 #include <QMouseEvent>
 
 SelectTask::SelectTask(QObject* parent)
-    : Task(20, parent) // Level 20：比 MoveTask(10) 重，作为底座
+    : Task(200, parent) // Level 20：比 MoveTask(10) 重，作为底座
 {
 }
 

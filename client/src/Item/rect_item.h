@@ -12,32 +12,20 @@ class LineItem;
 
 class RectItem : public BaseItem {
 public:
-    RectItem(const QRectF& rect, QGraphicsItem* parent = nullptr)
-        : BaseItem(Kind::Node, parent), rect_(rect) 
-    {
-        setFlag(QGraphicsItem::ItemIsSelectable);
-        setFlag(QGraphicsItem::ItemIsMovable);
-        setFlag(QGraphicsItem::ItemSendsGeometryChanges);
-    }
+    RectItem(const QRectF& rect, QGraphicsItem* parent = nullptr);
 
-    QRectF boundingRect() const override { return rect_; }
-    
-    void paint(QPainter* painter, const QStyleOptionGraphicsItem*, QWidget*) override {
-        painter->setBrush(Qt::blue);
-        painter->drawRect(rect_);
-    }
+    QRectF boundingRect() const override;
+    QPainterPath shape() const override;
+    void paint(QPainter* p, const QStyleOptionGraphicsItem* opt, QWidget* w) override;
+
 
     // 实现接口：生产创建命令
-    void execCreateCmd(bool canUndo) override {
-        // 注意：这里需要 sceneContext() 和 undoStack() 已经被注入
-        // 在 Task 里创建 Item 后，必须调用 attachContext
-        if (!sceneCtx()) return;
-
-        auto* cmd = new CreateCommand(sceneCtx(), this);
-        cmd->pushTo(undo());
-    }
+    void execCreateCmd(bool canUndo) override;
     // 重写 itemChange 监听移动
     QVariant itemChange(GraphicsItemChange change, const QVariant& value) override;
+
+    // 批量设置 TaskConfig 字段（仅覆盖传入的键）
+    void setTaskConfig(const QVariantMap& cfg);
 
     void addLine(LineItem* line);
     void removeLine(LineItem* line);
@@ -45,7 +33,22 @@ public:
     void execMoveCmd(const QPointF&, bool) override {}
     QSet<LineItem*> lines(){return lines_;};
 
+      // ---- 给子类覆写的“类型外观接口” ----
+      virtual QString typeLabel() const;     // 例如 >_ / HTTP / SSH / fx
+      virtual QColor headerColor() const;    // 头部色条
+      virtual QString summaryText() const;   // 底部摘要（从 props_ 拼出来）
+      const QString& nodeId() const { return nodeId_; }
+      void setNodeId(const QString& id) { nodeId_ = id; }
+      
+      // 可选：提供 rect 访问（子类一般不需要直接碰 rect_）
+      QRectF rect() const { return rect_; }
+protected:
+      // 外观参数统一放这里（你后续统一风格只改这里）
+      qreal radius_ = 10.0;
+      qreal headerH_ = 22.0;
+      qreal pad_ = 8.0;
 private:
     QRectF rect_;
     QSet<LineItem*> lines_;
+    QString nodeId_;   // 逻辑 Node ID（编辑态唯一）
 };

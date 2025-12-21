@@ -56,12 +56,12 @@ private:
 
 class DeleteCommand : public BaseCommand {
 public:
-    DeleteCommand(QGraphicsScene* scene, const QList<QGraphicsItem*>& items);
+    DeleteCommand(QGraphicsScene* scene, const QSet<QGraphicsItem*>& items);
     ~DeleteCommand() override;
     void execute() override;
     void unExecute() override;
 
 private:
     QGraphicsScene* scene_;
-    QList<QGraphicsItem*> items_;
+    QSet<QGraphicsItem*> items_;
 };

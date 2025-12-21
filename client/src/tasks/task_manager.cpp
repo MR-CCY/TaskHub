@@ -91,6 +91,11 @@ bool TaskManager::dispatch(QEvent* e)
     // 从栈顶开始下沉
     Task* cur = top_;
     while (cur) {
+        // 先处理基类的通用事件（如 Esc 自销毁），MainTask 会覆盖返回 false
+        if (cur->handleBaseKeyEvent(e)) {
+            e->accept();
+            return true;
+        }
         const bool handled = cur->dispatch(e);
 
         // 你们公司口径：event 被接收（accepted）就不再下沉

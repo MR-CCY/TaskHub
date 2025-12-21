@@ -45,19 +45,69 @@ AdjustLineCommand::AdjustLineCommand(LineItem* item, QPointF oldOff, QPointF new
 void AdjustLineCommand::execute() { item_->setControlOffset(newOff_); }
 void AdjustLineCommand::unExecute() { item_->setControlOffset(oldOff_); }
 
-DeleteCommand::DeleteCommand(QGraphicsScene* scene, const QList<QGraphicsItem*>& items)
+DeleteCommand::DeleteCommand(QGraphicsScene* scene, const QSet<QGraphicsItem*>& items)
     : BaseCommand("Delete"), scene_(scene), items_(items) {}
 
 DeleteCommand::~DeleteCommand() {
-    if (!items_.isEmpty() && items_.first()->scene() == nullptr) {
+    if (!items_.isEmpty() && (*items_.begin())->scene() == nullptr) {
         qDeleteAll(items_);
     }
 }
 
 void DeleteCommand::execute() {
-    for (auto* item : items_) scene_->removeItem(item);
+    for(const auto& i : items_){
+        if (auto* item = dynamic_cast<BaseItem*>(i)) {
+            if (item->kind() == BaseItem::Kind::Node) {
+                auto* node = dynamic_cast<RectItem*>(item);
+                if (node) {
+                    for (auto* line : node->lines()) {
+                        scene_->removeItem(line);
+                    }
+                }
+            }else if (item->kind() == BaseItem::Kind::Edge) {
+                auto* line = dynamic_cast<LineItem*>(item);
+                if (line) {
+                    auto* node = line->startItem();
+                    if (node) {
+                       node->removeLine(line);
+                    }
+                    node = line->endItem();
+                    if (node) {
+                        node->removeLine(line);
+                    }
+                }
+            }
+        }
+        scene_->removeItem(i);
+    }
+    // for (auto* item : items_) ;
 }
 
 void DeleteCommand::unExecute() {
-    for (auto* item : items_) scene_->addItem(item);
+    for(const auto& i : items_){
+        if (auto* item = dynamic_cast<BaseItem*>(i)) {
+            if (item->kind() == BaseItem::Kind::Node) {
+                auto* node = dynamic_cast<RectItem*>(item);
+                if (node) {
+                    for (auto* line : node->lines()) {
+                        scene_->addItem(line);
+                    }
+                }
+            }else if (item->kind() == BaseItem::Kind::Edge) {
+                auto* line = dynamic_cast<LineItem*>(item);
+                if (line) {
+                    auto* node = line->startItem();
+                    if (node) {
+                       node->addLine(line);
+                    }
+                    node = line->endItem();
+                    if (node) {
+                        node->addLine(line);
+                    }
+                }
+            }
+        }
+        scene_->addItem(i);
+    }
+    // for (auto* item : items_) scene_->addItem(item);
 }

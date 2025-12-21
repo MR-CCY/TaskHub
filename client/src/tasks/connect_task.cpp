@@ -3,21 +3,69 @@
 
 #include <QGraphicsScene>
 #include <QMouseEvent>
+#include <QLineF>
 
 #include "Item/line_item.h"
+#include "Item/line_item_factory.h"
 #include "Item/rect_item.h"
 #include "commands/command.h"
 #include "view/canvasview.h"
 #include "view/canvasscene.h"
-#include <QMouseEvent>
-#include <QGraphicsScene>
+
+namespace {
+QPointF projectToRectEdge(const QRectF& rect, const QPointF& target) {
+    const QPointF center = rect.center();
+    QLineF ray(center, target);
+    const QPointF tl = rect.topLeft();
+    const QPointF tr = rect.topRight();
+    const QPointF br = rect.bottomRight();
+    const QPointF bl = rect.bottomLeft();
+    const QLineF edges[] = { QLineF(tl, tr), QLineF(tr, br), QLineF(br, bl), QLineF(bl, tl) };
+    QPointF inter;
+    for (const auto& edge : edges) {
+        if (ray.intersects(edge, &inter) == QLineF::BoundedIntersection) {
+            return inter;
+        }
+    }
+    return target;
+}
+}
 
 ConnectTask::ConnectTask(QObject* parent) 
     : Task(200, parent) // Level 200, 阻止底层的移动操作
-{}
+{
+    // 如果进入任务前已有选中节点，用第一个选中节点作为起点，并清空其余选择
+    if (view() && view()->scene()) {
+        const auto selected = view()->scene()->selectedItems();
+        RectItem* firstRect = nullptr;
+        for (auto* it : selected) {
+            if (auto* r = dynamic_cast<RectItem*>(it)) {
+                firstRect = r;
+                break;
+            }
+        }
+        if (firstRect) {
+            startItem_ = firstRect;
+            initFromSelection();
+            for (auto* it : selected) {
+                if (it != firstRect) it->setSelected(false);
+            }
+        }
+    }
+}
 
 ConnectTask::~ConnectTask() {
     if (dragLine_) delete dragLine_;
+}
+
+bool ConnectTask::handleBaseKeyEvent(QEvent* e) {
+    if (e->type() == QEvent::KeyPress) {
+        auto* ke = static_cast<QKeyEvent*>(e);
+        if (ke->key() == Qt::Key_Escape) {
+            cancel(); // 清理临时虚线
+        }
+    }
+    return Task::handleBaseKeyEvent(e);
 }
 
 bool ConnectTask::dispatch(QEvent* e) {
@@ -80,7 +128,7 @@ bool ConnectTask::dispatch(QEvent* e) {
                 // ========================
             
                 // 创建真实的连接线
-                auto* line = new LineItem(startItem_, rectItem);
+                auto* line = LineItemFactory::createLine(startItem_, rectItem);
                 // 注入上下文并执行命令
                 line->attachContext(dynamic_cast<CanvasScene*>(view()->scene()), nullptr, view()->undoStack());
                 line->execCreateCmd(true); // 存入 UndoStack
@@ -97,7 +145,8 @@ bool ConnectTask::dispatch(QEvent* e) {
         // 更新虚线位置
         auto* me = static_cast<QMouseEvent*>(e);
         QPointF scenePos = view()->mapToScene(me->pos());
-        QPointF startPos = startItem_->sceneBoundingRect().center();
+        QRectF startRect = startItem_->mapRectToScene(startItem_->boundingRect());
+        QPointF startPos = projectToRectEdge(startRect, scenePos);
         dragLine_->setLine(QLineF(startPos, scenePos));
         return true;
     }
@@ -112,4 +161,18 @@ void ConnectTask::cancel() {
         dragLine_ = nullptr;
     }
     startItem_ = nullptr;
+}
+
+void ConnectTask::initFromSelection()
+{
+    if(dragLine_){
+        delete dragLine_;
+        dragLine_=nullptr;
+    }
+    QCursor *me = new QCursor;
+    QPointF scenePos = view()->mapToScene(me->pos());
+    dragLine_ = new QGraphicsLineItem(QLineF(scenePos, scenePos));
+    QPen pen(Qt::black, 2, Qt::DashLine);
+    dragLine_->setPen(pen);
+    view()->scene()->addItem(dragLine_);
 }

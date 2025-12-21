@@ -6,6 +6,8 @@
 #include "commands/undostack.h"
 
 class TaskManager;
+class StraightLineTask;
+class LineItem;
 /**
  * CanvasView
  *
@@ -34,6 +36,7 @@ protected:
 private:
     // ===== STOC：事件 → Task 栈 =====
     bool dispatchEventToTasks(QEvent* e);
+    bool handleLineDoubleClick(QEvent* e);
 
     // ===== View 行为（不入 Undo / 不产生命令）=====
     void handleGestureEvent(QEvent* e);

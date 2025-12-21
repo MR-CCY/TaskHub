@@ -13,8 +13,8 @@ find_package(Qt6 REQUIRED COMPONENTS
         
         Network)
 
-# 收集所有 cpp/h 文件
-file(GLOB CLIENT_SOURCES
+# 收集所有 cpp/h 文件（开启 CONFIGURE_DEPENDS，新增文件自动触发重新配置）
+file(GLOB CLIENT_SOURCES CONFIGURE_DEPENDS
     src/*.cpp
     src/core/*.cpp
     src/models/*.cpp
@@ -30,7 +30,7 @@ file(GLOB CLIENT_SOURCES
     src/editor/*.cpp
 )
 
-file(GLOB CLIENT_HEADERS
+file(GLOB CLIENT_HEADERS CONFIGURE_DEPENDS
     src/*.h
     src/core/*.h
     src/models/*.h

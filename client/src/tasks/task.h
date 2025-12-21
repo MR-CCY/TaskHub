@@ -1,6 +1,7 @@
 #pragma once
 #include <QObject>
 #include <QEvent>
+#include <QKeyEvent>
 
 class TaskManager;
 class CanvasView;
@@ -16,6 +17,8 @@ public:
 
     // 事件处理：返回 true 表示“我处理并接收了”，停止下沉
     virtual bool dispatch(QEvent* e) = 0;
+    // 基类捕获 Esc，自行销毁（可由子类覆盖）
+    virtual bool handleBaseKeyEvent(QEvent* e);
 
     // 任务栈链表（从栈顶往下沉）
     Task* next() const { return next_; }
