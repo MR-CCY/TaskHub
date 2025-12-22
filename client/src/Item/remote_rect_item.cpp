@@ -2,6 +2,10 @@
 #include "remote_rect_item.h"
 #include <QVariantMap>
 
+namespace {
+int gRemoteIdCounter = 1;
+}
+
 RemoteRectItem::RemoteRectItem(const QRectF& rect, QGraphicsItem* parent)
     : RectItem(rect, parent)
 {
@@ -11,7 +15,7 @@ RemoteRectItem::RemoteRectItem(const QRectF& rect, QGraphicsItem* parent)
     execParams["inner.exec_params.cwd"] = QString("");
     execParams["inner.exec_params.shell"] = QString("/bin/bash");
 
-    props_["id"] = QString("");
+    props_["id"] = QString("R_%1").arg(gRemoteIdCounter++);
     props_["name"] = "Remote";
     props_["exec_type"] = "Remote";
     props_["exec_command"] = QString("");
@@ -26,7 +30,9 @@ RemoteRectItem::RemoteRectItem(const QRectF& rect, QGraphicsItem* parent)
     props_["metadata"] = QVariantMap{};
 }
 
-QString RemoteRectItem::typeLabel() const { return "SSH"; }
+QString RemoteRectItem::typeLabel() const {
+    return "SSH"; 
+}
 QColor  RemoteRectItem::headerColor() const { return QColor(120, 60, 170); }
 QString RemoteRectItem::summaryText() const {
     const QVariantMap execParams = props_.value("exec_params").toMap();

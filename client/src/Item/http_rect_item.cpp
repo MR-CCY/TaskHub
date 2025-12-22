@@ -2,6 +2,10 @@
 #include "http_rect_item.h"
 #include <QVariantMap>
 
+namespace {
+int gHttpIdCounter = 1;
+}
+
 HttpRectItem::HttpRectItem(const QRectF& rect, QGraphicsItem* parent)
     : RectItem(rect, parent)
 {
@@ -10,7 +14,7 @@ HttpRectItem::HttpRectItem(const QRectF& rect, QGraphicsItem* parent)
     execParams["header.Authorization"] = QString("");
     execParams["body"] = QString("");
 
-    props_["id"] = QString("");
+    props_["id"] = QString("H_%1").arg(gHttpIdCounter++);
     props_["name"] = "HTTP";
     props_["exec_type"] = "HttpCall";
     props_["exec_command"] = "https://example.com";
@@ -25,7 +29,9 @@ HttpRectItem::HttpRectItem(const QRectF& rect, QGraphicsItem* parent)
     props_["metadata"] = QVariantMap{};
 }
 
-QString HttpRectItem::typeLabel() const { return "HTTP"; }
+QString HttpRectItem::typeLabel() const { 
+    return "HTTP"; 
+}
 QColor  HttpRectItem::headerColor() const { return QColor(30, 140, 70); }
 QString HttpRectItem::summaryText() const {
     const QVariantMap execParams = props_.value("exec_params").toMap();

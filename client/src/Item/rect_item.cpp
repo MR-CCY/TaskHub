@@ -83,7 +83,8 @@ void RectItem::paint(QPainter* p, const QStyleOptionGraphicsItem* opt, QWidget*)
 
     // Header 文本：typeLabel + name
     QString name = props_.value("name", "Node").toString();
-    QString title = QString("%1  %2").arg(typeLabel(), name);
+    const QString id= props_.value("id", "").toString();
+    QString title = QString("%1  %2 ID:%3").arg(typeLabel(), name,id);
 
     p->setPen(QColor(255, 255, 255));
     QFont f = p->font();
@@ -127,4 +128,36 @@ void RectItem::setTaskConfig(const QVariantMap& cfg) {
             props_[key] = cfg.value(key);
         }
     }
+}
+
+QVariant RectItem::propByKeyPath(const QString& keyPath) const {
+    if (keyPath.startsWith("exec_params.")) {
+        QVariantMap m = props_.value("exec_params").toMap();
+        QString sub = keyPath.mid(QString("exec_params.").size());
+        return m.value(sub);
+    }
+    if (keyPath.startsWith("metadata.")) {
+        QVariantMap m = props_.value("metadata").toMap();
+        QString sub = keyPath.mid(QString("metadata.").size());
+        return m.value(sub);
+    }
+    return props_.value(keyPath);
+}
+
+void RectItem::setPropByKeyPath(const QString& keyPath, const QVariant& v) {
+    if (keyPath.startsWith("exec_params.")) {
+        QVariantMap m = props_.value("exec_params").toMap();
+        QString sub = keyPath.mid(QString("exec_params.").size());
+        m[sub] = v;
+        props_["exec_params"] = m;
+        return;
+    }
+    if (keyPath.startsWith("metadata.")) {
+        QVariantMap m = props_.value("metadata").toMap();
+        QString sub = keyPath.mid(QString("metadata.").size());
+        m[sub] = v;
+        props_["metadata"] = m;
+        return;
+    }
+    props_[keyPath] = v;
 }

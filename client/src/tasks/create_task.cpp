@@ -32,9 +32,9 @@ bool CreateTask::dispatch(QEvent* e) {
             auto pos = v->mapToScene(me->pos());
             RectItem* item = nullptr;
             if (useFactory_) {
-                item = NodeItemFactory::createNode(nodeType_, QRectF(0, 0, 100, 100));
+                item = NodeItemFactory::createNode(nodeType_, QRectF(0, 0, 150, 150));
             } else {
-                item = new RectItem(QRectF(0, 0, 100, 100));
+                item = new RectItem(QRectF(0, 0, 150, 150));
             }
             if (!item) {
                 qWarning() << "CreateTask failed to create item";

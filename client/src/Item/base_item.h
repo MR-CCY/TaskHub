@@ -17,7 +17,7 @@ public:
 
     Kind kind() const { return kind_; }
 
-    // ---- “统一属性容器” (你司口径) ----
+    // ---- “统一属性容器” ----
     const QMap<QString, QVariant>& properties() const { return props_; }
     QVariant prop(const QString& key) const { return props_.value(key); }
     void setProp(const QString& key, const QVariant& v) { props_[key] = v; }

@@ -2,6 +2,7 @@
 #include "task_manager.h"
 #include "select_task.h" // 必须引用默认任务
 #include "view/canvasview.h"  // 需要给 SelectTask 注入 View
+#include "zoom_task.h"
 #include <QDebug>
 
 MainTask::MainTask(QObject* parent)
@@ -18,11 +19,14 @@ bool MainTask::dispatch(QEvent* e)
         qDebug() << "[MainTask] Stack is empty (only root left). Restoring SelectTask...";
 
         // 2. 复活 SelectTask
+        auto* zoom = new ZoomTask(manager());
+        zoom->setView(view());
         auto* select = new SelectTask(manager()); // parent 给 manager 自动管理
         select->setView(view()); // 关键：必须注入 View，否则 SelectTask 没法干活
         
         // 3. 压栈
-        // 因为 MainTask(10000) <= SelectTask(10) 为 False，所以 Select 会压在 Main 上面
+        // 先压 zoom（15），再压 select（10）不会把 zoom 弹掉
+        manager()->push(zoom);
         manager()->push(select);
 
         // 4. 事件透传

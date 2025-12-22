@@ -37,6 +37,9 @@ public:
       virtual QString typeLabel() const;     // 例如 >_ / HTTP / SSH / fx
       virtual QColor headerColor() const;    // 头部色条
       virtual QString summaryText() const;   // 底部摘要（从 props_ 拼出来）
+      // 属性访问（支持 exec_params.* / metadata.*）
+      QVariant propByKeyPath(const QString& keyPath) const;
+      void setPropByKeyPath(const QString& keyPath, const QVariant& v);
       const QString& nodeId() const { return nodeId_; }
       void setNodeId(const QString& id) { nodeId_ = id; }
       

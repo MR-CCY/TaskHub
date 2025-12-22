@@ -8,6 +8,10 @@ static QString ellipsizeLine(const QString& s, int maxChars) {
     return s.left(maxChars - 1) + "…";
 }
 
+namespace {
+int gShellIdCounter = 1;
+}
+
 ShellRectItem::ShellRectItem(const QRectF& rect, QGraphicsItem* parent)
     : RectItem(rect, parent)
 {
@@ -16,7 +20,7 @@ ShellRectItem::ShellRectItem(const QRectF& rect, QGraphicsItem* parent)
     execParams["shell"] = QString("/bin/bash");
     execParams["env.PATH"] = QString("");
 
-    props_["id"] = QString("");
+    props_["id"] = QString("S_%1").arg(gShellIdCounter++);
     props_["name"] = "Shell";
     props_["exec_type"] = "Shell";
     props_["exec_command"] = "echo hello";
@@ -31,7 +35,9 @@ ShellRectItem::ShellRectItem(const QRectF& rect, QGraphicsItem* parent)
     props_["metadata"] = QVariantMap{};
 }
 
-QString ShellRectItem::typeLabel() const { return ">_"; }
+QString ShellRectItem::typeLabel() const { 
+    return ">_"; 
+}
 QColor  ShellRectItem::headerColor() const { return QColor(20, 70, 160); }
 QString ShellRectItem::summaryText() const {
     const QString cmd = props_.value("exec_command").toString();

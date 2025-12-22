@@ -2,6 +2,10 @@
 #include "local_rect_item.h"
 #include <QVariantMap>
 
+namespace {
+int gLocalIdCounter = 1;
+}
+
 LocalRectItem::LocalRectItem(const QRectF& rect, QGraphicsItem* parent)
     : RectItem(rect, parent)
 {
@@ -9,7 +13,7 @@ LocalRectItem::LocalRectItem(const QRectF& rect, QGraphicsItem* parent)
     execParams["handler"] = QString("handler");
     execParams["args"] = QString(""); // 仅存字符串；真实参数序列化由服务端解析
 
-    props_["id"] = QString("");
+    props_["id"] = QString("L_%1").arg(gLocalIdCounter++);
     props_["name"] = "Local";
     props_["exec_type"] = "Local";
     props_["exec_command"] = QString("");
@@ -24,10 +28,12 @@ LocalRectItem::LocalRectItem(const QRectF& rect, QGraphicsItem* parent)
     props_["metadata"] = QVariantMap{};
 }
 
-QString LocalRectItem::typeLabel() const { return "fx"; }
+QString LocalRectItem::typeLabel() const {
+    return "fx";
+  }
 QColor  LocalRectItem::headerColor() const { return QColor(220, 120, 30); }
 QString LocalRectItem::summaryText() const {
     const QVariantMap execParams = props_.value("exec_params").toMap();
     const QString handler = execParams.value("handler", "").toString();
-    return handler;
+    return QString("%1").arg(handler);
 }

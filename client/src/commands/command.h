@@ -32,6 +32,40 @@ private:
     LineItem* line_;
 };
 
+class SetPropertyCommand : public BaseCommand {
+public:
+    SetPropertyCommand(RectItem* item, const QString& keyPath, const QVariant& oldValue, const QVariant& newValue, QUndoCommand* parent = nullptr);
+    void execute() override;
+    void unExecute() override;
+
+private:
+    RectItem* item_;
+    QString keyPath_;
+    QVariant oldValue_;
+    QVariant newValue_;
+};
+
+class DagConfigCommand : public BaseCommand {
+public:
+    DagConfigCommand(QString* nameRef, QString* failPolicyRef, int* maxParallelRef,
+                     const QString& oldName, const QString& newName,
+                     const QString& oldFail, const QString& newFail,
+                     int oldMax, int newMax,
+                     QUndoCommand* parent = nullptr);
+    void execute() override;
+    void unExecute() override;
+private:
+    QString* nameRef_;
+    QString* failPolicyRef_;
+    int* maxParallelRef_;
+    QString oldName_;
+    QString newName_;
+    QString oldFail_;
+    QString newFail_;
+    int oldMax_;
+    int newMax_;
+};
+
 class MoveRectCommand : public BaseCommand {
 public:
     MoveRectCommand(RectItem* item, QPointF oldPos, QPointF newPos);

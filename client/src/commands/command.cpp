@@ -111,3 +111,41 @@ void DeleteCommand::unExecute() {
     }
     // for (auto* item : items_) scene_->addItem(item);
 }
+
+SetPropertyCommand::SetPropertyCommand(RectItem* item, const QString& keyPath, const QVariant& oldValue, const QVariant& newValue, QUndoCommand* parent)
+    : BaseCommand("Set Property", parent), item_(item), keyPath_(keyPath), oldValue_(oldValue), newValue_(newValue) {}
+
+void SetPropertyCommand::execute() {
+    if (!item_) return;
+    item_->setPropByKeyPath(keyPath_, newValue_);
+    item_->update();
+}
+
+void SetPropertyCommand::unExecute() {
+    if (!item_) return;
+    item_->setPropByKeyPath(keyPath_, oldValue_);
+    item_->update();
+}
+
+DagConfigCommand::DagConfigCommand(QString* nameRef, QString* failPolicyRef, int* maxParallelRef,
+                                   const QString& oldName, const QString& newName,
+                                   const QString& oldFail, const QString& newFail,
+                                   int oldMax, int newMax,
+                                   QUndoCommand* parent)
+    : BaseCommand("Edit DAG Config", parent),
+      nameRef_(nameRef), failPolicyRef_(failPolicyRef), maxParallelRef_(maxParallelRef),
+      oldName_(oldName), newName_(newName),
+      oldFail_(oldFail), newFail_(newFail),
+      oldMax_(oldMax), newMax_(newMax) {}
+
+void DagConfigCommand::execute() {
+    if (nameRef_) *nameRef_ = newName_;
+    if (failPolicyRef_) *failPolicyRef_ = newFail_;
+    if (maxParallelRef_) *maxParallelRef_ = newMax_;
+}
+
+void DagConfigCommand::unExecute() {
+    if (nameRef_) *nameRef_ = oldName_;
+    if (failPolicyRef_) *failPolicyRef_ = oldFail_;
+    if (maxParallelRef_) *maxParallelRef_ = oldMax_;
+}

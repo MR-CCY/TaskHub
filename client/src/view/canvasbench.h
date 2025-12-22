@@ -5,6 +5,15 @@ class QToolBar;
 class QAction;
 class QVBoxLayout;
 enum class NodeType;
+class QStackedWidget;
+class QLineEdit;
+class QCheckBox;
+class QComboBox;
+class QSpinBox;
+class QPushButton;
+class QLabel;
+class RectItem;
+class LineItem;
 
 // 前置声明 (Forward Declarations)
 class CanvasScene;
@@ -25,6 +34,7 @@ public:
     void startCreateHttpMode();
     void startCreateRemoteMode();
     void startCreateLocalMode();
+    void startZoomTask();
     CanvasView* view() const{return view_;};
  
 public slots:
@@ -32,6 +42,9 @@ public slots:
     void redo();
     void startConnectMode(); // 槽函数
     void deleteSelected();   // 槽函数
+    void exportJson();       // 导出 JSON
+    void importJson();       // 导入 JSON
+    void editSelectedNode(); // 编辑节点属性
 private:
     void buildCore(); // 初始化 STOC 核心对象
     void buildUi();   // 初始化工具栏和布局
@@ -59,4 +72,8 @@ private:
     QAction* actRedo_ = nullptr;
     QAction* actConnect_ = nullptr;
     QAction* actDelete_ = nullptr;
+    QAction* actExportJson_ = nullptr;
+    QAction* actImportJson_ = nullptr;
+    QAction* actEditProps_ = nullptr;
+    QWidget* inspector_ = nullptr;
 };

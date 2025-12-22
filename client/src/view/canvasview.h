@@ -28,6 +28,7 @@ public:
     void setWheelZoomEnabled(bool on)   { wheelZoomEnabled_ = on; }
     void setMiddlePanEnabled(bool on)   { middlePanEnabled_ = on; }
     UndoStack* undoStack() const { return undo_; }
+    void zoomBySteps(int steps);
 protected:
     // ✅ 唯一事件入口（强烈推荐 viewportEvent）
     bool viewportEvent(QEvent* e) override;
@@ -41,8 +42,6 @@ private:
     // ===== View 行为（不入 Undo / 不产生命令）=====
     void handleGestureEvent(QEvent* e);
     void handleWheelZoom(QWheelEvent* e);
-
-    void zoomBySteps(int steps);
 
     void startMiddlePan(const QPoint& pos);
     void updateMiddlePan(const QPoint& pos);
