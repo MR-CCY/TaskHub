@@ -1,23 +1,13 @@
 #include "canvasbench.h"
-#include <QToolBar>
-#include <QAction>
-#include <QVBoxLayout>
 #include <QDebug>
 #include <QFileDialog>
 #include <QFile>
-#include <QTextStream>
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QJsonDocument>
-#include <QSplitter>
-#include <QStackedWidget>
-#include <QFormLayout>
-#include <QLineEdit>
-#include <QCheckBox>
-#include <QComboBox>
-#include <QSpinBox>
-#include <QPushButton>
-#include <QLabel>
+#include <QHash>
+#include <QList>
+#include <QVariant>
 
 // 引入你之前写好的头文件
 #include "canvasscene.h"
@@ -35,7 +25,6 @@
 #include "tasks/import_task.h"
 #include "tasks/zoom_task.h"
 #include "tasks/edit_node_task.h"
-#include "view/inspector_panel.h"
 #include "Item/node_type.h"
 #include "Item/rect_item.h"
 #include "Item/line_item.h"
@@ -45,8 +34,6 @@ CanvasBench::CanvasBench(QWidget* parent)
     : QWidget(parent)
 {
     buildCore();
-    buildUi();
-    wireUi();
 }
 
 CanvasBench::~CanvasBench() = default;
@@ -85,73 +72,6 @@ void CanvasBench::buildCore()
     
 
 }
-
-void CanvasBench::buildUi()
-{
-    // 创建工具栏
-    toolbar_ = new QToolBar(this);
-    actCreateRect_ = toolbar_->addAction("画矩形");
-    actCreateShell_ = toolbar_->addAction("Shell 节点");
-    actCreateHttp_ = toolbar_->addAction("HTTP 节点");
-    actCreateRemote_ = toolbar_->addAction("Remote 节点");
-    actCreateLocal_ = toolbar_->addAction("Local 节点");
-    toolbar_->addSeparator();
-    actUndo_ = toolbar_->addAction("撤销");
-    actRedo_ = toolbar_->addAction("重做");
-
-    actConnect_ = toolbar_->addAction("连线");
-    actDelete_  = toolbar_->addAction("删除");
-    actExportJson_ = toolbar_->addAction("导出 json");
-    actImportJson_ = toolbar_->addAction("导入 json");
-    actEditProps_ = toolbar_->addAction("编辑属性");
-
-    actUndo_->setShortcut(QKeySequence::Undo);
-    actRedo_->setShortcut(QKeySequence::Redo);
-
-    // 布局
-    auto* layout = new QVBoxLayout(this);
-    layout->setContentsMargins(0, 0, 0, 0); // 无边距
-    layout->setSpacing(0);
-    layout->addWidget(toolbar_);
-    auto* splitter = new QSplitter(Qt::Horizontal, this);
-    splitter->setContentsMargins(0, 0, 0, 0);
-    splitter->setHandleWidth(4);
-    splitter->addWidget(view_);
-    inspector_ = new InspectorPanel(scene_, undoStack_, view_, this);
-    splitter->addWidget(inspector_);
-    splitter->setStretchFactor(0, 3);
-    splitter->setStretchFactor(1, 1);
-    layout->addWidget(splitter);
-}
-
-void CanvasBench::wireUi()
-{
-    // 按钮 -> 功能
-    connect(actCreateRect_, &QAction::triggered, this, &CanvasBench::startCreateRectMode);
-    connect(actCreateShell_, &QAction::triggered, this, &CanvasBench::startCreateShellMode);
-    connect(actCreateHttp_, &QAction::triggered, this, &CanvasBench::startCreateHttpMode);
-    connect(actCreateRemote_, &QAction::triggered, this, &CanvasBench::startCreateRemoteMode);
-    connect(actCreateLocal_, &QAction::triggered, this, &CanvasBench::startCreateLocalMode);
-    connect(actUndo_, &QAction::triggered, this, &CanvasBench::undo);
-    connect(actRedo_, &QAction::triggered, this, &CanvasBench::redo);
-    connect(actExportJson_, &QAction::triggered, this, &CanvasBench::exportJson);
-    connect(actImportJson_, &QAction::triggered, this, &CanvasBench::importJson);
-    connect(actEditProps_, &QAction::triggered, this, &CanvasBench::editSelectedNode);
-
-    // UndoStack 状态 -> 按钮状态 (Qt 的 QUndoStack 也有 canUndoChanged 信号)
-    // 这里假设你的 UndoStack 封装暴露了 internalStack 或者自己发信号
-    if (auto* stack = undoStack_->internalStack()) {
-        connect(stack, &QUndoStack::canUndoChanged, actUndo_, &QAction::setEnabled);
-        connect(stack, &QUndoStack::canRedoChanged, actRedo_, &QAction::setEnabled);
-        // 初始化状态
-        actUndo_->setEnabled(stack->canUndo());
-        actRedo_->setEnabled(stack->canRedo());
-    }
-
-    connect(actConnect_, &QAction::triggered, this, &CanvasBench::startConnectMode);
-    connect(actDelete_, &QAction::triggered, this, &CanvasBench::deleteSelected);
-}
-
 void CanvasBench::startSelectMode()
 {
     // 封装一个复用函数，或者直接像 MainTask 里的逻辑那样写

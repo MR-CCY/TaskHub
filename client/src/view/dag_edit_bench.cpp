@@ -1,0 +1,75 @@
+#include "dag_edit_bench.h"
+
+#include <QAction>
+#include <QKeySequence>
+#include <QSplitter>
+#include <QToolBar>
+#include <QVBoxLayout>
+
+#include "view/inspector_panel.h"
+#include "view/node_palette_widget.h"
+#include "Item/node_type.h"
+#include "commands/undostack.h"
+
+DagEditBench::DagEditBench(QWidget* parent)
+    : CanvasBench(parent)
+{
+    buildUi();
+    wireUi();
+}
+
+void DagEditBench::buildUi()
+{
+    toolbar_ = new QToolBar(this);
+    actUndo_ = toolbar_->addAction(tr("撤销"));
+    actRedo_ = toolbar_->addAction(tr("重做"));
+
+    actConnect_ = toolbar_->addAction(tr("连线"));
+    actDelete_  = toolbar_->addAction(tr("删除"));
+    actExportJson_ = toolbar_->addAction(tr("导出 json"));
+    actImportJson_ = toolbar_->addAction(tr("导入 json"));
+    actEditProps_ = toolbar_->addAction(tr("编辑属性"));
+
+    actUndo_->setShortcut(QKeySequence::Undo);
+    actRedo_->setShortcut(QKeySequence::Redo);
+
+    auto* layout = new QVBoxLayout(this);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
+    layout->addWidget(toolbar_);
+
+    auto* splitter = new QSplitter(Qt::Horizontal, this);
+    splitter->setContentsMargins(0, 0, 0, 0);
+    splitter->setHandleWidth(4);
+    nodePanel_ = new NodePaletteWidget(this);
+    splitter->addWidget(nodePanel_);
+    splitter->addWidget(view());
+    inspector_ = new InspectorPanel(scene(), undoStack(), view(), this);
+    splitter->addWidget(inspector_);
+    splitter->setStretchFactor(0, 1);
+    splitter->setStretchFactor(1, 4);
+    splitter->setStretchFactor(2, 1);
+    layout->addWidget(splitter);
+}
+
+void DagEditBench::wireUi()
+{
+    connect(actUndo_, &QAction::triggered, this, &DagEditBench::undo);
+    connect(actRedo_, &QAction::triggered, this, &DagEditBench::redo);
+    connect(actExportJson_, &QAction::triggered, this, &DagEditBench::exportJson);
+    connect(actImportJson_, &QAction::triggered, this, &DagEditBench::importJson);
+    connect(actEditProps_, &QAction::triggered, this, &DagEditBench::editSelectedNode);
+
+    if (auto* stack = undoStack()->internalStack()) {
+        connect(stack, &QUndoStack::canUndoChanged, actUndo_, &QAction::setEnabled);
+        connect(stack, &QUndoStack::canRedoChanged, actRedo_, &QAction::setEnabled);
+        actUndo_->setEnabled(stack->canUndo());
+        actRedo_->setEnabled(stack->canRedo());
+    }
+
+    connect(actConnect_, &QAction::triggered, this, &DagEditBench::startConnectMode);
+    connect(actDelete_, &QAction::triggered, this, &DagEditBench::deleteSelected);
+    connect(nodePanel_, &NodePaletteWidget::addNodeRequested, this, [this](NodeType type) {
+        startCreateNodeMode(type);
+    });
+}

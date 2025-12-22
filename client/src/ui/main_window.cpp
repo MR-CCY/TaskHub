@@ -1,25 +1,34 @@
 #include "main_window.h"
-#include <QPushButton>
-#include <QJsonArray>
+
+#include <QDockWidget>
+#include <QJsonDocument>
 #include <QJsonObject>
-#include <QHeaderView>
-#include <QToolBar>
-#include <QMouseEvent>
-#include "new_task_dialog.h"
-#include "taskdetaildialog.h"
+#include <QListWidget>
 #include <QMessageBox>
+#include <QStackedWidget>
+#include <QLabel>
+#include <QVBoxLayout>
+#include <QAbstractItemView>
+#include <QDateTime>
+#include <QFont>
+
 #include "app_context.h"
-#include "core/task_ws_client.h"
-#include "view/canvasbench.h"
+#include "net/api_client.h"
+#include "net/ws_client.h"
+#include "ui/console_dock.h"
+#include "ui/user_bar_widget.h"
+#include "view/dag_edit_bench.h"
 
 MainWindow::MainWindow(QWidget *parent):
     QMainWindow(parent)
 {
     setWindowTitle("TaskHub Client");
-    resize(1024, 768);
+    resize(1600, 900);
+    setWindowState(windowState() | Qt::WindowMaximized);
 
-    auto* bench = new CanvasBench(this);
-    setCentralWidget(bench);
+    setupUserBar();
+    setupCentralPages();
+    setupNavDock();
     setupConsole();
     setupClients();
     wireSignals();
@@ -27,15 +36,71 @@ MainWindow::MainWindow(QWidget *parent):
      
 void MainWindow::onUnauthorized()
 {
-    QMessageBox::warning(this, "登录失效", "登录已过期，请重新登录。");
+    QMessageBox::warning(this, tr("登录失效"), tr("登录已过期，请重新登录。"));
     AppContext::instance().setToken("");
     close();   // 关闭主窗口
     emit logoutRequested(); // 通知应用程序显示登录对话框
 }
 
+void MainWindow::setupUserBar() {
+    userBar_ = new UserBarWidget(this);
+    userBar_->setUsername(tr("-"));
+    userBar_->setLoginTime(QDateTime::currentDateTime());
+    setMenuWidget(userBar_);
+
+    connect(userBar_, &UserBarWidget::logoutClicked, this, [this]() {
+        emit logoutRequested();
+        close();
+    });
+    connect(userBar_, &UserBarWidget::switchUserClicked, this, [this]() {
+        emit logoutRequested();
+    });
+}
+
+void MainWindow::setupCentralPages() {
+    centralStack_ = new QStackedWidget(this);
+    workflowPage_ = new DagEditBench(this);
+    templatesPage_ = createPlaceholderPage(tr("Templates Page (TODO)"));
+    runsPage_ = createPlaceholderPage(tr("Runs Page (TODO)"));
+    cronPage_ = createPlaceholderPage(tr("Cron Page (TODO)"));
+
+    centralStack_->addWidget(workflowPage_);
+    centralStack_->addWidget(templatesPage_);
+    centralStack_->addWidget(runsPage_);
+    centralStack_->addWidget(cronPage_);
+
+    setCentralWidget(centralStack_);
+}
+
+void MainWindow::setupNavDock() {
+    navDock_ = new QDockWidget(tr("导航"), this);
+    navDock_->setAllowedAreas(Qt::LeftDockWidgetArea);
+    navDock_->setFeatures(QDockWidget::NoDockWidgetFeatures);
+
+    navList_ = new QListWidget(navDock_);
+    navList_->addItem(tr("DAG编辑"));
+    navList_->addItem(tr("模版编辑"));
+    navList_->addItem(tr("运行任务"));
+    navList_->addItem(tr("定时任务"));
+    navList_->setSelectionMode(QAbstractItemView::SingleSelection);
+    navList_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    QFont navFont = navList_->font();
+    navFont.setPointSize(navFont.pointSize() + 2);
+    navFont.setBold(true);
+    navList_->setFont(navFont);
+    navList_->setSpacing(4);
+    navList_->setMinimumWidth(140);
+    navDock_->setWidget(navList_);
+
+    addDockWidget(Qt::LeftDockWidgetArea, navDock_);
+    connect(navList_, &QListWidget::currentRowChanged, this, &MainWindow::onNavIndexChanged);
+    navList_->setCurrentRow(0);
+}
 
 void MainWindow::setupConsole() {
     console_ = new ConsoleDock(this);
+    console_->setAllowedAreas(Qt::BottomDockWidgetArea);
+    console_->setFeatures(QDockWidget::NoDockWidgetFeatures);
     addDockWidget(Qt::BottomDockWidgetArea, console_);
     console_->appendInfo("App started");
 }
@@ -56,8 +121,6 @@ void MainWindow::setupClients() {
    
 }
 void MainWindow::wireSignals() {
-    // ApiClient raw json -> console
-
     connect(api_, &ApiClient::unauthorized, this, &MainWindow::onUnauthorized);
     connect(api_, &ApiClient::rawJson, this, [this](const QString& name, const QJsonObject& obj) {
         console_->appendInfo(QString("HTTP %1: %2")
@@ -86,7 +149,6 @@ void MainWindow::wireSignals() {
         console_->appendError(QString("login failed (%1): %2").arg(st).arg(msg));
     });
 
-    // WsClient -> console
     connect(ws_, &WsClient::connected, this, [this]() {
         console_->appendInfo("WS connected, sent token");
     });
@@ -99,19 +161,18 @@ void MainWindow::wireSignals() {
     connect(ws_, &WsClient::messageReceived, this, [this](const QJsonObject& obj) {
         const QString type = obj.value("type").toString();
 
-    if (type == "log") {
-        const QString taskId = obj.value("task_id").toString();
-        const QString msg    = obj.value("message").toString();
-        const int level      = obj.value("level").toInt(-1);
-        const qint64 tsMs    = obj.value("ts_ms").toVariant().toLongLong();
-        console_->appendInfo(QString("LOG[%1] task=%2 ts=%3 %4")
-            .arg(level).arg(taskId).arg(tsMs).arg(msg));
-        return;
-    }
+        if (type == "log") {
+            const QString taskId = obj.value("task_id").toString();
+            const QString msg    = obj.value("message").toString();
+            const int level      = obj.value("level").toInt(-1);
+            const qint64 tsMs    = obj.value("ts_ms").toVariant().toLongLong();
+            console_->appendTaskLog(QString("level=%1 task=%2 ts=%3 %4")
+                .arg(level).arg(taskId).arg(tsMs).arg(msg));
+            return;
+        }
 
-    // 非 log 才输出 raw（事件/调试/未知消息）
-    console_->appendInfo(QString("WS msg: %1")
-        .arg(QString::fromUtf8(QJsonDocument(obj).toJson(QJsonDocument::Compact))));
+        console_->appendEvent(QString("WS msg: %1")
+            .arg(QString::fromUtf8(QJsonDocument(obj).toJson(QJsonDocument::Compact))));
     });
 
     connect(ws_, &WsClient::error, this, [this](const QString& msg) {
@@ -132,8 +193,30 @@ void MainWindow::onLoginOk(const QString& token, const QString& username) {
     api_->getHealth();
     api_->getInfo();
 
+    if (userBar_) {
+        userBar_->setUsername(username);
+        userBar_->setLoginTime(QDateTime::currentDateTime());
+    }
+
     // connect WS after login
     ws_->connectTo(wsUrl_);
+}
+
+void MainWindow::onNavIndexChanged(int index) {
+    if (!centralStack_) return;
+    if (index >= 0 && index < centralStack_->count()) {
+        centralStack_->setCurrentIndex(index);
+    }
+}
+
+QWidget* MainWindow::createPlaceholderPage(const QString& text) {
+    auto* widget = new QWidget(this);
+    auto* layout = new QVBoxLayout(widget);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->addStretch();
+    layout->addWidget(new QLabel(text, widget), 0, Qt::AlignHCenter);
+    layout->addStretch();
+    return widget;
 }
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *event)

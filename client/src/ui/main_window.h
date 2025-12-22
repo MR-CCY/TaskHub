@@ -1,16 +1,17 @@
 #pragma once
 #include <QMainWindow>
-#include <QTableView>
+#include <QUrl>
 #include <QEvent>
-#include "http_client.h"
-#include "task_list_model.h"
-#include "ui_main_windows.h"
-#include "task_list_model.h"
-#include "net/api_client.h"
-#include "net/ws_client.h"
-#include "ui/console_dock.h"
-class TaskWsClient;
-class WorkflowBench;
+
+class ApiClient;
+class WsClient;
+class ConsoleDock;
+class DagEditBench;
+class UserBarWidget;
+class QListWidget;
+class QStackedWidget;
+class QDockWidget;
+
 class MainWindow : public QMainWindow {
     Q_OBJECT
 public:
@@ -20,20 +21,31 @@ signals:
 private slots:
     void onUnauthorized();
     void onLoginOk(const QString& token, const QString& username);
+    void onNavIndexChanged(int index);
 protected:
     bool eventFilter(QObject* obj, QEvent* event) override;
 private:
+    void setupUserBar();
+    void setupCentralPages();
+    void setupNavDock();
     void setupConsole();
     void setupClients();
     void wireSignals();
+    QWidget* createPlaceholderPage(const QString& text);
 
-    Ui::MainWindowUi*  ui=nullptr;
-    WorkflowBench* bench_= nullptr;
+    UserBarWidget* userBar_ = nullptr;
+    QStackedWidget* centralStack_ = nullptr;
+    QListWidget* navList_ = nullptr;
+    QDockWidget* navDock_ = nullptr;
+
+    DagEditBench* workflowPage_ = nullptr;
+    QWidget* templatesPage_ = nullptr;
+    QWidget* runsPage_ = nullptr;
+    QWidget* cronPage_ = nullptr;
 
     ConsoleDock* console_ = nullptr;
     ApiClient* api_ = nullptr;
     WsClient* ws_ = nullptr;
 
     QUrl wsUrl_= QUrl("ws://127.0.0.1:8090/ws"); 
-
 };

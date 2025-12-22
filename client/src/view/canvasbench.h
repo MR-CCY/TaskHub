@@ -1,23 +1,13 @@
 #pragma once
 #include <QWidget>
+#include "canvasview.h"
 
-class QToolBar;
-class QAction;
-class QVBoxLayout;
 enum class NodeType;
-class QStackedWidget;
-class QLineEdit;
-class QCheckBox;
-class QComboBox;
-class QSpinBox;
-class QPushButton;
-class QLabel;
 class RectItem;
 class LineItem;
 
 // 前置声明 (Forward Declarations)
 class CanvasScene;
-class CanvasView;
 class UndoStack;
 class TaskManager;
 class SelectTask;
@@ -34,8 +24,8 @@ public:
     void startCreateHttpMode();
     void startCreateRemoteMode();
     void startCreateLocalMode();
-    void startZoomTask();
-    CanvasView* view() const{return view_;};
+    // void startZoomTask();
+    CanvasView* view() const { return view_; }
  
 public slots:
     void undo();
@@ -45,12 +35,17 @@ public slots:
     void exportJson();       // 导出 JSON
     void importJson();       // 导入 JSON
     void editSelectedNode(); // 编辑节点属性
-private:
-    void buildCore(); // 初始化 STOC 核心对象
-    void buildUi();   // 初始化工具栏和布局
-    void wireUi();    // 绑定信号槽
+
+protected:
+    CanvasScene* scene() const { return scene_; }
+    UndoStack* undoStack() const { return undoStack_; }
+    TaskManager* taskManager() const { return taskMgr_; }
+
     void startSelectMode();
     void startCreateNodeMode(NodeType type);
+private:
+    void buildCore(); // 初始化 STOC 核心对象
+    void startZoomTask();
 private:
     // ===== 核心对象 (STOC) =====
     CanvasScene* scene_ = nullptr;
@@ -60,20 +55,4 @@ private:
 
     // ===== 默认任务 =====
     SelectTask* selectTask_ = nullptr; // 常驻栈底
-
-    // ===== UI 组件 =====
-    QToolBar* toolbar_ = nullptr;
-    QAction* actCreateRect_ = nullptr;
-    QAction* actCreateShell_ = nullptr;
-    QAction* actCreateHttp_ = nullptr;
-    QAction* actCreateRemote_ = nullptr;
-    QAction* actCreateLocal_ = nullptr;
-    QAction* actUndo_ = nullptr;
-    QAction* actRedo_ = nullptr;
-    QAction* actConnect_ = nullptr;
-    QAction* actDelete_ = nullptr;
-    QAction* actExportJson_ = nullptr;
-    QAction* actImportJson_ = nullptr;
-    QAction* actEditProps_ = nullptr;
-    QWidget* inspector_ = nullptr;
 };
