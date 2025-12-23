@@ -2,6 +2,8 @@
 
 #include <QAction>
 #include <QKeySequence>
+#include <QIcon>
+#include <QSize>
 #include <QSplitter>
 #include <QToolBar>
 #include <QVBoxLayout>
@@ -17,18 +19,18 @@ DagEditBench::DagEditBench(QWidget* parent)
     buildUi();
     wireUi();
 }
-
 void DagEditBench::buildUi()
 {
     toolbar_ = new QToolBar(this);
-    actUndo_ = toolbar_->addAction(tr("撤销"));
-    actRedo_ = toolbar_->addAction(tr("重做"));
+    toolbar_->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+    toolbar_->setIconSize(QSize(24, 24));
+    actUndo_ = toolbar_->addAction(QIcon(":/icons/image/undo.png"), tr("撤销"));
+    actRedo_ = toolbar_->addAction(QIcon(":/icons/image/do.png"), tr("重做"));
 
-    actConnect_ = toolbar_->addAction(tr("连线"));
-    actDelete_  = toolbar_->addAction(tr("删除"));
-    actExportJson_ = toolbar_->addAction(tr("导出 json"));
-    actImportJson_ = toolbar_->addAction(tr("导入 json"));
-    actEditProps_ = toolbar_->addAction(tr("编辑属性"));
+    actConnect_ = toolbar_->addAction(QIcon(":/icons/image/link.png"), tr("连线"));
+    actDelete_  = toolbar_->addAction(QIcon(":/icons/image/del.png"), tr("删除"));
+    actExportJson_ = toolbar_->addAction(QIcon(":/icons/image/daochu.png"), tr("导出 json"));
+    actImportJson_ = toolbar_->addAction(QIcon(":/icons/image/daoru.png"), tr("导入 json"));
 
     actUndo_->setShortcut(QKeySequence::Undo);
     actRedo_->setShortcut(QKeySequence::Redo);
@@ -58,7 +60,6 @@ void DagEditBench::wireUi()
     connect(actRedo_, &QAction::triggered, this, &DagEditBench::redo);
     connect(actExportJson_, &QAction::triggered, this, &DagEditBench::exportJson);
     connect(actImportJson_, &QAction::triggered, this, &DagEditBench::importJson);
-    connect(actEditProps_, &QAction::triggered, this, &DagEditBench::editSelectedNode);
 
     if (auto* stack = undoStack()->internalStack()) {
         connect(stack, &QUndoStack::canUndoChanged, actUndo_, &QAction::setEnabled);

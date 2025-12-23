@@ -28,6 +28,8 @@ file(GLOB CLIENT_SOURCES CONFIGURE_DEPENDS
     src/view/items/*.cpp
     src/tasks/*.cpp
     src/editor/*.cpp
+    src/*.qrc
+    src/resources/*.qrc
 )
 
 file(GLOB CLIENT_HEADERS CONFIGURE_DEPENDS

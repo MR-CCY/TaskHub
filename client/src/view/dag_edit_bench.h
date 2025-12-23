@@ -26,7 +26,6 @@ private:
     QAction* actDelete_ = nullptr;
     QAction* actExportJson_ = nullptr;
     QAction* actImportJson_ = nullptr;
-    QAction* actEditProps_ = nullptr;
     InspectorPanel* inspector_ = nullptr;
     NodePaletteWidget* nodePanel_ = nullptr;
 };

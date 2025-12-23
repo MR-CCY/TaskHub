@@ -10,11 +10,11 @@
 #include <QVBoxLayout>
 
 namespace {
-const struct ItemDef { QString text; NodeType type; } kTypeDefs[] = {
-    { QObject::tr("Shell 节点"),  NodeType::Shell },
-    { QObject::tr("HTTP 节点"),   NodeType::Http  },
-    { QObject::tr("Remote 节点"), NodeType::Remote},
-    { QObject::tr("Local 节点"),  NodeType::Local },
+const struct ItemDef { QString text; NodeType type; QString icon; } kTypeDefs[] = {
+    { QObject::tr("Shell 节点"),  NodeType::Shell,  QStringLiteral(":/icons/image/shell.png")  },
+    { QObject::tr("HTTP 节点"),   NodeType::Http,   QStringLiteral(":/icons/image/http.png")   },
+    { QObject::tr("Remote 节点"), NodeType::Remote, QStringLiteral(":/icons/image/remote.png") },
+    { QObject::tr("Local 节点"),  NodeType::Local,  QStringLiteral(":/icons/image/local.png")  },
 };
 }
 
@@ -45,10 +45,10 @@ void NodePaletteWidget::buildUi()
     typeTree_->setHeaderHidden(true);
     typeTree_->setSelectionMode(QAbstractItemView::SingleSelection);
     typeTree_->setIconSize(QSize(16, 16));
-
+    typeTree_->setMinimumWidth(160);
     nodeList_ = new QListWidget(this);
     nodeList_->setSelectionMode(QAbstractItemView::SingleSelection);
-
+    nodeList_->setMinimumWidth(160);
     listsRow->addWidget(typeTree_, 1);
     listsRow->addWidget(nodeList_, 1);
     vbox->addLayout(listsRow);
@@ -85,7 +85,7 @@ void NodePaletteWidget::populateTree()
     for (const auto& def : kTypeDefs) {
         auto* item = new QTreeWidgetItem(root, QStringList() << def.text);
         item->setData(0, Qt::UserRole, static_cast<int>(def.type));
-        item->setIcon(0, style()->standardIcon(QStyle::SP_FileIcon)); // placeholder icon slot
+        item->setIcon(0, QIcon(def.icon));
     }
 }
 

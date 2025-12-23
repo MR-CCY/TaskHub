@@ -1,0 +1,15 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+  <qresource prefix="/icons">
+    <file>image/daochu.png</file>
+    <file>image/do.png</file>
+    <file>image/daoru.png</file>
+    <file>image/link.png</file>
+    <file>image/undo.png</file>
+    <file>image/del.png</file>
+    <file>image/shell.png</file>
+    <file>image/http.png</file>
+    <file>image/local.png</file>
+    <file>image/remote.png</file>
+  </qresource>
+</RCC>

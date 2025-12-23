@@ -89,7 +89,8 @@ void MainWindow::setupNavDock() {
     navFont.setBold(true);
     navList_->setFont(navFont);
     navList_->setSpacing(4);
-    navList_->setMinimumWidth(140);
+    // navList_->setMinimumWidth(140);
+    navList_->setFixedWidth(100);
     navDock_->setWidget(navList_);
 
     addDockWidget(Qt::LeftDockWidgetArea, navDock_);
