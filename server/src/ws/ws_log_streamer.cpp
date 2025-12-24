@@ -2,6 +2,7 @@
 #include "utils/utils.h"
 #include "ws/ws_protocol.h"
 #include "ws/ws_hub.h"
+#include "db/task_event_repo.h"
 
 namespace taskhub::ws {
 WsLogStreamer &WsLogStreamer::instance()
@@ -37,6 +38,7 @@ void WsLogStreamer::pushTaskEvent(const std::string &taskId, const std::string &
     const std::string chRun = runId.empty() ? "" : channelTaskEvents(taskId, runId);
     // 推送格式：{"type":"event","task_id":"t1","run_id":"r1?","event":"task_start","ts_ms":<ms>,"extra":{...}}
     json j = buildTaskEventJson(taskId, event, extra, runId);
+    TaskEventRepo::instance().insertFromJson(j);
     auto payload = j.dump();
     if (!chRun.empty()) {
         WsHub::instance().broadcast(chRun, payload);

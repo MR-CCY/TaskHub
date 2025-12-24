@@ -51,6 +51,10 @@ void ApiClient::getInfo() {
     getJson("info", "/api/info");
 }
 
+void ApiClient::runDagAsync(const QJsonObject& body) {
+    postJson("runDagAsync", "/api/dag/run_async", body);
+}
+
 void ApiClient::getJson(const QString& apiName, const QString& path) {
     if (baseUrl_.isEmpty()) {
         emit requestFailed(apiName, 0, "baseUrl is empty");
@@ -151,6 +155,15 @@ void ApiClient::postJson(const QString& apiName, const QString& path, const QJso
                 return;
             }
             emit loginOk(token, user);
+        } else if (apiName == "runDagAsync") {
+            if (env.data.isObject()) {
+                const auto obj = env.data.toObject();
+                const QString runId = obj.value("run_id").toString();
+                const QJsonArray taskIds = obj.value("task_ids").toArray();
+                emit runDagAsyncOk(runId, taskIds);
+            } else {
+                emit runDagAsyncOk(QString(), QJsonArray());
+            }
         }
     });
 }

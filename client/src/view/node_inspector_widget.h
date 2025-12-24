@@ -4,6 +4,8 @@
 
 class QLineEdit;
 class QCheckBox;
+class QComboBox;
+class QLabel;
 class QPushButton;
 
 // Node-level inspector form.
@@ -32,15 +34,30 @@ signals:
 
 private:
     void buildUi();
+    void updateLabels(const QString& execType);
+    void setFieldVisible(QLabel* label, QWidget* editor, bool visible);
 
 private:
+    QLabel* nameLabel_ = nullptr;
+    QLabel* cmdLabel_ = nullptr;
+    QLabel* timeoutLabel_ = nullptr;
+    QLabel* retryLabel_ = nullptr;
+    QLabel* queueLabel_ = nullptr;
+    QLabel* captureLabel_ = nullptr;
+    QLabel* httpMethodLabel_ = nullptr;
+    QLabel* httpBodyLabel_ = nullptr;
+    QLabel* shellCwdLabel_ = nullptr;
+    QLabel* shellShellLabel_ = nullptr;
+    QLabel* innerTypeLabel_ = nullptr;
+    QLabel* innerCmdLabel_ = nullptr;
+
     QLineEdit* nameEdit_ = nullptr;
     QLineEdit* cmdEdit_ = nullptr;
     QLineEdit* timeoutEdit_ = nullptr;
     QLineEdit* retryEdit_ = nullptr;
     QLineEdit* queueEdit_ = nullptr;
     QCheckBox* captureBox_ = nullptr;
-    QLineEdit* httpMethodEdit_ = nullptr;
+    QComboBox* httpMethodCombo_ = nullptr;
     QLineEdit* httpBodyEdit_ = nullptr;
     QLineEdit* shellCwdEdit_ = nullptr;
     QLineEdit* shellShellEdit_ = nullptr;

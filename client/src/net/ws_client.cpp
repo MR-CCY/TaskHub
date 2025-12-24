@@ -48,8 +48,11 @@ WsClient::WsClient(QObject* parent)
 
 WsClient::~WsClient()
 {
-    for(auto& s : subscribedChannels_){
+    for(auto& s : subscribedLogs_){
         unsubscribeTaskLogs(s.first,s.second);
+    }
+    for(auto& s : subscribedEvents_){
+        unsubscribeTaskEvents(s.first,s.second);
     }
 }
 
@@ -77,7 +80,7 @@ void WsClient::subscribeTaskLogs(const QString &taskId, const QString &runId)
     j["task_id"] = taskId;
     if (!runId.isEmpty()) j["run_id"] = runId;
     j["token"] = token_;
-    subscribedChannels_.insert({taskId, runId});
+    subscribedLogs_.insert({taskId, runId});
     // 注意：你的服务端要求首条消息带 token，后续消息不要求 token（你实现是 authed_ 后不再校验 token 字段）
     // 但带上 token 也没坏处；为了简单可以不带。
     sendJson(j);
@@ -88,6 +91,29 @@ void WsClient::unsubscribeTaskLogs(const QString &taskId, const QString &runId)
     QJsonObject j;
     j["op"] = "unsubscribe";
     j["topic"] = "task_logs";
+    j["task_id"] = taskId;
+    j["token"] = token_;
+    if (!runId.isEmpty()) j["run_id"] = runId;
+    sendJson(j);
+}
+
+void WsClient::subscribeTaskEvents(const QString &taskId, const QString &runId)
+{
+    QJsonObject j;
+    j["op"] = "subscribe";
+    j["topic"] = "task_events";
+    j["task_id"] = taskId;
+    if (!runId.isEmpty()) j["run_id"] = runId;
+    j["token"] = token_;
+    subscribedEvents_.insert({taskId, runId});
+    sendJson(j);
+}
+
+void WsClient::unsubscribeTaskEvents(const QString &taskId, const QString &runId)
+{
+    QJsonObject j;
+    j["op"] = "unsubscribe";
+    j["topic"] = "task_events";
     j["task_id"] = taskId;
     j["token"] = token_;
     if (!runId.isEmpty()) j["run_id"] = runId;

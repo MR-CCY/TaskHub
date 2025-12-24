@@ -47,6 +47,7 @@ void DagEditBench::buildUi()
     splitter->addWidget(nodePanel_);
     splitter->addWidget(view());
     inspector_ = new InspectorPanel(scene(), undoStack(), view(), this);
+    inspector_->setApiClient(api_);
     splitter->addWidget(inspector_);
     splitter->setStretchFactor(0, 1);
     splitter->setStretchFactor(1, 4);

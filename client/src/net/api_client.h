@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QJsonObject>
+#include <QJsonArray>
 class QUrl;
 class QNetworkAccessManager;
 class QNetworkRequest;
@@ -22,6 +23,7 @@ public:
     void login(const QString& username, const QString& password);
     void getHealth();
     void getInfo();
+    void runDagAsync(const QJsonObject& body);
 
 signals:
     void unauthorized();
@@ -32,6 +34,7 @@ signals:
     // health/info
     void healthOk(const QJsonObject& data);
     void infoOk(const QJsonObject& data);
+    void runDagAsyncOk(const QString& runId, const QJsonArray& taskIds);
 
     // generic
     void requestFailed(const QString& apiName, int httpStatus, const QString& message);

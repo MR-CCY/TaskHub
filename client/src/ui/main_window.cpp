@@ -11,6 +11,7 @@
 #include <QAbstractItemView>
 #include <QDateTime>
 #include <QFont>
+#include <QJsonArray>
 
 #include "app_context.h"
 #include "net/api_client.h"
@@ -31,6 +32,9 @@ MainWindow::MainWindow(QWidget *parent):
     setupNavDock();
     setupConsole();
     setupClients();
+    if (workflowPage_) {
+        workflowPage_->setApiClient(api_);
+    }
     wireSignals();
 }   
      
@@ -174,6 +178,19 @@ void MainWindow::wireSignals() {
 
         console_->appendEvent(QString("WS msg: %1")
             .arg(QString::fromUtf8(QJsonDocument(obj).toJson(QJsonDocument::Compact))));
+    });
+
+    connect(api_, &ApiClient::runDagAsyncOk, this, [this](const QString& runId, const QJsonArray& taskIds) {
+        console_->appendInfo(QString("run_async started run_id=%1").arg(runId));
+        for (const auto& item : taskIds) {
+            if (!item.isObject()) continue;
+            const QJsonObject obj = item.toObject();
+            const QString tid = obj.value("task_id").toString();
+            if (tid.isEmpty()) continue;
+            ws_->subscribeTaskLogs(tid, runId);
+            ws_->subscribeTaskEvents(tid, runId);
+            console_->appendInfo(QString("subscribed logs/events for task %1 run %2").arg(tid, runId));
+        }
     });
 
     connect(ws_, &WsClient::error, this, [this](const QString& msg) {

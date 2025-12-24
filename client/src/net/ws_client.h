@@ -15,6 +15,8 @@ public:
     
     void subscribeTaskLogs(const QString& taskId, const QString& runId = {});
     void unsubscribeTaskLogs(const QString& taskId, const QString& runId = {});
+    void subscribeTaskEvents(const QString& taskId, const QString& runId = {});
+    void unsubscribeTaskEvents(const QString& taskId, const QString& runId = {});
 signals:
     void connected();
     void authed();
@@ -29,5 +31,6 @@ private:
     QWebSocket* ws_ = nullptr;
     QString token_;
     bool authed_ = false;
-    QSet<QPair<QString,QString>> subscribedChannels_;
+    QSet<QPair<QString,QString>> subscribedLogs_;
+    QSet<QPair<QString,QString>> subscribedEvents_;
 };

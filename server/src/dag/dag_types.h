@@ -15,6 +15,7 @@ enum class FailPolicy {
 
 /// DAG 运行配置
 struct DagConfig {
+    std::string name;
     FailPolicy failPolicy{ FailPolicy::SkipDownstream };
     std::uint32_t maxParallel{ 4 }; // 最大并行度（可约束线程池并发）
 };

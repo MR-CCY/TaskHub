@@ -7,8 +7,8 @@ namespace taskhub {
 
 class DbMigrator {
 public:
-    static constexpr int  PROGRAM_SCHEMA_VERSION = 3;
-    static constexpr const char* PROGRAM_APP_VERSION="v1.0.2";
+    static constexpr int  PROGRAM_SCHEMA_VERSION = 5;
+    static constexpr const char* PROGRAM_APP_VERSION="v1.0.4";
 
     // 入口：启动时调用
     static void migrate(sqlite3* db, const std::string& migrations_dir);

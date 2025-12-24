@@ -17,10 +17,15 @@
 #include "runner/taskRunner.h"
 #include "dag/dag_service.h"
 #include "dag/dag_thread_pool.h"
+#include "db/dag_run_repo.h"
+#include "db/task_run_repo.h"
+#include "db/task_event_repo.h"
 #include "utils/utils.h"
 #include <unordered_map>
+#include <algorithm>
 
 namespace taskhub {
+    using json = nlohmann::json;
     void TaskHandler::setup_routes(httplib::Server &server)
     {
         server.Post("/api/tasks", TaskHandler::create);
@@ -32,6 +37,9 @@ namespace taskhub {
         //M8
         server.Post("/api/dag/run", TaskHandler::runDag);
         server.Post("/api/dag/run_async", TaskHandler::runDagAsync);
+        server.Get("/api/dag/runs", TaskHandler::queryDagRuns);
+        server.Get("/api/dag/task_runs", TaskHandler::queryTaskRuns);
+        server.Get("/api/dag/events", TaskHandler::queryTaskEvents);
     }
 
     // Request: POST /api/tasks （需要 Auth）
@@ -225,10 +233,12 @@ namespace taskhub {
 
     }
    // Request: POST /api/dag/run
-   //   Body JSON: {"config":{"fail_policy":"SkipDownstream","max_parallel":4},"tasks":[{"id":"a","exec_type":0,...,"deps":["b"]},...]}
-   // Response:
-   //   200 {"ok":true,"message":string,"nodes":[{"id":"a","run_id":"...","result":{status(int),message,exit_code,duration_ms,stdout,stderr,attempt,max_attempts,metadata}}],"run_id":string,"summary":{"total":N,"success":[ids],"failed":[ids],"skipped":[ids]}}
-   //   500 {"ok":false,"error":<dag error>} （DagService 失败）
+   //   Body JSON:
+   //     {"name":"workflow-1","config":{"name":"workflow-1","fail_policy":"SkipDownstream"|"FailFast","max_parallel":4},"tasks":[{"id":"a","name":"step a","exec_type":"Local",...,"deps":["b"]},...]}
+   //     （也支持单个 task 对象 {"task":{...}}）
+   //   Response:
+   //     200 {"ok":true,"message":string,"nodes":[{"id":"a","run_id":"...","result":{status:int,message,exit_code,duration_ms,stdout,stderr,attempt,max_attempts,metadata}}],"run_id":string,"summary":{"total":N,"success":[ids],"failed":[ids],"skipped":[ids]}}
+   //     500 {"ok":false,"error":<dag error>} （DagService 失败）
    void TaskHandler::runDag(const httplib::Request &req, httplib::Response &res)
     {
         // auto user_opt = AuthManager::instance().user_from_request(req);
@@ -337,6 +347,12 @@ namespace taskhub {
             jt["run_id"] = runId;
         }
 
+        // 持久化 dag_run 和初始 task_run
+        DagRunRepo::instance().insertRun(runId, body, "manual", "");
+        for (const auto& jt : body["tasks"]) {
+            TaskRunRepo::instance().upsertFromTaskJson(runId, jt);
+        }
+
         // 用 DAG 线程池执行，避免为每个请求创建 detached 线程
         dag::DagThreadPool::instance().post([body = std::move(body), runId]() mutable {
             try {
@@ -350,6 +366,127 @@ namespace taskhub {
         data["run_id"] = runId;
         data["task_ids"] = taskList;
         resp::ok(res, data);
+    }
+
+    static long long parse_ll(const httplib::Request& req, const std::string& key, long long def = 0) {
+        if (!req.has_param(key)) return def;
+        try {
+            return std::stoll(req.get_param_value(key));
+        } catch (...) {
+            return def;
+        }
+    }
+
+    static int parse_int(const httplib::Request& req, const std::string& key, int def = 0) {
+        if (!req.has_param(key)) return def;
+        try {
+            return std::stoi(req.get_param_value(key));
+        } catch (...) {
+            return def;
+        }
+    }
+
+    void TaskHandler::queryDagRuns(const httplib::Request &req, httplib::Response &resp)
+    {
+        const std::string runId   = req.has_param("run_id") ? req.get_param_value("run_id") : "";
+        const std::string name    = req.has_param("name") ? req.get_param_value("name") : "";
+        const long long startTs   = parse_ll(req, "start_ts_ms", 0);
+        const long long endTs     = parse_ll(req, "end_ts_ms", 0);
+        int limit = parse_int(req, "limit", 100);
+        limit = std::clamp(limit, 1, 500);
+
+        auto rows = DagRunRepo::instance().query(runId, name, startTs, endTs, limit);
+        json arr = json::array();
+        for (const auto& r : rows) {
+            json j;
+            j["run_id"]        = r.runId;
+            j["name"]          = r.name;
+            j["source"]        = r.source;
+            j["status"]        = r.status;
+            j["start_ts_ms"]   = r.startTsMs;
+            j["end_ts_ms"]     = r.endTsMs;
+            j["total"]         = r.total;
+            j["success_count"] = r.successCount;
+            j["failed_count"]  = r.failedCount;
+            j["skipped_count"] = r.skippedCount;
+            j["message"]       = r.message;
+            arr.push_back(std::move(j));
+        }
+        json data;
+        data["items"] = std::move(arr);
+        resp::ok(resp, data);
+    }
+
+    void TaskHandler::queryTaskRuns(const httplib::Request &req, httplib::Response &resp)
+    {
+        const std::string runId = req.has_param("run_id") ? req.get_param_value("run_id") : "";
+        const std::string name  = req.has_param("name") ? req.get_param_value("name") : "";
+        int limit = parse_int(req, "limit", 200);
+        limit = std::clamp(limit, 1, 1000);
+
+        auto rows = TaskRunRepo::instance().query(runId, name, limit);
+        json arr = json::array();
+        auto parse_json_safe = [](const std::string& s, const std::string& fallback) {
+            try {
+                return json::parse(s.empty() ? fallback : s);
+            } catch (...) {
+                return json::parse(fallback);
+            }
+        };
+        for (const auto& r : rows) {
+            json j;
+            j["id"]             = r.id;
+            j["run_id"]         = r.runId;
+            j["logical_id"]     = r.logicalId;
+            j["task_id"]        = r.taskId;
+            j["name"]           = r.name;
+            j["exec_type"]      = r.execType;
+            j["exec_command"]   = r.execCommand;
+            j["exec_params"]    = parse_json_safe(r.execParamsJson, "{}");
+            j["deps"]           = parse_json_safe(r.depsJson, "[]");
+            j["status"]         = r.status;
+            j["exit_code"]      = r.exitCode;
+            j["duration_ms"]    = r.durationMs;
+            j["message"]        = r.message;
+            j["stdout"]         = r.stdoutText;
+            j["stderr"]         = r.stderrText;
+            j["attempt"]        = r.attempt;
+            j["max_attempts"]   = r.maxAttempts;
+            j["start_ts_ms"]    = r.startTsMs;
+            j["end_ts_ms"]      = r.endTsMs;
+            arr.push_back(std::move(j));
+        }
+        json data;
+        data["items"] = std::move(arr);
+        resp::ok(resp, data);
+    }
+
+    void TaskHandler::queryTaskEvents(const httplib::Request &req, httplib::Response &resp)
+    {
+        const std::string runId   = req.has_param("run_id") ? req.get_param_value("run_id") : "";
+        const std::string taskId  = req.has_param("task_id") ? req.get_param_value("task_id") : "";
+        const std::string type    = req.has_param("type") ? req.get_param_value("type") : "";
+        const std::string event   = req.has_param("event") ? req.get_param_value("event") : "";
+        const long long startTs   = parse_ll(req, "start_ts_ms", 0);
+        const long long endTs     = parse_ll(req, "end_ts_ms", 0);
+        int limit = parse_int(req, "limit", 200);
+        limit = std::clamp(limit, 1, 1000);
+
+        auto rows = TaskEventRepo::instance().query(runId, taskId, type, event, startTs, endTs, limit);
+        json arr = json::array();
+        for (const auto& r : rows) {
+            json j = r.payload;
+            j["id"]      = r.id;
+            j["run_id"]  = r.runId;
+            j["task_id"] = r.taskId;
+            j["type"]    = r.type;
+            j["event"]   = r.event;
+            j["ts_ms"]   = r.tsMs;
+            arr.push_back(std::move(j));
+        }
+        json data;
+        data["items"] = std::move(arr);
+        resp::ok(resp, data);
     }
 }
  

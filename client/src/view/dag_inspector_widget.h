@@ -19,6 +19,7 @@ public:
 
 signals:
     void saveRequested();
+    void runRequested();
 
 private:
     void buildUi();
@@ -28,4 +29,5 @@ private:
     QComboBox* failPolicyCombo_ = nullptr;
     QSpinBox* maxParallelSpin_ = nullptr;
     QPushButton* saveBtn_ = nullptr;
+    QPushButton* runBtn_ = nullptr;
 };

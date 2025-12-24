@@ -16,6 +16,7 @@ class InspectorPanel : public QWidget {
     Q_OBJECT
 public:
     InspectorPanel(CanvasScene* scene, UndoStack* undo, CanvasView* view, QWidget* parent = nullptr);
+    void setApiClient(class ApiClient* api) { api_ = api; }
 
 public slots:
     void onSelectionChanged();
@@ -26,6 +27,7 @@ private slots:
     void chooseLineStart();
     void chooseLineEnd();
     void saveLineEdits();
+    void runDag();
 
 private:
     void buildUi();
@@ -42,6 +44,7 @@ private:
     DagInspectorWidget* dagWidget_ = nullptr;
     NodeInspectorWidget* nodeWidget_ = nullptr;
     LineInspectorWidget* lineWidget_ = nullptr;
+    class ApiClient* api_ = nullptr;
 
     QString dagName_ = "DAG";
     QString dagFailPolicy_ = "SkipDownstream";

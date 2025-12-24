@@ -45,13 +45,22 @@ This doc summarizes the HTTP endpoints and WebSocket protocol as implemented und
 
 ### DAG run
 - `POST /api/dag/run`
-  - Body: `{"config":{"fail_policy":"SkipDownstream"|"FailFast","max_parallel":4},"tasks":[{"id":"a","exec_type":"Local",...,"deps":["b"]},...]}` (or `task` object)
+  - Body: `{"name":"workflow-1","config":{"name":"workflow-1","fail_policy":"SkipDownstream"|"FailFast","max_parallel":4},"tasks":[{"id":"a","name":"step-a","exec_type":"Local",...,"deps":["b"]},...]}` (or single `task` object)
   - 200: `{"ok":true,"message":string,"nodes":[{"id":"a","run_id":"...","result":{status:int,message,exit_code,duration_ms,stdout,stderr,attempt,max_attempts,metadata}}],"run_id":string,"summary":{"total":N,"success":[ids],"failed":[ids],"skipped":[ids]}}`
   - 500: `{"ok":false,"error":<dag error>}`
 - `POST /api/dag/run_async`
-  - Body same as `/api/dag/run` (must include `tasks` array).
+  - Body same as `/api/dag/run` (must include `tasks` array, optional top-level/config `name`).
   - 200: `{"code":0,"message":"ok","data":{"run_id":string,"task_ids":[{"logical":<id>,"task_id":<id>},...]}}`
   - Errors: `1002` invalid json; `400` `{"error":"tasks must be array"}`; other via resp::error.
+- `GET /api/dag/runs?run_id=<id>&name=<fuzzy>&start_ts_ms=<from>&end_ts_ms=<to>&limit=<n>`
+  - Filters: `run_id` exact, `name` fuzzy match, start/end timestamps (ms). `limit` default 100, max 500.
+  - 200: `{"code":0,"message":"ok","data":{"items":[{run_id,name,source,status,start_ts_ms,end_ts_ms,total,success_count,failed_count,skipped_count,message}]}}`
+- `GET /api/dag/task_runs?run_id=<id>&name=<exact>&limit=<n>`
+  - Filters: `run_id` exact, `name` exact (non-fuzzy). `limit` default 200, max 1000.
+  - 200: `{"code":0,"message":"ok","data":{"items":[{id,run_id,logical_id,task_id,name,exec_type,exec_command,exec_params,deps,status,exit_code,duration_ms,message,stdout,stderr,attempt,max_attempts,start_ts_ms,end_ts_ms}]}}`
+- `GET /api/dag/events?run_id=<id>&task_id=<id>&type=<type>&event=<event>&start_ts_ms=<from>&end_ts_ms=<to>&limit=<n>`
+  - Filters: any combination of run_id/task_id/type/event and time range; `limit` default 200, max 1000.
+  - 200: `{"code":0,"message":"ok","data":{"items":[{id,task_id,run_id,type,event,ts_ms,extra...,raw payload fields}]}}`
 
 ### Templates
 - `POST /template`

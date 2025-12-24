@@ -2,6 +2,8 @@
 #include "runner/taskRunner.h"
 #include "dag/dag_thread_pool.h"
 #include "log/logger.h"
+#include "db/dag_run_repo.h"
+#include "utils/utils.h"
 
 namespace taskhub::dag {
     DagService::DagService(runner::TaskRunner &runner):
@@ -62,6 +64,10 @@ DagResult DagService::runDag(const json &body, const std::string& runId)
                 cfg.failPolicy = dag::FailPolicy::SkipDownstream;
             }
             cfg.maxParallel = jcfg.value("max_parallel", 4u);
+            cfg.name = jcfg.value("name", std::string{});
+        }
+        if (cfg.name.empty()) {
+            cfg.name = body.value("name", std::string{});
         }
 
          // ===== 2. tasks 校验 =====
@@ -136,11 +142,9 @@ DagResult DagService::runDag(const json &body, const std::string& runId)
         // 将 runId 写入节点/依赖
         if (!runId.empty()) {
             for (auto& [idStr, node] : graph.nodes()) {
-                node->setRunnerConfig([&]{
-                    auto cfg = node->runnerConfig();
-                    cfg.id.runId = runId;
-                    return cfg;
-                }());
+                auto cfgNode = node->runnerConfig();
+                cfgNode.id.runId = runId;
+                node->setRunnerConfig(cfgNode);
             }
         }
 
@@ -150,8 +154,38 @@ DagResult DagService::runDag(const json &body, const std::string& runId)
 
          // ===== 7. 汇总结果 =====
         const auto& finalMap = ctx.taskResults();
+        int successCount = 0;
+        int failedCount  = 0;
+        int skippedCount = 0;
         for (const auto& [id, res] : finalMap) {
             dr.taskResults[id] = res;
+            switch (res.status) {
+            case core::TaskStatus::Success: successCount++; break;
+            case core::TaskStatus::Skipped: skippedCount++; break;
+            case core::TaskStatus::Failed:
+            case core::TaskStatus::Timeout:
+            case core::TaskStatus::Canceled:
+                failedCount++;
+                break;
+            default:
+                break;
+            }
+        }
+        const bool hasFailure = failedCount > 0;
+        dr.success = !hasFailure;
+        dr.message = hasFailure ? "dag failed" : "";
+
+        if (!runId.empty()) {
+            const long long endTs = utils::now_millis();
+            DagRunRepo::instance().finishRun(
+                runId,
+                hasFailure ? 2 : 1,
+                endTs,
+                static_cast<int>(finalMap.size()),
+                successCount,
+                failedCount,
+                skippedCount,
+                dr.message);
         }
         return dr;
 

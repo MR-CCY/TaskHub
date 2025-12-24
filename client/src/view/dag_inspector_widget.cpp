@@ -20,27 +20,36 @@ void DagInspectorWidget::buildUi()
 
     nameEdit_ = new QLineEdit(this);
     failPolicyCombo_ = new QComboBox(this);
-    failPolicyCombo_->addItem("失败即终止");
-    failPolicyCombo_->addItem("失败则跳过");
+    failPolicyCombo_->addItem(tr("失败即终止"), QStringLiteral("FailFast"));
+    failPolicyCombo_->addItem(tr("失败则跳过"), QStringLiteral("SkipDownstream"));
     maxParallelSpin_ = new QSpinBox(this);
     maxParallelSpin_->setRange(1, 128);
     saveBtn_ = new QPushButton(tr("保存 DAG"), this);
+    runBtn_ = new QPushButton(tr("运行 DAG"), this);
 
     form->addRow(tr("DAG名称："), nameEdit_);
     form->addRow(tr("失败策略："), failPolicyCombo_);
     form->addRow(tr("最大并行任务："), maxParallelSpin_);
     form->addRow(saveBtn_);
+    form->addRow(runBtn_);
 
     connect(saveBtn_, &QPushButton::clicked, this, &DagInspectorWidget::saveRequested);
+    connect(runBtn_, &QPushButton::clicked, this, &DagInspectorWidget::runRequested);
 }
 
 void DagInspectorWidget::setValues(const QString& name, const QString& failPolicy, int maxParallel)
 {
     nameEdit_->setText(name);
-    failPolicyCombo_->setCurrentText(failPolicy);
+    int idx = failPolicyCombo_->findData(failPolicy);
+    if (idx < 0) idx = failPolicyCombo_->findText(failPolicy);
+    if (idx < 0) idx = 0;
+    failPolicyCombo_->setCurrentIndex(idx);
     maxParallelSpin_->setValue(maxParallel);
 }
 
 QString DagInspectorWidget::nameValue() const { return nameEdit_->text(); }
-QString DagInspectorWidget::failPolicyValue() const { return failPolicyCombo_->currentText(); }
+QString DagInspectorWidget::failPolicyValue() const {
+    const QVariant v = failPolicyCombo_->currentData();
+    return v.isValid() ? v.toString() : failPolicyCombo_->currentText();
+}
 int DagInspectorWidget::maxParallelValue() const { return maxParallelSpin_->value(); }

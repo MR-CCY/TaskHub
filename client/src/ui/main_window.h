@@ -11,6 +11,7 @@ class UserBarWidget;
 class QListWidget;
 class QStackedWidget;
 class QDockWidget;
+class InspectorPanel;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT

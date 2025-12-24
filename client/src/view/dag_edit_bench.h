@@ -1,5 +1,6 @@
 #pragma once
 #include "canvasbench.h"
+#include "view/inspector_panel.h"
 
 class QToolBar;
 class QAction;
@@ -13,6 +14,7 @@ class DagEditBench : public CanvasBench {
 public:
     explicit DagEditBench(QWidget* parent = nullptr);
     ~DagEditBench() override = default;
+    void setApiClient(class ApiClient* api) { api_ = api; if (inspector_) inspector_->setApiClient(api); }
 
 private:
     void buildUi();
@@ -28,4 +30,5 @@ private:
     QAction* actImportJson_ = nullptr;
     InspectorPanel* inspector_ = nullptr;
     NodePaletteWidget* nodePanel_ = nullptr;
+    class ApiClient* api_ = nullptr;
 };

@@ -14,6 +14,9 @@
 #include "dag_inspector_widget.h"
 #include "node_inspector_widget.h"
 #include "line_inspector_widget.h"
+#include "dag_serializer.h"
+#include "net/api_client.h"
+#include <QDebug>
 
 InspectorPanel::InspectorPanel(CanvasScene* scene, UndoStack* undo, CanvasView* view, QWidget* parent)
     : QWidget(parent), scene_(scene), undo_(undo), view_(view) {
@@ -36,6 +39,7 @@ void InspectorPanel::buildUi() {
     lineWidget_ = new LineInspectorWidget(stack_);
 
     connect(dagWidget_, &DagInspectorWidget::saveRequested, this, &InspectorPanel::saveDagEdits);
+    connect(dagWidget_, &DagInspectorWidget::runRequested, this, &InspectorPanel::runDag);
     connect(nodeWidget_, &NodeInspectorWidget::saveRequested, this, &InspectorPanel::saveNodeEdits);
     connect(lineWidget_, &LineInspectorWidget::chooseStartRequested, this, &InspectorPanel::chooseLineStart);
     connect(lineWidget_, &LineInspectorWidget::chooseEndRequested, this, &InspectorPanel::chooseLineEnd);
@@ -96,6 +100,20 @@ void InspectorPanel::saveDagEdits() {
     dagName_ = newName;
     dagFailPolicy_ = newFail;
     dagMaxParallel_ = newMax;
+}
+
+void InspectorPanel::runDag() {
+    if (!scene_) return;
+    dagName_ = dagWidget_->nameValue();
+    dagFailPolicy_ = dagWidget_->failPolicyValue();
+    dagMaxParallel_ = dagWidget_->maxParallelValue();
+    const QJsonObject dagJson = buildDagJson(scene_, dagFailPolicy_, dagMaxParallel_, dagName_);
+    if (dagJson.isEmpty()) return;
+    if (!api_) {
+        qWarning("ApiClient is null, cannot run DAG");
+        return;
+    }
+    api_->runDagAsync(dagJson);
 }
 
 void InspectorPanel::saveNodeEdits() {

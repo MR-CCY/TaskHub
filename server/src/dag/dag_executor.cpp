@@ -4,6 +4,8 @@
 #include "log/logger.h"
 #include "dag_thread_pool.h"
 #include "ws/ws_log_streamer.h"
+#include "db/task_run_repo.h"
+#include "utils/utils.h"
 namespace taskhub::dag {
     DagExecutor::DagExecutor(runner::TaskRunner &runner):
     _runner(runner)
@@ -148,7 +150,10 @@ namespace taskhub::dag {
     
         ctx.setNodeStatus(id, core::TaskStatus::Running);
         ctx.incrementRunning();
-    
+        if (!id.runId.empty()) {
+            TaskRunRepo::instance().markRunning(id.runId, id.value, utils::now_millis());
+        }
+
         // 异步执行节点任务并在完成后调用onNodeFinished处理结果
         return std::async(std::launch::async, [this, &ctx, id]() {
             auto nodeInner = ctx.graph().getNode(id);
@@ -183,6 +188,9 @@ namespace taskhub::dag {
 
         ctx.setNodeStatus(id, core::TaskStatus::Running);
         ctx.incrementRunning();
+        if (!id.runId.empty()) {
+            TaskRunRepo::instance().markRunning(id.runId, id.value, utils::now_millis());
+        }
         // WS event: node execution starts
         ws::WsLogStreamer::instance().pushTaskEvent(
             id.value,
@@ -218,6 +226,9 @@ namespace taskhub::dag {
             return;
         }
         ctx.setTaskResults(id, result);
+        if (!id.runId.empty()) {
+            TaskRunRepo::instance().markFinished(id.runId, id.value, result, utils::now_millis());
+        }
         auto st = result.status;
         // WS event: node finished (first-class status)
         ws::WsLogStreamer::instance().pushTaskEvent(
@@ -310,6 +321,13 @@ namespace taskhub::dag {
                         ctx.setTaskResults(childId, core::TaskResult{
                             .status = core::TaskStatus::Skipped
                         });
+                        if (!childId.runId.empty()) {
+                            TaskRunRepo::instance().markSkipped(
+                                childId.runId,
+                                childId.value,
+                                "skip_downstream upstream=" + id.value,
+                                utils::now_millis());
+                        }
                         // WS event: node skipped due to upstream failure
                         ws::WsLogStreamer::instance().pushTaskEvent(
                             childId.value,
