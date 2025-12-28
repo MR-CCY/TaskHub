@@ -22,6 +22,7 @@ file(GLOB CLIENT_SOURCES CONFIGURE_DEPENDS
     src/net/*.cpp
     src/graph/*.cpp
     src/view/*.cpp
+    src/view/*.cpp
     src/commands/*.cpp
     src/operator/*.cpp
     src/Item/*.cpp

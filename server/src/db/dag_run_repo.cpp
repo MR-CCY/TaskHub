@@ -161,7 +161,7 @@ std::vector<DagRunRepo::DagRunRow> DagRunRepo::query(const std::string& runId,
     }
 
     std::string sql =
-        "SELECT run_id, name, source, status, start_ts_ms, end_ts_ms, total, success_count, failed_count, skipped_count, message "
+        "SELECT run_id, name, source, status, start_ts_ms, end_ts_ms, total, success_count, failed_count, skipped_count, message,dag_json, workflow_json "
         "FROM dag_run WHERE 1=1";
 
     std::vector<std::string> params;
@@ -215,6 +215,8 @@ std::vector<DagRunRepo::DagRunRow> DagRunRepo::query(const std::string& runId,
         r.skippedCount = sqlite3_column_int(stmt, 9);
         const unsigned char* msg = sqlite3_column_text(stmt, 10);
         r.message = msg ? reinterpret_cast<const char*>(msg) : "";
+        r.dagJson = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 11));
+        r.workflowJson = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 12));
         rows.push_back(std::move(r));
     }
 

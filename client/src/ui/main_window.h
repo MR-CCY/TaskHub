@@ -12,6 +12,7 @@ class QListWidget;
 class QStackedWidget;
 class QDockWidget;
 class InspectorPanel;
+class DagRunsWidget;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -41,7 +42,7 @@ private:
 
     DagEditBench* workflowPage_ = nullptr;
     QWidget* templatesPage_ = nullptr;
-    QWidget* runsPage_ = nullptr;
+    DagRunsWidget* runsPage_ = nullptr;
     QWidget* cronPage_ = nullptr;
 
     ConsoleDock* console_ = nullptr;

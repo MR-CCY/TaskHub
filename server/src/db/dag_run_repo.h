@@ -35,6 +35,8 @@ public:
         int failedCount{0};
         int skippedCount{0};
         std::string message;
+        std::string workflowJson;
+        std::string dagJson;
     };
 
     std::vector<DagRunRow> query(const std::string& runId,

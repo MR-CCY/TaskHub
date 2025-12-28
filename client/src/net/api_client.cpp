@@ -55,6 +55,41 @@ void ApiClient::runDagAsync(const QJsonObject& body) {
     postJson("runDagAsync", "/api/dag/run_async", body);
 }
 
+void ApiClient::getDagRuns(const QString& runId, const QString& name, qint64 startTsMs, qint64 endTsMs, int limit) {
+    QUrlQuery q;
+    if (!runId.isEmpty()) q.addQueryItem("run_id", runId);
+    if (!name.isEmpty()) q.addQueryItem("name", name);
+    if (startTsMs > 0) q.addQueryItem("start_ts_ms", QString::number(startTsMs));
+    if (endTsMs > 0) q.addQueryItem("end_ts_ms", QString::number(endTsMs));
+    if (limit > 0) q.addQueryItem("limit", QString::number(limit));
+    const QString path = "/api/dag/runs" + (q.isEmpty() ? QString() : QString("?" + q.toString(QUrl::FullyEncoded)));
+    getJson("dagRuns", path);
+}
+
+void ApiClient::getTaskRuns(const QString& runId, const QString& name, int limit) {
+    QUrlQuery q;
+    if (!runId.isEmpty()) q.addQueryItem("run_id", runId);
+    if (!name.isEmpty()) q.addQueryItem("name", name);
+    if (limit > 0) q.addQueryItem("limit", QString::number(limit));
+    const QString path = "/api/dag/task_runs" + (q.isEmpty() ? QString() : QString("?" + q.toString(QUrl::FullyEncoded)));
+    getJson("taskRuns", path);
+}
+
+void ApiClient::getDagEvents(const QString& runId, const QString& taskId,
+                             const QString& type, const QString& event,
+                             qint64 startTsMs, qint64 endTsMs, int limit) {
+    QUrlQuery q;
+    if (!runId.isEmpty()) q.addQueryItem("run_id", runId);
+    if (!taskId.isEmpty()) q.addQueryItem("task_id", taskId);
+    if (!type.isEmpty()) q.addQueryItem("type", type);
+    if (!event.isEmpty()) q.addQueryItem("event", event);
+    if (startTsMs > 0) q.addQueryItem("start_ts_ms", QString::number(startTsMs));
+    if (endTsMs > 0) q.addQueryItem("end_ts_ms", QString::number(endTsMs));
+    if (limit > 0) q.addQueryItem("limit", QString::number(limit));
+    const QString path = "/api/dag/events" + (q.isEmpty() ? QString() : QString("?" + q.toString(QUrl::FullyEncoded)));
+    getJson("dagEvents", path);
+}
+
 void ApiClient::getJson(const QString& apiName, const QString& path) {
     if (baseUrl_.isEmpty()) {
         emit requestFailed(apiName, 0, "baseUrl is empty");
@@ -95,6 +130,12 @@ void ApiClient::getJson(const QString& apiName, const QString& path) {
         } else if (apiName == "info") {
             if (env.data.isObject()) emit infoOk(env.data.toObject());
             else emit requestFailed(apiName, httpStatus, "info data is not an object");
+        }else if (apiName == "dagRuns") {
+            if (env.data.isObject()) {
+                emit dagRunsOk(env.data.toObject().value("items").toArray());
+            } else {
+                emit dagRunsOk(QJsonArray());
+            }
         }
     });
 
@@ -163,6 +204,24 @@ void ApiClient::postJson(const QString& apiName, const QString& path, const QJso
                 emit runDagAsyncOk(runId, taskIds);
             } else {
                 emit runDagAsyncOk(QString(), QJsonArray());
+            }
+        } else if (apiName == "dagRuns") {
+            if (env.data.isObject()) {
+                emit dagRunsOk(env.data.toObject().value("items").toArray());
+            } else {
+                emit dagRunsOk(QJsonArray());
+            }
+        } else if (apiName == "taskRuns") {
+            if (env.data.isObject()) {
+                emit taskRunsOk(env.data.toObject().value("items").toArray());
+            } else {
+                emit taskRunsOk(QJsonArray());
+            }
+        } else if (apiName == "dagEvents") {
+            if (env.data.isObject()) {
+                emit dagEventsOk(env.data.toObject().value("items").toArray());
+            } else {
+                emit dagEventsOk(QJsonArray());
             }
         }
     });

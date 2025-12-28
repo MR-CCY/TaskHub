@@ -410,6 +410,8 @@ namespace taskhub {
             j["failed_count"]  = r.failedCount;
             j["skipped_count"] = r.skippedCount;
             j["message"]       = r.message;
+            j["workflow_json"] = r.workflowJson;
+            j["dag_json"]      = r.dagJson;
             arr.push_back(std::move(j));
         }
         json data;

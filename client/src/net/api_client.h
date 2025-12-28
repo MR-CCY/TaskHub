@@ -24,6 +24,12 @@ public:
     void getHealth();
     void getInfo();
     void runDagAsync(const QJsonObject& body);
+    void getDagRuns(const QString& runId = QString(), const QString& name = QString(),
+                    qint64 startTsMs = 0, qint64 endTsMs = 0, int limit = 100);
+    void getTaskRuns(const QString& runId = QString(), const QString& name = QString(), int limit = 200);
+    void getDagEvents(const QString& runId = QString(), const QString& taskId = QString(),
+                      const QString& type = QString(), const QString& event = QString(),
+                      qint64 startTsMs = 0, qint64 endTsMs = 0, int limit = 200);
 
 signals:
     void unauthorized();
@@ -34,6 +40,9 @@ signals:
     // health/info
     void healthOk(const QJsonObject& data);
     void infoOk(const QJsonObject& data);
+    void dagRunsOk(const QJsonArray& items);
+    void taskRunsOk(const QJsonArray& items);
+    void dagEventsOk(const QJsonArray& items);
     void runDagAsyncOk(const QString& runId, const QJsonArray& taskIds);
 
     // generic

@@ -19,6 +19,7 @@
 #include "ui/console_dock.h"
 #include "ui/user_bar_widget.h"
 #include "view/dag_edit_bench.h"
+#include "view/dag_runs_widget.h"
 
 MainWindow::MainWindow(QWidget *parent):
     QMainWindow(parent)
@@ -34,6 +35,9 @@ MainWindow::MainWindow(QWidget *parent):
     setupClients();
     if (workflowPage_) {
         workflowPage_->setApiClient(api_);
+    }
+    if (runsPage_) {
+        runsPage_->setApiClient(api_);
     }
     wireSignals();
 }   
@@ -65,7 +69,7 @@ void MainWindow::setupCentralPages() {
     centralStack_ = new QStackedWidget(this);
     workflowPage_ = new DagEditBench(this);
     templatesPage_ = createPlaceholderPage(tr("Templates Page (TODO)"));
-    runsPage_ = createPlaceholderPage(tr("Runs Page (TODO)"));
+    runsPage_ = new DagRunsWidget(this);
     cronPage_ = createPlaceholderPage(tr("Cron Page (TODO)"));
 
     centralStack_->addWidget(workflowPage_);
@@ -84,7 +88,7 @@ void MainWindow::setupNavDock() {
     navList_ = new QListWidget(navDock_);
     navList_->addItem(tr("DAG编辑"));
     navList_->addItem(tr("模版编辑"));
-    navList_->addItem(tr("运行任务"));
+    navList_->addItem(tr("DAG管理"));
     navList_->addItem(tr("定时任务"));
     navList_->setSelectionMode(QAbstractItemView::SingleSelection);
     navList_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
