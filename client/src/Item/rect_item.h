@@ -42,6 +42,10 @@ public:
       void setPropByKeyPath(const QString& keyPath, const QVariant& v);
       const QString& nodeId() const { return nodeId_; }
       void setNodeId(const QString& id) { nodeId_ = id; }
+      void setStatusOverlay(const QColor& c) { statusColor_ = c; update(); }
+      QColor statusOverlay() const { return statusColor_; }
+      void setStatusLabel(const QString& s) { statusLabel_ = s; update(); }
+      QString statusLabel() const { return statusLabel_; }
       
       // 可选：提供 rect 访问（子类一般不需要直接碰 rect_）
       QRectF rect() const { return rect_; }
@@ -54,4 +58,6 @@ private:
     QRectF rect_;
     QSet<LineItem*> lines_;
     QString nodeId_;   // 逻辑 Node ID（编辑态唯一）
+    QColor statusColor_;
+    QString statusLabel_;
 };

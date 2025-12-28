@@ -17,9 +17,11 @@ class InspectorPanel : public QWidget {
 public:
     InspectorPanel(CanvasScene* scene, UndoStack* undo, CanvasView* view, QWidget* parent = nullptr);
     void setApiClient(class ApiClient* api) { api_ = api; }
+    void setReadOnlyMode(bool ro);
 
 public slots:
     void onSelectionChanged();
+    void setTaskRuns(const QJsonArray& items);
 
 private slots:
     void saveDagEdits();

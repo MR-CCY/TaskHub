@@ -28,6 +28,8 @@ public:
     QString shellShellValue() const;
     QString innerExecTypeValue() const;
     QString innerExecCommandValue() const;
+    void setRuntimeValues(const QJsonObject& obj);
+    void setReadOnlyMode(bool ro);
 
 signals:
     void saveRequested();
@@ -64,4 +66,16 @@ private:
     QLineEdit* innerTypeEdit_ = nullptr;
     QLineEdit* innerCmdEdit_ = nullptr;
     QPushButton* saveBtn_ = nullptr;
+
+    // runtime display
+    QLabel* runtimeStatusLabel_ = nullptr;
+    QLabel* runtimeDurationLabel_ = nullptr;
+    QLabel* runtimeExitLabel_ = nullptr;
+    QLabel* runtimeAttemptLabel_ = nullptr;
+    QLabel* runtimeWorkerLabel_ = nullptr;
+    QLabel* runtimeMessageLabel_ = nullptr;
+    QLabel* runtimeStdoutLabel_ = nullptr;
+    QLabel* runtimeStderrLabel_ = nullptr;
+
+    bool readOnly_ = false;
 };

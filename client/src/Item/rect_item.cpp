@@ -48,9 +48,9 @@ RectItem::RectItem(const QRectF &rect, QGraphicsItem *parent)
 
 QRectF RectItem::boundingRect() const
 {
-    // 给描边和端口圆点留更充足的边距，避免移动时重绘不全
-    constexpr qreal margin = 8.0;
-    return rect_.adjusted(-margin, -margin, margin, margin);
+    // 给描边/端口/状态标签留边距，避免移动时重绘不全
+    const qreal margin = std::max<qreal>(12.0, headerH_);
+    return rect_.adjusted(-margin, -margin - headerH_, margin, margin);
 }
 
 QPainterPath RectItem::shape() const {
@@ -68,8 +68,11 @@ void RectItem::paint(QPainter* p, const QStyleOptionGraphicsItem* opt, QWidget*)
     // 背景 / 边框
     QColor bg = enabled ? QColor(250, 250, 250) : QColor(235, 235, 235);
     QColor border = selected ? QColor(30, 144, 255) : QColor(60, 60, 60);
+    if (statusColor_.isValid()) {
+        border = statusColor_;
+    }
 
-    p->setPen(QPen(border, selected ? 2.0 : 1.0));
+    p->setPen(QPen(border, selected ? 2.5 : 3.0));
     p->setBrush(bg);
     p->drawRoundedRect(rect_, radius_, radius_);
 
@@ -111,6 +114,20 @@ void RectItem::paint(QPainter* p, const QStyleOptionGraphicsItem* opt, QWidget*)
     QPointF outP(rect_.right(), rect_.center().y());
     p->drawEllipse(inP + QPointF(-r, -r), r, r);
     p->drawEllipse(outP + QPointF(-r, -r), r, r);
+
+    // Status label at top-left outside
+    if (statusColor_.isValid() && !statusLabel_.isEmpty()) {
+        const QString text = statusLabel_;
+        QFont sf = p->font();
+        sf.setBold(true);
+        p->setFont(sf);
+        QRectF tagRect(rect_.left() - 4, rect_.top() - headerH_, rect_.width() * 0.6, headerH_);
+        p->setPen(QPen(Qt::black, 1.2));
+        p->setBrush(statusColor_);
+        p->drawRoundedRect(tagRect, 6, 6);
+        p->setPen(QPen(Qt::white, 1.2));
+        p->drawText(tagRect.adjusted(6, 0, -6, 0), Qt::AlignVCenter | Qt::AlignLeft, text);
+    }
 }
 QString RectItem::typeLabel() const { return "NODE"; }
 QColor  RectItem::headerColor() const { return QColor(80, 80, 80); }

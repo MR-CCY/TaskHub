@@ -49,6 +49,10 @@ void InspectorPanel::buildUi() {
     stack_->addWidget(nodeWidget_);
     stack_->addWidget(lineWidget_);
 }
+void InspectorPanel::setReadOnlyMode(bool ro)
+{
+    if (nodeWidget_) nodeWidget_->setReadOnlyMode(ro);
+}
 
 void InspectorPanel::onSelectionChanged() {
     if (!scene_) return;
@@ -64,6 +68,23 @@ void InspectorPanel::onSelectionChanged() {
         }
     }
     showDag();
+}
+void InspectorPanel::setTaskRuns(const QJsonArray& items)
+{
+    // 简单策略：如果当前选中节点匹配 logical_id，则刷新节点面板字段
+    RectItem* currentNode = nullptr;
+    if (scene_ && !scene_->selectedItems().isEmpty()) {
+        currentNode = dynamic_cast<RectItem*>(scene_->selectedItems().first());
+    }
+    if (!currentNode) return;
+    const QString curId = currentNode->prop("id").toString();
+    for (const auto& v : items) {
+        const auto o = v.toObject();
+        if (o.value("logical_id").toString() == curId) {
+            nodeWidget_->setRuntimeValues(o);
+            break;
+        }
+    }
 }
 
 void InspectorPanel::showDag() {

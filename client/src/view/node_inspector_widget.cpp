@@ -6,6 +6,8 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QJsonObject>
+#include <QFrame>
 
 NodeInspectorWidget::NodeInspectorWidget(QWidget* parent)
     : QWidget(parent)
@@ -63,6 +65,31 @@ void NodeInspectorWidget::buildUi()
     form->addRow(innerCmdLabel_, innerCmdEdit_);
     form->addRow(saveBtn_);
 
+    auto* sep = new QFrame(this);
+    sep->setFrameShape(QFrame::HLine);
+    sep->setFrameShadow(QFrame::Sunken);
+    form->addRow(sep);
+
+    runtimeStatusLabel_ = new QLabel("-", this);
+    runtimeDurationLabel_ = new QLabel("-", this);
+    runtimeExitLabel_ = new QLabel("-", this);
+    runtimeAttemptLabel_ = new QLabel("-", this);
+    runtimeWorkerLabel_ = new QLabel("-", this);
+    runtimeMessageLabel_ = new QLabel("-", this);
+    runtimeStdoutLabel_ = new QLabel("-", this);
+    runtimeStdoutLabel_->setWordWrap(true);
+    runtimeStderrLabel_ = new QLabel("-", this);
+    runtimeStderrLabel_->setWordWrap(true);
+
+    form->addRow(tr("运行状态"), runtimeStatusLabel_);
+    form->addRow(tr("耗时(ms)"), runtimeDurationLabel_);
+    form->addRow(tr("退出码"), runtimeExitLabel_);
+    form->addRow(tr("尝试/最大"), runtimeAttemptLabel_);
+    form->addRow(tr("Worker"), runtimeWorkerLabel_);
+    form->addRow(tr("消息"), runtimeMessageLabel_);
+    form->addRow(tr("Stdout"), runtimeStdoutLabel_);
+    form->addRow(tr("Stderr"), runtimeStderrLabel_);
+
     connect(saveBtn_, &QPushButton::clicked, this, &NodeInspectorWidget::saveRequested);
 }
 
@@ -95,6 +122,58 @@ QString NodeInspectorWidget::shellCwdValue() const { return shellCwdEdit_->text(
 QString NodeInspectorWidget::shellShellValue() const { return shellShellEdit_->text(); }
 QString NodeInspectorWidget::innerExecTypeValue() const { return innerTypeEdit_->text(); }
 QString NodeInspectorWidget::innerExecCommandValue() const { return innerCmdEdit_->text(); }
+
+void NodeInspectorWidget::setRuntimeValues(const QJsonObject& obj)
+{
+    const QString status = obj.value("status").toString();
+    const qint64 duration = obj.value("duration_ms").toVariant().toLongLong();
+    const int exitCode = obj.value("exit_code").toInt();
+    const QString worker = obj.value("worker_id").toString();
+    const QString stdout = obj.value("stdout").toString();
+    const QString stderr = obj.value("stderr").toString();
+    const QString msg = obj.value("message").toString();
+    const int attempt = obj.value("attempt").toInt();
+    const int maxAttempts = obj.value("max_attempts").toInt();
+    const qint64 startMs = obj.value("start_ts_ms").toVariant().toLongLong();
+    const qint64 endMs = obj.value("end_ts_ms").toVariant().toLongLong();
+
+    runtimeStatusLabel_->setText(status);
+    runtimeDurationLabel_->setText(QString::number(duration));
+    runtimeExitLabel_->setText(QString::number(exitCode));
+    runtimeAttemptLabel_->setText(QString("%1 / %2").arg(attempt).arg(maxAttempts));
+    runtimeWorkerLabel_->setText(worker);
+    runtimeMessageLabel_->setText(msg);
+    runtimeStdoutLabel_->setText(stdout);
+    runtimeStderrLabel_->setText(stderr);
+
+    // Tooltip 兼容补充
+    const QString runtimeTip = tr("状态: %1\n耗时(ms): %2\n退出码: %3\nworker: %4\nstart: %5\nend: %6")
+                                   .arg(status)
+                                   .arg(duration)
+                                   .arg(exitCode)
+                                   .arg(worker)
+                                   .arg(startMs)
+                                   .arg(endMs);
+    this->setToolTip(runtimeTip);
+}
+
+void NodeInspectorWidget::setReadOnlyMode(bool ro)
+{
+    readOnly_ = ro;
+    nameEdit_->setReadOnly(ro);
+    cmdEdit_->setReadOnly(ro);
+    timeoutEdit_->setReadOnly(ro);
+    retryEdit_->setReadOnly(ro);
+    queueEdit_->setReadOnly(ro);
+    captureBox_->setEnabled(!ro);
+    httpMethodCombo_->setEnabled(!ro);
+    httpBodyEdit_->setReadOnly(ro);
+    shellCwdEdit_->setReadOnly(ro);
+    shellShellEdit_->setReadOnly(ro);
+    innerTypeEdit_->setReadOnly(ro);
+    innerCmdEdit_->setReadOnly(ro);
+    saveBtn_->setVisible(!ro);
+}
 
 namespace {
 enum class ExecKind { Local, Remote, Script, Http, Shell };

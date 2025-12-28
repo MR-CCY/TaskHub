@@ -11,4 +11,18 @@ public:
 
     // 从 DAG JSON（包含 tasks/config）导入到画布
     bool loadDagJson(const QJsonObject& obj);
+    void setNodeStatus(const QString& nodeId, const QColor& color);
+    void setNodeStatusLabel(const QString& nodeId, const QString& label);
+    void selectNode(const QString& nodeId);
+
+    // 只读访问底层指针供监控面板使用
+    CanvasScene* canvasScene() const { return scene(); }
+    UndoStack* benchUndo() const { return undoStack(); }
+    CanvasView* benchView() const { return view(); }
+
+signals:
+    void nodeSelected(const QString& nodeId);
+
+private:
+    QHash<QString, RectItem*> idMap_;
 };

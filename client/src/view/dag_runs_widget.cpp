@@ -16,7 +16,7 @@
 #include <QDialog>
 
 #include "net/api_client.h"
-#include "dag_run_viewer.h"
+#include "dag_run_monitor_dialog.h"
 
 namespace {
 constexpr int kDagJsonRole = Qt::UserRole + 1;
@@ -178,16 +178,10 @@ void DagRunsWidget::onRowDoubleClicked(const QModelIndex& index)
         return;
     }
 
-    auto* viewer = new DagRunViewerBench();
-    viewer->loadDagJson(doc.object());
-
-    auto* dlg = new QDialog(this);
+    auto* dlg = new DagRunMonitorDialog(model_->index(row, 0).data().toString(),
+                                        dagJsonStr,
+                                        api_,
+                                        this);
     dlg->setAttribute(Qt::WA_DeleteOnClose);
-    dlg->setWindowTitle(tr("DAG 预览 - %1").arg(model_->index(row, 0).data().toString()));
-    auto* vlay = new QVBoxLayout(dlg);
-    vlay->setContentsMargins(8, 8, 8, 8);
-    vlay->setSpacing(4);
-    vlay->addWidget(viewer);
-    dlg->resize(900, 600);
     dlg->show();
 }

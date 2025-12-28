@@ -55,6 +55,7 @@ bool DagRunViewerBench::loadDagJson(const QJsonObject& obj)
     if (!obj.contains("tasks") || !obj.value("tasks").isArray()) return false;
 
     scene()->clear();
+    idMap_.clear();
 
     const QJsonArray tasks = obj.value("tasks").toArray();
     QList<RectItem*> nodes;
@@ -99,22 +100,21 @@ bool DagRunViewerBench::loadDagJson(const QJsonObject& obj)
     }
 
     // map id -> node
-    QHash<QString, RectItem*> idToNode;
     for (auto* n : nodes) {
         const QString id = n->prop("id").toString();
-        if (!id.isEmpty()) idToNode[id] = n;
+        if (!id.isEmpty()) idMap_[id] = n;
     }
 
     // 连线
     for (const auto& jt : tasks) {
         const QJsonObject t = jt.toObject();
         const QString id = t.value("id").toString();
-        auto* target = idToNode.value(id, nullptr);
+        auto* target = idMap_.value(id, nullptr);
         if (!target) continue;
         const QJsonArray deps = t.value("deps").toArray();
         for (const auto& depVal : deps) {
             const QString depId = depVal.toString();
-            auto* src = idToNode.value(depId, nullptr);
+            auto* src = idMap_.value(depId, nullptr);
             if (!src || src == target) continue;
             auto* line = LineItemFactory::createLine(src, target);
             if (!line) continue;
@@ -124,4 +124,27 @@ bool DagRunViewerBench::loadDagJson(const QJsonObject& obj)
     }
 
     return true;
+}
+
+void DagRunViewerBench::setNodeStatus(const QString& nodeId, const QColor& color)
+{
+    if (auto* n = idMap_.value(nodeId, nullptr)) {
+        n->setStatusOverlay(color);
+    }
+}
+
+void DagRunViewerBench::setNodeStatusLabel(const QString& nodeId, const QString& label)
+{
+    if (auto* n = idMap_.value(nodeId, nullptr)) {
+        n->setStatusLabel(label);
+    }
+}
+
+void DagRunViewerBench::selectNode(const QString& nodeId)
+{
+    if (auto* n = idMap_.value(nodeId, nullptr)) {
+        scene()->clearSelection();
+        n->setSelected(true);
+        emit nodeSelected(nodeId);
+    }
 }

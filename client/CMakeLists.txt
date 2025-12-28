@@ -29,6 +29,8 @@ file(GLOB CLIENT_SOURCES CONFIGURE_DEPENDS
     src/view/items/*.cpp
     src/tasks/*.cpp
     src/editor/*.cpp
+    src/view/dag_run_monitor_dialog.cpp
+    src/view/dag_run_viewer.cpp
     src/*.qrc
     src/resources/*.qrc
 )
@@ -47,6 +49,8 @@ file(GLOB CLIENT_HEADERS CONFIGURE_DEPENDS
     src/view/items/*.h
     src/tasks/*.h
     src/editor/*.h
+    src/view/dag_run_monitor_dialog.h
+    src/view/dag_run_viewer.h
 )
 
 file(GLOB SCLIENT_UI
