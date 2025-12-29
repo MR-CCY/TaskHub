@@ -19,6 +19,8 @@ public:
     void appendError(const QString& msg);
     void appendTaskLog(const QString& msg);
     void appendEvent(const QString& msg);
+    void appendTimeline(const QString& msg);
+    void hideConsoleTab();
     void filterCurrent(const QString& text);
     void clearCurrent();
 
@@ -34,8 +36,10 @@ private:
     QTextEdit* consoleEdit_ = nullptr;
     QTextEdit* taskLogEdit_ = nullptr;
     QTextEdit* eventEdit_ = nullptr;
+    QTextEdit* timelineEdit_ = nullptr;
     QString consoleCache_;
     QString taskLogCache_;
     QString eventCache_;
+    QString timelineCache_;
     bool paused_ = true;
 };

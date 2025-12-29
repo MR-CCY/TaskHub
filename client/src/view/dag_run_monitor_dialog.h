@@ -7,10 +7,8 @@
 
 class ApiClient;
 class DagRunViewerBench;
-class QTableWidget;
-class QListWidget;
-class QTabWidget;
 class InspectorPanel;
+class ConsoleDock;
 
 class DagRunMonitorDialog : public QDialog {
     Q_OBJECT
@@ -40,11 +38,7 @@ private:
     ApiClient* api_ = nullptr;
     DagRunViewerBench* bench_ = nullptr;
     InspectorPanel* inspector_ = nullptr;
-    QTableWidget* taskTable_ = nullptr;
-    QListWidget* timelineList_ = nullptr;
-    QListWidget* logList_ = nullptr;
-    QListWidget* wsRawList_ = nullptr;
-    QTabWidget* tabs_ = nullptr;
+    ConsoleDock* consoleDock_ = nullptr;
     QTimer pollTimer_;
     qint64 lastEventTs_ = 0;
     int pollCounter_ = 0;

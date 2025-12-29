@@ -27,6 +27,11 @@ void WsLogStreamer::pushLog(const core::LogRecord &record)
            WsHub::instance().broadcast(chRun, payload);
        }
        WsHub::instance().broadcast(ch, payload); // 兼容 run_id 空的订阅
+
+       if(!record.taskId.runId.empty()){
+            const std::string chRunonly = channelTaskLogs("", record.taskId.runId);
+            WsHub::instance().broadcast(chRunonly, payload);
+        }
    } catch (...) {
        // 避免日志推送异常杀死进程；忽略本条推送
    }
@@ -44,5 +49,10 @@ void WsLogStreamer::pushTaskEvent(const std::string &taskId, const std::string &
         WsHub::instance().broadcast(chRun, payload);
     }
     WsHub::instance().broadcast(ch, payload);
+
+    if(!runId.empty()){
+        const std::string chRunonly = channelTaskEvents("", runId);
+        WsHub::instance().broadcast(chRunonly, payload);
+    }
 }
 }

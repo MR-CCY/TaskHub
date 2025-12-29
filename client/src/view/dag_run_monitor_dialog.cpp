@@ -20,7 +20,8 @@
 #include "dag_run_viewer.h"
 #include "net/api_client.h"
 #include "view/inspector_panel.h"
-
+#include "ui/console_dock.h"
+#include "net/ws_client.h"
 namespace {
 QJsonObject parseJson(const QByteArray& bytes) {
     QJsonParseError err;
@@ -50,9 +51,28 @@ DagRunMonitorDialog::DagRunMonitorDialog(const QString& runId,
 
     fetchTaskRuns();
     fetchEvents();
+    WsClient::instance()->subscribeTaskLogs("", runId);
+    WsClient::instance()->subscribeTaskEvents("", runId);
+    connect(WsClient::instance(), &WsClient::messageReceived, this, [this](const QJsonObject& obj){
+        const QString type = obj.value("type").toString();
+        const QString topic = obj.value("topic").toString();
+        const QString taskId = obj.value("task_id").toString();
+        const QString runId = obj.value("run_id").toString();
+        if (!runId.isEmpty() && runId != runId_) return; // 只关心当前 run
+        if (type == "log" || topic == "task_logs") {
+            consoleDock_->appendTaskLog(obj.value("message").toString());
+        } else if (type == "event" || topic == "task_events") {
+            consoleDock_->appendEvent(QJsonDocument(obj).toJson(QJsonDocument::Compact));
+        } else {
+            consoleDock_->appendInfo(QJsonDocument(obj).toJson(QJsonDocument::Compact));
+        }
+    });
 }
 
-DagRunMonitorDialog::~DagRunMonitorDialog() = default;
+DagRunMonitorDialog::~DagRunMonitorDialog(){
+    WsClient::instance()->unsubscribeTaskLogs("", runId_);
+    WsClient::instance()->unsubscribeTaskEvents("", runId_);
+};
 
 void DagRunMonitorDialog::buildUi()
 {
@@ -77,14 +97,12 @@ void DagRunMonitorDialog::buildUi()
     splitter->setStretchFactor(1, 2);
     mainLay->addWidget(splitter, 5);
 
-    tabs_ = new QTabWidget(this);
-    timelineList_ = new QListWidget(this);
-    logList_ = new QListWidget(this);
-    wsRawList_ = new QListWidget(this);
-    tabs_->addTab(timelineList_, tr("Timeline"));
-    tabs_->addTab(logList_, tr("Task Logs"));
-    tabs_->addTab(wsRawList_, tr("Raw WS Events"));
-    mainLay->addWidget(tabs_, 2);
+    consoleDock_ = new ConsoleDock(this);
+    consoleDock_->setFloating(false);
+    consoleDock_->setFeatures(QDockWidget::NoDockWidgetFeatures);
+    consoleDock_->setTitleBarWidget(new QWidget(consoleDock_));
+    consoleDock_->hideConsoleTab();
+    mainLay->addWidget(consoleDock_->widget(), 2);
 }
 
 void DagRunMonitorDialog::fetchTaskRuns()
@@ -160,8 +178,8 @@ void DagRunMonitorDialog::appendEvents(const QJsonArray& items)
         const QString event = o.value("event").toString();
         const QString taskId = o.value("task_id").toString();
         const qint64 ts = o.value("ts_ms").toVariant().toLongLong();
-        const QString line = QString("[%1] %2 %3").arg(ts).arg(event, taskId);
-        timelineList_->addItem(line);
+        const QString line = QString("%1 %2").arg(event, taskId);
+        consoleDock_->appendTimeline(line);
         if (ts > lastEventTs_) lastEventTs_ = ts;
         updateNodeStatusFromEvent(o);
         if (event == "dag_node_end") {

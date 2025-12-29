@@ -46,6 +46,12 @@ WsClient::WsClient(QObject* parent)
     });
 }
 
+WsClient *WsClient::instance()
+{
+    static WsClient* instance = new WsClient();
+    return instance;
+}
+
 WsClient::~WsClient()
 {
     for(auto& s : subscribedLogs_){

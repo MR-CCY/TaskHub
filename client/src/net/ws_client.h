@@ -8,6 +8,7 @@ class WsClient : public QObject {
     Q_OBJECT
 public:
     explicit WsClient(QObject* parent = nullptr);
+    static  WsClient* instance();
     ~WsClient();
     void setToken(const QString& token);
     void connectTo(const QUrl& wsUrl);

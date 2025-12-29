@@ -116,14 +116,14 @@ void MainWindow::setupConsole() {
 
 void MainWindow::setupClients() {
     api_ = new ApiClient(this);
-    ws_  = new WsClient(this);
+    ws_  =  WsClient::instance();
     ws_->setToken( AppContext::instance().token());
     api_->setToken( AppContext::instance().token());
-
     // 你自己的 baseUrl 放这里（或从 Settings 读）
     api_->setBaseUrl("http://127.0.0.1:8082");
     wsUrl_ = QUrl("ws://127.0.0.1:8090/ws"); 
-    ws_->connectTo(wsUrl_);
+    ws_->connectTo(wsUrl_)
+;
 
     api_->getHealth();
     api_->getInfo();

@@ -38,15 +38,18 @@ ConsoleDock::ConsoleDock(QWidget *parent)
     consoleEdit_ = new QTextEdit(this);
     taskLogEdit_ = new QTextEdit(this);
     eventEdit_ = new QTextEdit(this);
+    timelineEdit_ = new QTextEdit(this);
 
     consoleEdit_->setReadOnly(true);
     taskLogEdit_->setReadOnly(true);
     eventEdit_->setReadOnly(true);
+    timelineEdit_->setReadOnly(true);
     
     // titleBarWidget()->setVisible(false);
     tabs_->addTab(consoleEdit_, tr("Console"));
     tabs_->addTab(taskLogEdit_, tr("Task Logs"));
     tabs_->addTab(eventEdit_, tr("WS Events"));
+    tabs_->addTab(timelineEdit_, tr("Timeline"));
     tabs_->setDocumentMode(true);
     // if (auto* bar = tabs_->tabBar()) {
     //     bar->setExpanding(true);
@@ -76,9 +79,11 @@ void ConsoleDock::clear()
     consoleCache_.clear();
     taskLogCache_.clear();
     eventCache_.clear();
+    timelineCache_.clear();
     consoleEdit_->clear();
     taskLogEdit_->clear();
     eventEdit_->clear();
+    timelineEdit_->clear();
 }
 
 void ConsoleDock::appendLine(const QString &prefix, const QString &msg)
@@ -107,27 +112,30 @@ void ConsoleDock::appendEvent(const QString& msg) {
     eventCache_.append(line + "\n");
     appendWithTs(eventEdit_, paused(), "[WS]", msg);
 }
+void ConsoleDock::appendTimeline(const QString& msg) {
+    const QString line = QString("[%1] %2 %3").arg(QDateTime::currentDateTime().toString("HH:mm:ss.zzz"), "[Timeline]", msg);
+    timelineCache_.append(line + "\n");
+    appendWithTs(timelineEdit_, paused(), "[Timeline]", msg);
+}
+
+void ConsoleDock::hideConsoleTab() {
+    if (!tabs_) return;
+    tabs_->removeTab(0);
+}
 
 QTextEdit* ConsoleDock::currentEdit() const {
-    const int idx = tabs_ ? tabs_->currentIndex() : 0;
-    switch (idx) {
-    case 0: return consoleEdit_;
-    case 1: return taskLogEdit_;
-    case 2: return eventEdit_;
-    default: return consoleEdit_;
-    }
+    return tabs_ ? qobject_cast<QTextEdit*>(tabs_->currentWidget()) : nullptr;
 }
 
 void ConsoleDock::filterCurrent(const QString& text) {
     QTextEdit* edit = currentEdit();
     if (!edit) return;
     QString source;
-    switch (tabs_->currentIndex()) {
-    case 0: source = consoleCache_; break;
-    case 1: source = taskLogCache_; break;
-    case 2: source = eventCache_; break;
-    default: source = consoleCache_; break;
-    }
+    if (edit == consoleEdit_) source = consoleCache_;
+    else if (edit == taskLogEdit_) source = taskLogCache_;
+    else if (edit == eventEdit_) source = eventCache_;
+    else if (edit == timelineEdit_) source = timelineCache_;
+    else return;
     if (text.isEmpty()) {
         edit->setPlainText(source);
         edit->moveCursor(QTextCursor::End);
@@ -145,10 +153,9 @@ void ConsoleDock::filterCurrent(const QString& text) {
 }
 
 void ConsoleDock::clearCurrent() {
-    switch (tabs_->currentIndex()) {
-    case 0: consoleCache_.clear(); consoleEdit_->clear(); break;
-    case 1: taskLogCache_.clear(); taskLogEdit_->clear(); break;
-    case 2: eventCache_.clear(); eventEdit_->clear(); break;
-    default: break;
-    }
+    QTextEdit* edit = currentEdit();
+    if (edit == consoleEdit_) { consoleCache_.clear(); consoleEdit_->clear(); }
+    else if (edit == taskLogEdit_) { taskLogCache_.clear(); taskLogEdit_->clear(); }
+    else if (edit == eventEdit_) { eventCache_.clear(); eventEdit_->clear(); }
+    else if (edit == timelineEdit_) { timelineCache_.clear(); timelineEdit_->clear(); }
 }
