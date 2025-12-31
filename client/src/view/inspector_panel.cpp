@@ -2,6 +2,10 @@
 
 #include <QStackedWidget>
 #include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QMessageBox>
+#include <QVariant>
 
 #include "view/canvasscene.h"
 #include "view/canvasview.h"
@@ -17,6 +21,18 @@
 #include "dag_serializer.h"
 #include "net/api_client.h"
 #include <QDebug>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QPushButton>
+namespace {
+QJsonObject variantMapToStringObject(const QVariantMap& m) {
+    QJsonObject obj;
+    for (auto it = m.constBegin(); it != m.constEnd(); ++it) {
+        obj[it.key()] = it.value().toString();
+    }
+    return obj;
+}
+}
 
 InspectorPanel::InspectorPanel(CanvasScene* scene, UndoStack* undo, CanvasView* view, QWidget* parent)
     : QWidget(parent), scene_(scene), undo_(undo), view_(view) {
@@ -31,6 +47,7 @@ void InspectorPanel::buildUi() {
     auto* vbox = new QVBoxLayout(this);
     vbox->setContentsMargins(8, 8, 8, 8);
     vbox->setSpacing(6);
+
     stack_ = new QStackedWidget(this);
     vbox->addWidget(stack_);
 
@@ -40,7 +57,9 @@ void InspectorPanel::buildUi() {
 
     connect(dagWidget_, &DagInspectorWidget::saveRequested, this, &InspectorPanel::saveDagEdits);
     connect(dagWidget_, &DagInspectorWidget::runRequested, this, &InspectorPanel::runDag);
+    connect(dagWidget_, &DagInspectorWidget::cronCreateRequested, this, &InspectorPanel::createDagCron);
     connect(nodeWidget_, &NodeInspectorWidget::saveRequested, this, &InspectorPanel::saveNodeEdits);
+    connect(nodeWidget_, &NodeInspectorWidget::cronCreateRequested, this, &InspectorPanel::createNodeCron);
     connect(lineWidget_, &LineInspectorWidget::chooseStartRequested, this, &InspectorPanel::chooseLineStart);
     connect(lineWidget_, &LineInspectorWidget::chooseEndRequested, this, &InspectorPanel::chooseLineEnd);
     connect(lineWidget_, &LineInspectorWidget::saveRequested, this, &InspectorPanel::saveLineEdits);
@@ -52,6 +71,11 @@ void InspectorPanel::buildUi() {
 void InspectorPanel::setReadOnlyMode(bool ro)
 {
     if (nodeWidget_) nodeWidget_->setReadOnlyMode(ro);
+}
+
+void InspectorPanel::setApiClient(ApiClient* api)
+{
+    api_ = api;
 }
 
 void InspectorPanel::onSelectionChanged() {
@@ -135,6 +159,65 @@ void InspectorPanel::runDag() {
         return;
     }
     api_->runDagAsync(dagJson);
+}
+
+void InspectorPanel::createDagCron(const QString& spec)
+{
+    if (!api_ || spec.isEmpty()) return;
+    dagName_ = dagWidget_->nameValue();
+    dagFailPolicy_ = dagWidget_->failPolicyValue();
+    dagMaxParallel_ = dagWidget_->maxParallelValue();
+    const QJsonObject dagJson = buildDagJson(scene_, dagFailPolicy_, dagMaxParallel_, dagName_);
+    if (dagJson.isEmpty()) return;
+
+    QJsonObject body;
+    body["name"] = dagName_;
+    body["spec"] = spec;
+    body["target_type"] = "Dag";
+    QJsonObject dagObj;
+    dagObj["config"] = dagJson.value("config").toObject();
+    dagObj["tasks"] = dagJson.value("tasks").toArray();
+    body["dag"] = dagObj;
+    api_->createCronJob(body);
+}
+
+void InspectorPanel::createNodeCron(const QString& spec)
+{
+    if (!api_ || spec.isEmpty() || !scene_) return;
+    RectItem* node = nullptr;
+    for (auto* it : scene_->selectedItems()) {
+        if (auto* r = dynamic_cast<RectItem*>(it)) { node = r; break; }
+    }
+    if (!node) return;
+    const QVariantMap props = node->properties();
+    QJsonObject task;
+    static const char* keys[] = {
+        "id", "name", "exec_type", "exec_command", "timeout_ms", "retry_count",
+        "retry_delay_ms", "retry_exp_backoff", "priority", "queue", "capture_output"
+    };
+    for (auto* key : keys) {
+        if (!props.contains(key)) continue;
+        const QString sk(key);
+        const QVariant v = props.value(key);
+        if (sk == "timeout_ms" || sk == "retry_delay_ms") {
+            task[sk] = static_cast<qint64>(v.toLongLong());
+        } else if (sk == "retry_count" || sk == "priority") {
+            task[sk] = v.toInt();
+        } else if (sk == "retry_exp_backoff" || sk == "capture_output") {
+            task[sk] = v.toBool();
+        } else {
+            task[sk] = v.toString();
+        }
+    }
+    task["exec_params"] = variantMapToStringObject(props.value("exec_params").toMap());
+    task["metadata"] = variantMapToStringObject(props.value("metadata").toMap());
+
+    QJsonObject body;
+    body["name"] = props.value("name").toString();
+    body["spec"] = spec;
+    body["target_type"] = "SingleTask";
+    body["task"] = task;
+    api_->createCronJob(body);
 }
 
 void InspectorPanel::saveNodeEdits() {

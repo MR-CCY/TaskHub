@@ -101,6 +101,19 @@ void ApiClient::getDagEvents(const QString& runId, const QString& taskId,
     getJson("dagEvents", path);
 }
 
+void ApiClient::listCronJobs() {
+    getJson("cronJobs", "/api/cron/jobs");
+}
+
+void ApiClient::deleteCronJob(const QString& id) {
+    if (id.isEmpty()) return;
+    deleteJson("cronDelete", "/api/cron/jobs/" + id, id);
+}
+
+void ApiClient::createCronJob(const QJsonObject& body) {
+    postJson("cronCreate", "/api/cron/jobs", body);
+}
+
 void ApiClient::getJson(const QString& apiName, const QString& path) {
     if (baseUrl_.isEmpty()) {
         emit requestFailed(apiName, 0, "baseUrl is empty");
@@ -153,6 +166,8 @@ void ApiClient::getJson(const QString& apiName, const QString& path) {
             } else {
                 emit dagRunsOk(QJsonArray());
             }
+        } else if (apiName == "cronJobs") {
+            emit cronJobsOk(root.value("jobs").toArray());
         }
     });
 
@@ -249,6 +264,43 @@ void ApiClient::postJson(const QString& apiName, const QString& path, const QJso
             } else {
                 emit dagEventsOk(QJsonArray());
             }
+        } else if (apiName == "cronCreate") {
+            const QString jobId = root.value("job_id").toString();
+            emit cronJobCreated(jobId);
+        }
+    });
+}
+
+void ApiClient::deleteJson(const QString& apiName, const QString& path, const QString& idContext) {
+    if (baseUrl_.isEmpty()) {
+        emit requestFailed(apiName, 0, "baseUrl is empty");
+        return;
+    }
+    QNetworkRequest req = makeRequest(path);
+    QNetworkReply* reply = nam_->deleteResource(req);
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply, apiName, idContext]() {
+        const int httpStatus = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const QByteArray bytes = reply->readAll();
+        reply->deleteLater();
+        if (httpStatus == 401) {
+            emit unauthorized();
+            return;
+        }
+        QJsonObject root;
+        QString err;
+        if (!parseJsonObject(bytes, root, err)) {
+            emit requestFailed(apiName, httpStatus, "bad json: " + err);
+            return;
+        }
+        emit rawJson(apiName, root);
+        const ParsedEnvelope env = parseEnvelope(root);
+        if (!env.ok) {
+            emit requestFailed(apiName, httpStatus, env.message);
+            return;
+        }
+        if (apiName == "cronDelete") {
+            emit cronJobDeleted(idContext);
         }
     });
 }

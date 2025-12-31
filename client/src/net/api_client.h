@@ -32,6 +32,9 @@ public:
     void getDagEvents(const QString& runId = QString(), const QString& taskId = QString(),
                       const QString& type = QString(), const QString& event = QString(),
                       qint64 startTsMs = 0, qint64 endTsMs = 0, int limit = 200);
+    void listCronJobs();
+    void deleteCronJob(const QString& id);
+    void createCronJob(const QJsonObject& body);
 
 signals:
     void unauthorized();
@@ -48,6 +51,9 @@ signals:
     void dagEventsOk(const QJsonArray& items);
     void runDagAsyncOk(const QString& runId, const QJsonArray& taskIds);
     void runTemplateAsyncOk(const QString& runId, const QJsonArray& taskIds);
+    void cronJobsOk(const QJsonArray& jobs);
+    void cronJobDeleted(const QString& id);
+    void cronJobCreated(const QString& id);
 
     // generic
     void requestFailed(const QString& apiName, int httpStatus, const QString& message);
@@ -64,6 +70,7 @@ private:
     QNetworkRequest makeRequest(const QString& path) const;
     void getJson(const QString& apiName, const QString& path);
     void postJson(const QString& apiName, const QString& path, const QJsonObject& body);
+    void deleteJson(const QString& apiName, const QString& path, const QString& idContext = QString());
 
     static bool parseJsonObject(const QByteArray& bytes, QJsonObject& out, QString& err);
     static ParsedEnvelope parseEnvelope(const QJsonObject& root);

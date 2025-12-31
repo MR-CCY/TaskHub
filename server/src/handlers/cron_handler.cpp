@@ -138,12 +138,27 @@ void CronHandler::create_job(const httplib::Request& req,
 
             cfg.retryCount = t.value("retry_count", 0);
 
-            // priority
-            std::string pri = t.value("priority", "Normal");
-            if (pri == "Low")        cfg.priority = TaskPriority::Low;
-            else if (pri == "High")  cfg.priority = TaskPriority::High;
-            else if (pri == "Critical") cfg.priority = TaskPriority::Critical;
-            else                      cfg.priority = TaskPriority::Normal;
+            // priority (accept string or int)
+            TaskPriority priVal = TaskPriority::Normal;
+            try {
+                if (t.contains("priority")) {
+                    if (t["priority"].is_string()) {
+                        std::string pri = t["priority"].get<std::string>();
+                        std::transform(pri.begin(), pri.end(), pri.begin(), [](unsigned char c){ return std::tolower(c); });
+                        if (pri == "low") priVal = TaskPriority::Low;
+                        else if (pri == "high") priVal = TaskPriority::High;
+                        else if (pri == "critical") priVal = TaskPriority::Critical;
+                    } else if (t["priority"].is_number_integer()) {
+                        int p = t["priority"].get<int>();
+                        if (p < static_cast<int>(TaskPriority::Low)) p = static_cast<int>(TaskPriority::Low);
+                        if (p > static_cast<int>(TaskPriority::Critical)) p = static_cast<int>(TaskPriority::Critical);
+                        priVal = static_cast<TaskPriority>(p);
+                    }
+                }
+            } catch (...) {
+                priVal = TaskPriority::Normal;
+            }
+            cfg.priority = priVal;
 
             job.targetType   = CronTargetType::SingleTask;
             job.taskTemplate = cfg;

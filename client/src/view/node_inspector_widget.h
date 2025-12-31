@@ -28,11 +28,13 @@ public:
     QString shellShellValue() const;
     QString innerExecTypeValue() const;
     QString innerExecCommandValue() const;
+    QString cronSpecValue() const;
     void setRuntimeValues(const QJsonObject& obj);
     void setReadOnlyMode(bool ro);
 
 signals:
     void saveRequested();
+    void cronCreateRequested(const QString& spec);
 
 private:
     void buildUi();
@@ -66,6 +68,8 @@ private:
     QLineEdit* innerTypeEdit_ = nullptr;
     QLineEdit* innerCmdEdit_ = nullptr;
     QPushButton* saveBtn_ = nullptr;
+    class QTimeEdit* cronTimeEdit_ = nullptr;
+    QPushButton* cronBtn_ = nullptr;
 
     // runtime display
     QLabel* runtimeStatusLabel_ = nullptr;

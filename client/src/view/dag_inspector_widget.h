@@ -16,10 +16,12 @@ public:
     QString nameValue() const;
     QString failPolicyValue() const;
     int maxParallelValue() const;
+    QString cronSpecValue() const;
 
 signals:
     void saveRequested();
     void runRequested();
+    void cronCreateRequested(const QString& spec);
 
 private:
     void buildUi();
@@ -30,4 +32,6 @@ private:
     QSpinBox* maxParallelSpin_ = nullptr;
     QPushButton* saveBtn_ = nullptr;
     QPushButton* runBtn_ = nullptr;
+    class QTimeEdit* cronTimeEdit_ = nullptr;
+    QPushButton* cronBtn_ = nullptr;
 };

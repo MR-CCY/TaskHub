@@ -8,6 +8,8 @@
 #include <QPushButton>
 #include <QJsonObject>
 #include <QFrame>
+#include <QHBoxLayout>
+#include <QTimeEdit>
 
 NodeInspectorWidget::NodeInspectorWidget(QWidget* parent)
     : QWidget(parent)
@@ -50,6 +52,9 @@ void NodeInspectorWidget::buildUi()
     innerTypeEdit_ = new QLineEdit(this);
     innerCmdEdit_ = new QLineEdit(this);
     saveBtn_ = new QPushButton(tr("保存节点"), this);
+    cronTimeEdit_ = new QTimeEdit(this);
+    cronTimeEdit_->setDisplayFormat("HH:mm");
+    cronBtn_ = new QPushButton(tr("创建定时任务"), this);
 
     form->addRow(nameLabel_, nameEdit_);
     form->addRow(cmdLabel_, cmdEdit_);
@@ -64,6 +69,11 @@ void NodeInspectorWidget::buildUi()
     form->addRow(innerTypeLabel_, innerTypeEdit_);
     form->addRow(innerCmdLabel_, innerCmdEdit_);
     form->addRow(saveBtn_);
+    auto* cronRow = new QHBoxLayout();
+    cronRow->setSpacing(4);
+    cronRow->addWidget(cronTimeEdit_, 1);
+    cronRow->addWidget(cronBtn_);
+    form->addRow(tr("Cron 表达式"), cronRow);
 
     auto* sep = new QFrame(this);
     sep->setFrameShape(QFrame::HLine);
@@ -91,6 +101,9 @@ void NodeInspectorWidget::buildUi()
     form->addRow(tr("Stderr"), runtimeStderrLabel_);
 
     connect(saveBtn_, &QPushButton::clicked, this, &NodeInspectorWidget::saveRequested);
+    connect(cronBtn_, &QPushButton::clicked, this, [this]() {
+        emit cronCreateRequested(cronSpecValue());
+    });
 }
 
 void NodeInspectorWidget::setValues(const QVariantMap& props, const QVariantMap& exec)
@@ -122,6 +135,10 @@ QString NodeInspectorWidget::shellCwdValue() const { return shellCwdEdit_->text(
 QString NodeInspectorWidget::shellShellValue() const { return shellShellEdit_->text(); }
 QString NodeInspectorWidget::innerExecTypeValue() const { return innerTypeEdit_->text(); }
 QString NodeInspectorWidget::innerExecCommandValue() const { return innerCmdEdit_->text(); }
+QString NodeInspectorWidget::cronSpecValue() const {
+    const QTime t = cronTimeEdit_->time();
+    return QString("%1 %2 * * *").arg(t.minute()).arg(t.hour());
+}
 
 void NodeInspectorWidget::setRuntimeValues(const QJsonObject& obj)
 {
@@ -173,6 +190,8 @@ void NodeInspectorWidget::setReadOnlyMode(bool ro)
     innerTypeEdit_->setReadOnly(ro);
     innerCmdEdit_->setReadOnly(ro);
     saveBtn_->setVisible(!ro);
+    cronTimeEdit_->setReadOnly(ro);
+    cronBtn_->setEnabled(!ro);
 }
 
 namespace {

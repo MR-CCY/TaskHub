@@ -14,6 +14,7 @@ class QDockWidget;
 class InspectorPanel;
 class DagRunsWidget;
 class TemplateManagerWidget;
+class CronJobsWidget;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -44,7 +45,7 @@ private:
     DagEditBench* workflowPage_ = nullptr;
     TemplateManagerWidget* templatesPage_ = nullptr;
     DagRunsWidget* runsPage_ = nullptr;
-    QWidget* cronPage_ = nullptr;
+    CronJobsWidget* cronPage_ = nullptr;
 
     ConsoleDock* console_ = nullptr;
     ApiClient* api_ = nullptr;

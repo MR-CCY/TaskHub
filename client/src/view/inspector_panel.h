@@ -1,5 +1,6 @@
 #pragma once
 #include <QWidget>
+#include <QJsonArray>
 
 class QStackedWidget;
 class CanvasScene;
@@ -16,7 +17,7 @@ class InspectorPanel : public QWidget {
     Q_OBJECT
 public:
     InspectorPanel(CanvasScene* scene, UndoStack* undo, CanvasView* view, QWidget* parent = nullptr);
-    void setApiClient(class ApiClient* api) { api_ = api; }
+    void setApiClient(class ApiClient* api);
     void setReadOnlyMode(bool ro);
 
 public slots:
@@ -36,6 +37,8 @@ private:
     void showDag();
     void showNode(RectItem* node);
     void showLine(LineItem* line);
+    void createDagCron(const QString& spec);
+    void createNodeCron(const QString& spec);
 
 private:
     CanvasScene* scene_;

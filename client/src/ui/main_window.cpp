@@ -21,6 +21,7 @@
 #include "view/dag_edit_bench.h"
 #include "view/dag_runs_widget.h"
 #include "view/template_manager_widget.h"
+#include "view/cron_jobs_widget.h"
 
 MainWindow::MainWindow(QWidget *parent):
     QMainWindow(parent)
@@ -42,6 +43,9 @@ MainWindow::MainWindow(QWidget *parent):
     }
     if (runsPage_) {
         runsPage_->setApiClient(api_);
+    }
+    if (cronPage_) {
+        cronPage_->setApiClient(api_);
     }
     wireSignals();
 }   
@@ -74,7 +78,7 @@ void MainWindow::setupCentralPages() {
     workflowPage_ = new DagEditBench(this);
     templatesPage_ = new TemplateManagerWidget(this);
     runsPage_ = new DagRunsWidget(this);
-    cronPage_ = createPlaceholderPage(tr("Cron Page (TODO)"));
+    cronPage_ = new CronJobsWidget(this);
 
     centralStack_->addWidget(workflowPage_);
     centralStack_->addWidget(templatesPage_);
