@@ -19,6 +19,7 @@
 #include "dag/dag_thread_pool.h"
 #include "db/dag_run_repo.h"
 #include "db/task_run_repo.h"
+#include "dag/dag_run_utils.h"
 #include "db/task_event_repo.h"
 #include "utils/utils.h"
 #include <unordered_map>
@@ -257,6 +258,8 @@ namespace taskhub {
             // 1. 解析请求 JSON
             json body = json::parse(req.body);
             const std::string runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
+            dagrun::injectRunId(body, runId);
+            dagrun::persistRunAndTasks(runId, body, "manual");
             auto dagResult= dag::DagService::instance().runDag(body, runId);
             if(!dagResult.success){
                 json out;
@@ -348,10 +351,7 @@ namespace taskhub {
         }
 
         // 持久化 dag_run 和初始 task_run
-        DagRunRepo::instance().insertRun(runId, body, "manual", "");
-        for (const auto& jt : body["tasks"]) {
-            TaskRunRepo::instance().upsertFromTaskJson(runId, jt);
-        }
+        dagrun::persistRunAndTasks(runId, body, "manual");
 
         // 用 DAG 线程池执行，避免为每个请求创建 detached 线程
         dag::DagThreadPool::instance().post([body = std::move(body), runId]() mutable {

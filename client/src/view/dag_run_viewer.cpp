@@ -52,12 +52,25 @@ DagRunViewerBench::DagRunViewerBench(QWidget* parent)
 bool DagRunViewerBench::loadDagJson(const QJsonObject& obj)
 {
     if (!scene() || !undoStack()) return false;
-    if (!obj.contains("tasks") || !obj.value("tasks").isArray()) return false;
+
+    // 支持三种格式：
+    // 1) { "tasks": [ ... ] }
+    // 2) { "task": { ... } }
+    // 3) { "id": "...", ... }  // 单任务直接扁平在顶层
+    QJsonArray tasks;
+    if (obj.contains("tasks") && obj.value("tasks").isArray()) {
+        tasks = obj.value("tasks").toArray();
+    } else if (obj.contains("task") && obj.value("task").isObject()) {
+        tasks.append(obj.value("task").toObject());
+    } else if (obj.contains("id")) {
+        tasks.append(obj);
+    } else {
+        return false;
+    }
 
     scene()->clear();
     idMap_.clear();
 
-    const QJsonArray tasks = obj.value("tasks").toArray();
     QList<RectItem*> nodes;
     int idx = 0;
     for (const auto& jt : tasks) {

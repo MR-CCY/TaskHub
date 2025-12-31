@@ -53,6 +53,24 @@ DagResult DagService::runDag(const json &body, const std::string& runId)
     std::map<core::TaskId, core::TaskResult> result;
     core::TaskResult tr;
     DagResult dr;
+    auto finishRunSafely = [&](int status,
+                               int total,
+                               int ok,
+                               int failed,
+                               int skipped,
+                               const std::string& message) {
+        if (runId.empty()) return;
+        const long long endTs = utils::now_millis();
+        DagRunRepo::instance().finishRun(
+            runId,
+            status,
+            endTs,
+            total,
+            ok,
+            failed,
+            skipped,
+            message);
+    };
         // ===== 1. 解析 DagConfig =====
         dag::DagConfig cfg;
         if (body.contains("config") && body["config"].is_object()) {
@@ -81,8 +99,10 @@ DagResult DagService::runDag(const json &body, const std::string& runId)
         }else{
             dr.success = false;
             dr.message = "missing or invalid tasks array or object";
+            finishRunSafely(2, 0, 0, 0, 0, dr.message);
             return dr;
         }
+        const int totalTasks = static_cast<int>(jTasks.size());
         // ===== 3. 构造 DagTaskSpec =====
         std::vector<dag::DagTaskSpec> specs;
         try {
@@ -106,6 +126,7 @@ DagResult DagService::runDag(const json &body, const std::string& runId)
         } catch (const std::exception& ex) {
             dr.success = false;
             dr.message = std::string("parse task failed: ") + ex.what();
+            finishRunSafely(2, totalTasks, 0, totalTasks, 0, dr.message);
             return dr;
         }
 
@@ -134,6 +155,7 @@ DagResult DagService::runDag(const json &body, const std::string& runId)
             Logger::error(validateResult.errorMessage);
             dr.success = false;
             dr.message = validateResult.errorMessage;
+            finishRunSafely(2, totalTasks, 0, totalTasks, 0, dr.message);
             return dr;
         }
 
@@ -176,11 +198,8 @@ DagResult DagService::runDag(const json &body, const std::string& runId)
         dr.message = hasFailure ? "dag failed" : "";
 
         if (!runId.empty()) {
-            const long long endTs = utils::now_millis();
-            DagRunRepo::instance().finishRun(
-                runId,
+            finishRunSafely(
                 hasFailure ? 2 : 1,
-                endTs,
                 static_cast<int>(finalMap.size()),
                 successCount,
                 failedCount,

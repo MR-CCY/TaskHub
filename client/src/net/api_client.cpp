@@ -55,6 +55,17 @@ void ApiClient::runDagAsync(const QJsonObject& body) {
     postJson("runDagAsync", "/api/dag/run_async", body);
 }
 
+void ApiClient::listTemplates() {
+    getJson("templates", "/templates");
+}
+
+void ApiClient::runTemplateAsync(const QString& templateId, const QJsonObject& params) {
+    QJsonObject body;
+    body["template_id"] = templateId;
+    body["params"] = params;
+    postJson("runTemplateAsync", "/template/run_async", body);
+}
+
 void ApiClient::getDagRuns(const QString& runId, const QString& name, qint64 startTsMs, qint64 endTsMs, int limit) {
     QUrlQuery q;
     if (!runId.isEmpty()) q.addQueryItem("run_id", runId);
@@ -130,7 +141,13 @@ void ApiClient::getJson(const QString& apiName, const QString& path) {
         } else if (apiName == "info") {
             if (env.data.isObject()) emit infoOk(env.data.toObject());
             else emit requestFailed(apiName, httpStatus, "info data is not an object");
-        }else if (apiName == "dagRuns") {
+        } else if (apiName == "templates") {
+            if (env.data.isArray()) {
+                emit templatesOk(env.data.toArray());
+            } else {
+                emit templatesOk(QJsonArray());
+            }
+        } else if (apiName == "dagRuns") {
             if (env.data.isObject()) {
                 emit dagRunsOk(env.data.toObject().value("items").toArray());
             } else {
@@ -204,6 +221,15 @@ void ApiClient::postJson(const QString& apiName, const QString& path, const QJso
                 emit runDagAsyncOk(runId, taskIds);
             } else {
                 emit runDagAsyncOk(QString(), QJsonArray());
+            }
+        } else if (apiName == "runTemplateAsync") {
+            if (env.data.isObject()) {
+                const auto obj = env.data.toObject();
+                const QString runId = obj.value("run_id").toString();
+                const QJsonArray taskIds = obj.value("task_ids").toArray();
+                emit runTemplateAsyncOk(runId, taskIds);
+            } else {
+                emit runTemplateAsyncOk(QString(), QJsonArray());
             }
         } else if (apiName == "dagRuns") {
             if (env.data.isObject()) {

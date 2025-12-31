@@ -1,8 +1,11 @@
 #include "cron_scheduler.h"
 #include "log/logger.h"
 #include "runner/taskRunner.h"
+#include "runner/task_config.h"
 #include "dag/dag_service.h"
+#include "dag/dag_run_utils.h"
 #include "utils/utils.h"
+#include "json.hpp"
 namespace taskhub::scheduler {
     CronScheduler &CronScheduler::instance()
     {
@@ -127,6 +130,7 @@ namespace taskhub::scheduler {
                                  ", name=" + jobCopy.name +
                                  ", spec=" + jobCopy.spec);
                     const std::string runTag = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
+                    const std::string runId  = "cron_" + jobCopy.id + "_" + runTag;
 
                                 // ===== 真正执行逻辑（同步调用） =====
                     try {
@@ -138,7 +142,7 @@ namespace taskhub::scheduler {
                             } else {
                                 core::TaskConfig cfg = *jobCopy.taskTemplate;
 
-                                cfg.id.runId = "cron_" + jobCopy.id + "_" + runTag;
+                                cfg.id.runId = runId;
 
                                 Logger::info("CronScheduler: execute SingleTask job, taskId=" + cfg.id.value);
                                 core::TaskResult r = runner.run(cfg, nullptr);
@@ -148,14 +152,39 @@ namespace taskhub::scheduler {
                                             ", message=" + r.message);
                             }
                         } else if (jobCopy.targetType == CronTargetType::Dag) {
-                            //todo:返回值处理
                             auto& dagService=dag::DagService::instance();
 
                             if (jobCopy.dagPayload.has_value()) {
                                 auto d = *jobCopy.dagPayload; // copy to mutate runId
-                                core::TaskResult r = dagService.runDag(d.specs, d.config, d.callbacks, "cron_" + jobCopy.id + "_" + runTag);
+
+                                nlohmann::json dagBody;
+                                dagBody["name"] = jobCopy.name;
+                                nlohmann::json cfgJson = nlohmann::json::object();
+                                cfgJson["fail_policy"] = d.config.failPolicy == dag::FailPolicy::FailFast ? "FailFast" : "SkipDownstream";
+                                cfgJson["max_parallel"] = d.config.maxParallel;
+                                cfgJson["cron_job_id"]  = jobCopy.id;
+                                cfgJson["name"]         = jobCopy.name;
+                                dagBody["config"]       = cfgJson;
+
+                                nlohmann::json tasks = nlohmann::json::array();
+                                for (const auto& spec : d.specs) {
+                                    nlohmann::json jt = core::buildRequestJson(spec.runnerCfg)["task"];
+                                    jt["id"] = spec.id.value;
+                                    nlohmann::json deps = nlohmann::json::array();
+                                    for (const auto& dep : spec.deps) {
+                                        deps.push_back(dep.value);
+                                    }
+                                    jt["deps"] = std::move(deps);
+                                    tasks.push_back(std::move(jt));
+                                }
+                                dagBody["tasks"] = std::move(tasks);
+
+                                dagrun::injectRunId(dagBody, runId);
+                                dagrun::persistRunAndTasks(runId, dagBody, "cron");
+
+                                auto r = dagService.runDag(dagBody, runId);
                                 Logger::info("CronScheduler: Dag job result, id=" + jobCopy.id +
-                                                ", status=" + std::to_string(static_cast<int>(r.status)) +
+                                                ", success=" + std::string(r.success ? "true" : "false") +
                                                 ", message=" + r.message);
                             }
                            

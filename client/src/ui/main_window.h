@@ -13,6 +13,7 @@ class QStackedWidget;
 class QDockWidget;
 class InspectorPanel;
 class DagRunsWidget;
+class TemplateManagerWidget;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -41,7 +42,7 @@ private:
     QDockWidget* navDock_ = nullptr;
 
     DagEditBench* workflowPage_ = nullptr;
-    QWidget* templatesPage_ = nullptr;
+    TemplateManagerWidget* templatesPage_ = nullptr;
     DagRunsWidget* runsPage_ = nullptr;
     QWidget* cronPage_ = nullptr;
 

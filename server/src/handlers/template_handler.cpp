@@ -8,6 +8,7 @@
 #include "core/http_response.h"
 #include "dag/dag_service.h"
 #include "dag/dag_thread_pool.h"
+#include "dag/dag_run_utils.h"
 #include "utils/utils.h"
 #include <unordered_map>
 using json=nlohmann::json;
@@ -264,28 +265,35 @@ namespace taskhub {
                 return;
             }
             const std::string runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
+            if (!r.rendered.contains("config") || !r.rendered["config"].is_object()) {
+                r.rendered["config"] = json::object();
+            }
+            r.rendered["config"]["template_id"] = template_id;
+            if (!r.rendered.contains("name")) {
+                r.rendered["name"] = tpl_opt->name;
+            }
+            r.rendered["config"]["name"] = r.rendered.value("name", tpl_opt->name);
             if (r.rendered.contains("tasks") && r.rendered["tasks"].is_array()) {
                 for (auto& jt : r.rendered["tasks"]) {
                     if (!jt.contains("id") || !jt["id"].is_string()) {
                         resp::error(res, 400, R"({"ok":false,"error":"task id is required"})");
                         return;
                     }
-                    jt["run_id"] = runId;
                 }
             } else if (r.rendered.contains("task") && r.rendered["task"].is_object()) {
                 if (!r.rendered["task"].contains("id") || !r.rendered["task"]["id"].is_string()) {
                     resp::error(res, 400, R"({"ok":false,"error":"task id is required"})");
                     return;
                 }
-                r.rendered["task"]["run_id"] = runId;
             } else {
                 if (!r.rendered.contains("id") || !r.rendered["id"].is_string()) {
                     resp::error(res, 400, R"({"ok":false,"error":"task id is required"})");
                     return;
                 }
-                r.rendered["run_id"] = runId;
             }
 
+            dagrun::injectRunId(r.rendered, runId);
+            dagrun::persistRunAndTasks(runId, r.rendered, "template");
             auto dagResult= dag::DagService::instance().runDag(r.rendered, runId);
             if(!dagResult.success){
                 json out;
@@ -377,6 +385,14 @@ namespace taskhub {
             }
 
             const std::string runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
+            if (!r.rendered.contains("config") || !r.rendered["config"].is_object()) {
+                r.rendered["config"] = json::object();
+            }
+            r.rendered["config"]["template_id"] = template_id;
+            if (!r.rendered.contains("name")) {
+                r.rendered["name"] = tpl_opt->name;
+            }
+            r.rendered["config"]["name"] = r.rendered.value("name", tpl_opt->name);
             std::vector<json> taskList;
             if (r.rendered.contains("tasks") && r.rendered["tasks"].is_array()) {
                 for (auto& jt : r.rendered["tasks"]) {
@@ -385,7 +401,6 @@ namespace taskhub {
                         return;
                     }
                     taskList.push_back({{"logical", jt["id"]}, {"task_id", jt["id"]}});
-                    jt["run_id"] = runId;
                 }
             } else if (r.rendered.contains("task") && r.rendered["task"].is_object()) {
                 auto& t = r.rendered["task"];
@@ -394,16 +409,16 @@ namespace taskhub {
                     return;
                 }
                 taskList.push_back({{"logical", t["id"]}, {"task_id", t["id"]}});
-                t["run_id"] = runId;
             } else {
                 if (!r.rendered.contains("id") || !r.rendered["id"].is_string()) {
                     resp::error(res, 400, R"({"ok":false,"error":"task id is required"})");
                     return;
                 }
                 taskList.push_back({{"logical", r.rendered["id"]}, {"task_id", r.rendered["id"]}});
-                r.rendered["run_id"] = runId;
             }
 
+            dagrun::injectRunId(r.rendered, runId);
+            dagrun::persistRunAndTasks(runId, r.rendered, "template");
             // 通过 DAG 线程池执行，避免为每个请求创建新的 detached 线程
             dag::DagThreadPool::instance().post([rendered = r.rendered, runId]() mutable {
                 try {

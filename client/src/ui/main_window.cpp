@@ -20,6 +20,7 @@
 #include "ui/user_bar_widget.h"
 #include "view/dag_edit_bench.h"
 #include "view/dag_runs_widget.h"
+#include "view/template_manager_widget.h"
 
 MainWindow::MainWindow(QWidget *parent):
     QMainWindow(parent)
@@ -35,6 +36,9 @@ MainWindow::MainWindow(QWidget *parent):
     setupClients();
     if (workflowPage_) {
         workflowPage_->setApiClient(api_);
+    }
+    if (templatesPage_) {
+        templatesPage_->setApiClient(api_);
     }
     if (runsPage_) {
         runsPage_->setApiClient(api_);
@@ -68,7 +72,7 @@ void MainWindow::setupUserBar() {
 void MainWindow::setupCentralPages() {
     centralStack_ = new QStackedWidget(this);
     workflowPage_ = new DagEditBench(this);
-    templatesPage_ = createPlaceholderPage(tr("Templates Page (TODO)"));
+    templatesPage_ = new TemplateManagerWidget(this);
     runsPage_ = new DagRunsWidget(this);
     cronPage_ = createPlaceholderPage(tr("Cron Page (TODO)"));
 
@@ -87,7 +91,7 @@ void MainWindow::setupNavDock() {
 
     navList_ = new QListWidget(navDock_);
     navList_->addItem(tr("DAG编辑"));
-    navList_->addItem(tr("模版编辑"));
+    navList_->addItem(tr("模版管理"));
     navList_->addItem(tr("DAG管理"));
     navList_->addItem(tr("定时任务"));
     navList_->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -184,8 +188,8 @@ void MainWindow::wireSignals() {
             .arg(QString::fromUtf8(QJsonDocument(obj).toJson(QJsonDocument::Compact))));
     });
 
-    connect(api_, &ApiClient::runDagAsyncOk, this, [this](const QString& runId, const QJsonArray& taskIds) {
-        console_->appendInfo(QString("run_async started run_id=%1").arg(runId));
+    auto subscribeTasks = [this](const QString& tag, const QString& runId, const QJsonArray& taskIds) {
+        console_->appendInfo(QString("%1 started run_id=%2").arg(tag, runId));
         for (const auto& item : taskIds) {
             if (!item.isObject()) continue;
             const QJsonObject obj = item.toObject();
@@ -195,6 +199,13 @@ void MainWindow::wireSignals() {
             ws_->subscribeTaskEvents(tid, runId);
             console_->appendInfo(QString("subscribed logs/events for task %1 run %2").arg(tid, runId));
         }
+    };
+
+    connect(api_, &ApiClient::runDagAsyncOk, this, [subscribeTasks](const QString& runId, const QJsonArray& taskIds) {
+        subscribeTasks(QStringLiteral("dag run_async"), runId, taskIds);
+    });
+    connect(api_, &ApiClient::runTemplateAsyncOk, this, [subscribeTasks](const QString& runId, const QJsonArray& taskIds) {
+        subscribeTasks(QStringLiteral("template run_async"), runId, taskIds);
     });
 
     connect(ws_, &WsClient::error, this, [this](const QString& msg) {
