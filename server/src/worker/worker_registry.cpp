@@ -1,14 +1,46 @@
 #include "worker_registry.h"
-#include <algorithm>  // std::find
+#include <cctype>
+#include <cstdlib>
 #include "log/logger.h"
-#include "utils/utils.h"
+#include "worker_selector.h"
 
 namespace taskhub::worker {
+namespace {
+    std::string normalize_strategy_name(const char* value) {
+        if (!value) return "least-load";
+        std::string s(value);
+        for (auto& ch : s) {
+            ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+        }
+        return s;
+    }
+}
+
     WorkerRegistry& WorkerRegistry::instance()
     {
         // TODO: 在此处插入 return 语句
         static WorkerRegistry instance;
         return instance;
+    }
+
+    WorkerRegistry::WorkerRegistry()
+    {
+        initSelector();
+    }
+
+    void WorkerRegistry::initSelector()
+    {
+        const char* env = std::getenv("TASKHUB_WORKER_SELECT_STRATEGY");
+        const std::string strategy = normalize_strategy_name(env);
+        if (strategy == "rr" || strategy == "round-robin" || strategy == "round_robin") {
+            _selector = std::make_unique<RoundRobinSelector>();
+        } else {
+            if (env && strategy != "least-load" && strategy != "least_load") {
+                Logger::warn("Unknown worker select strategy: " + std::string(env) + ", fallback=least-load");
+            }
+            _selector = std::make_unique<LeastLoadSelector>();
+        }
+        Logger::info("Worker selector strategy: " + std::string(_selector->name()));
     }
 
     void WorkerRegistry::upsertWorker(const WorkerInfo &info)
@@ -57,42 +89,20 @@ namespace taskhub::worker {
     std::optional<WorkerInfo> WorkerRegistry::pickWorkerForQueue(const std::string &queue) const
     {
         std::lock_guard<std::mutex> lk(_mutex);
-
-        const WorkerInfo* best = nullptr;
-
-        auto queueMatch = [&queue](const WorkerInfo& w) -> bool {
-            // 没有 queue 限制：任何队列都行
-            if (queue.empty()) {
-                return true;
-            }
-            // worker 没填 queues，视为默认队列 "default"
-            if (w.queues.empty()) {
-                return (queue == "default");
-            }
-            // 显式匹配
-            return std::find(w.queues.begin(), w.queues.end(), queue) != w.queues.end();
-        };
-
-        for (auto& [id, info] : _workers) {
-            // 要在线
-            if (!info.isAlive()) {
-                continue;
-            }
-            // 要匹配队列
-            if (!queueMatch(info)) {
-                continue;
-            }
-
-            if (!best || info.runningTasks < best->runningTasks) {
-                best = &info;
-            }
-        }
-
-        if (!best) {
+        if (!_selector) {
             return std::nullopt;
         }
-        // 拷贝一份出去，避免把内部引用暴露给外部
-        return *best;
+        return _selector->pick(_workers, queue);
+    }
+
+    void WorkerRegistry::markDispatchFailure(const std::string &id, std::chrono::milliseconds cooldown)
+    {
+        std::lock_guard<std::mutex> lk(_mutex);
+        auto it = _workers.find(id);
+        if (it == _workers.end()) {
+            return;
+        }
+        it->second.dispatchCooldownUntil = std::chrono::steady_clock::now() + cooldown;
     }
     /**
      * @brief 清理已死亡的工作进程

@@ -13,12 +13,21 @@ namespace taskhub::worker {
     
         int runningTasks{0};           // 当前正在执行的任务数
         std::chrono::steady_clock::time_point lastHeartbeat; // 最近心跳时间
-    
+        // ✅ M11.5: capacity
+        int maxRunningTasks{1}; // 默认 1，保证“没传也安全”
+        std::chrono::steady_clock::time_point dispatchCooldownUntil; // dispatch fail cooldown
+        
         bool isAlive() const{
             using namespace std::chrono;
             // 简单策略：10 秒内有心跳就认为在线
             return (steady_clock::now() - lastHeartbeat) < seconds(10);
         };          // 根据 lastHeartbeat 判断是否失联
+        bool isFull() const {
+            return runningTasks >= maxRunningTasks;
+        }
+        bool isCoolingDown() const {
+            return std::chrono::steady_clock::now() < dispatchCooldownUntil;
+        }
     };
 
 }

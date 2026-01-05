@@ -5,6 +5,7 @@
 #include "log/logger.h"
 #include "utils/utils.h"
 #include <vector>
+#include <cstdlib>
 
 using json = nlohmann::json;
 
@@ -28,12 +29,21 @@ void WorkerHeartbeatClient::start(std::string masterHost,
     _labels          = std::move(labels);
     _getRunningTasks = std::move(getRunningTasks);
     _interval        = interval;
+    if (const char* p = std::getenv("TASKHUB_WORKER_MAX_RUNNING_TASKS")) {
+        _maxRunningTasks = std::atoi(p);
+        if (_maxRunningTasks <= 0) {
+            _maxRunningTasks = 1;
+        }
+    } else {
+        _maxRunningTasks = 1;
+    }
 
     Logger::info("WorkerHeartbeatClient configured: master=" +
                  _masterHost + ":" + std::to_string(_masterPort) +
                  ", worker_id=" + _workerId +
                  ", worker=" + _workerHost + ":" + std::to_string(_workerPort) +
-                 ", interval=" + std::to_string(_interval.count()) + "ms");
+                 ", interval=" + std::to_string(_interval.count()) + "ms" +
+                 ", max_running_tasks=" + std::to_string(_maxRunningTasks));
 
     _stop.store(false, std::memory_order_release);
     _registered.store(false, std::memory_order_release);
@@ -64,6 +74,7 @@ void WorkerHeartbeatClient::loop()
         j["queues"]        = _queues;
         j["labels"]        = _labels;
         j["running_tasks"] = _getRunningTasks ? _getRunningTasks() : 0;
+        j["max_running_tasks"] = _maxRunningTasks;
 
         auto resp = client.Post("/api/workers/register", j.dump(), "application/json");
         if (!resp || resp->status >= 300) {

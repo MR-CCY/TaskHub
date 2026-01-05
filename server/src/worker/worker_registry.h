@@ -6,7 +6,11 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <memory>
+#include <atomic>
 namespace taskhub::worker {
+
+class WorkerSelector;
 
 class WorkerRegistry {
     public:
@@ -22,6 +26,7 @@ class WorkerRegistry {
         bool touchHeartbeat(const std::string& id, int runningTasks);
         // 简单分配策略
         std::optional<WorkerInfo> pickWorkerForQueue(const std::string& queue) const;
+        void markDispatchFailure(const std::string& id, std::chrono::milliseconds cooldown);
 
         void pruneDeadWorkers(std::chrono::milliseconds pruneAfter);
         void startSweeper(std::chrono::milliseconds sweepInterval,
@@ -29,9 +34,11 @@ class WorkerRegistry {
         void stopSweeper();
         
     private:
-        WorkerRegistry() = default; 
+        WorkerRegistry(); 
+        void initSelector();
         mutable std::mutex _mutex;
         std::unordered_map<std::string, WorkerInfo> _workers;
+        mutable std::unique_ptr<WorkerSelector> _selector;
 
         std::thread _sweeperThread;
         std::atomic_bool _stopSweeper{false};

@@ -31,8 +31,6 @@ RenderResult TemplateRenderer::render(const TaskTemplate& t,
         for (size_t i = 0; i < vr.errors.size(); ++i) {
             const auto& e = vr.errors[i];
             if (i) msg += "; ";
-    
-            // e.name / e.reason（按你结构体字段名改）
             msg += e.field;
             msg += ": ";
             msg += e.message;

@@ -51,9 +51,7 @@ namespace taskhub::scheduler {
             id = _jobs.back().id;
         }
     
-        Logger::info("CronScheduler::addJob, id=" + id +
-                     ", name=" + job.name +
-                     ", spec=" + job.spec);
+        Logger::info("CronScheduler::addJob, id=" + id + ", name=" + job.name +", spec=" + job.spec);
     
         // 有新 Job，唤醒 loop 重新计算最近触发时间
         _cv.notify_all();

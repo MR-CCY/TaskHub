@@ -67,6 +67,10 @@ namespace taskhub
             }
 
             info.runningTasks  = jReq.value("running_tasks", 0);
+            info.maxRunningTasks = jReq.value("max_running_tasks", 1);
+            if (info.maxRunningTasks <= 0) {
+                info.maxRunningTasks = 1;
+            }
             info.lastHeartbeat = std::chrono::steady_clock::now();
 
             if (info.id.empty() || info.port <= 0) {
@@ -76,7 +80,9 @@ namespace taskhub
 
             WorkerRegistry::instance().upsertWorker(info);
 
-            Logger::info("Worker registered: id=" + info.id + ", host=" + info.host + ", port=" + std::to_string(info.port));
+            Logger::info("Worker registered: id=" + info.id + ", host=" + info.host +
+                         ", port=" + std::to_string(info.port) +
+                         ", max_running_tasks=" + std::to_string(info.maxRunningTasks));
 
             json j;
             j["ok"] = true;
@@ -136,6 +142,8 @@ namespace taskhub
                 jw["host"] = w.host;
                 jw["port"] = w.port;
                 jw["running_tasks"] = w.runningTasks;
+                jw["max_running_tasks"] = w.maxRunningTasks;
+                jw["full"] = w.isFull();
                 jw["alive"] = w.isAlive();
 
                 auto now = std::chrono::steady_clock::now();

@@ -180,7 +180,10 @@ inline TaskConfig parseTaskConfigFromReq(const json& jReq) {
 
     // priority（int）
     cfg.priority = static_cast<core::TaskPriority>(jt.value("priority", 0));
-
+    //不允许task的等级高于Critical
+    if(cfg.priority==core::TaskPriority::Critical){
+        cfg.priority = core::TaskPriority::High;
+    }
     // exec_params
     if (jt.contains("exec_params") && jt["exec_params"].is_object()) {
         for (auto it = jt["exec_params"].begin(); it != jt["exec_params"].end(); ++it) {

@@ -1,5 +1,10 @@
 
 
+环境变量（调度相关）
+- TASKHUB_WORKER_MAX_RUNNING_TASKS: Worker 注册时上报最大并发任务数，默认 1
+- TASKHUB_WORKER_SELECT_STRATEGY: Worker 选择策略，"least-load"（默认）或 "rr"
+- TASKHUB_DISPATCH_MAX_RETRIES: Master 派发到 Worker 的重试次数，默认 2
+
 M6 线程池相关的“面试问答速记”
 //===========================================================
 一、总体设计类问题
@@ -421,4 +426,3 @@ TaskRunner
 ✔ 能稳定抗并发 10 task 测试
 
 只是缺少“面试层打磨”。
-

@@ -4,6 +4,7 @@
 #include <thread>
 #include <atomic>
 #include <chrono>
+#include <vector>
 namespace taskhub::worker {
     class WorkerHeartbeatClient {
     public:
@@ -38,5 +39,6 @@ namespace taskhub::worker {
 
         std::vector<std::string> _queues = {"default"};
         std::vector<std::string> _labels = {"shell"};
+        int _maxRunningTasks{1};
     };
 }

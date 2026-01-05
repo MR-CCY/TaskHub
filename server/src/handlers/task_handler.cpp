@@ -21,6 +21,7 @@
 #include "dag/dag_run_utils.h"
 #include "db/task_event_repo.h"
 #include "utils/utils.h"
+#include "utils/http_params.h"
 #include <unordered_map>
 #include <algorithm>
 #include "runner/task_config.h"
@@ -325,31 +326,13 @@ namespace taskhub {
         resp::ok(res, data);
     }
 
-    static long long parse_ll(const httplib::Request& req, const std::string& key, long long def = 0) {
-        if (!req.has_param(key)) return def;
-        try {
-            return std::stoll(req.get_param_value(key));
-        } catch (...) {
-            return def;
-        }
-    }
-
-    static int parse_int(const httplib::Request& req, const std::string& key, int def = 0) {
-        if (!req.has_param(key)) return def;
-        try {
-            return std::stoi(req.get_param_value(key));
-        } catch (...) {
-            return def;
-        }
-    }
-
     void TaskHandler::queryDagRuns(const httplib::Request &req, httplib::Response &resp)
     {
         const std::string runId   = req.has_param("run_id") ? req.get_param_value("run_id") : "";
         const std::string name    = req.has_param("name") ? req.get_param_value("name") : "";
-        const long long startTs   = parse_ll(req, "start_ts_ms", 0);
-        const long long endTs     = parse_ll(req, "end_ts_ms", 0);
-        int limit = parse_int(req, "limit", 100);
+        const long long startTs   = http_params::get_ll(req, "start_ts_ms", 0);
+        const long long endTs     = http_params::get_ll(req, "end_ts_ms", 0);
+        int limit = http_params::get_int(req, "limit", 100);
         limit = std::clamp(limit, 1, 500);
 
         auto rows = DagRunRepo::instance().query(runId, name, startTs, endTs, limit);
@@ -380,7 +363,7 @@ namespace taskhub {
     {
         const std::string runId = req.has_param("run_id") ? req.get_param_value("run_id") : "";
         const std::string name  = req.has_param("name") ? req.get_param_value("name") : "";
-        int limit = parse_int(req, "limit", 200);
+        int limit = http_params::get_int(req, "limit", 200);
         limit = std::clamp(limit, 1, 1000);
 
         auto rows = TaskRunRepo::instance().query(runId, name, limit);
@@ -426,9 +409,9 @@ namespace taskhub {
         const std::string taskId  = req.has_param("task_id") ? req.get_param_value("task_id") : "";
         const std::string type    = req.has_param("type") ? req.get_param_value("type") : "";
         const std::string event   = req.has_param("event") ? req.get_param_value("event") : "";
-        const long long startTs   = parse_ll(req, "start_ts_ms", 0);
-        const long long endTs     = parse_ll(req, "end_ts_ms", 0);
-        int limit = parse_int(req, "limit", 200);
+        const long long startTs   = http_params::get_ll(req, "start_ts_ms", 0);
+        const long long endTs     = http_params::get_ll(req, "end_ts_ms", 0);
+        int limit = http_params::get_int(req, "limit", 200);
         limit = std::clamp(limit, 1, 1000);
 
         auto rows = TaskEventRepo::instance().query(runId, taskId, type, event, startTs, endTs, limit);
