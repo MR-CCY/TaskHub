@@ -1,15 +1,12 @@
 #pragma once
 #include <atomic>
 #include <chrono>
+#include <string>
 #include "task_config.h"
 #include "task_result.h"
-#include <string>
-#include <functional>
-#include <atomic>
 
 namespace taskhub::runner {
 
-using LocalTaskFn = std::function<core::TaskResult(const core::TaskConfig&, std::atomic_bool*)>;
 using SteadyClock = std::chrono::steady_clock;
 
 /// TaskRunner：负责执行“一个任务”，并处理：
@@ -27,10 +24,6 @@ public:
     ///
     /// 这是对外唯一入口：所有执行都走这里。
     core::TaskResult run(const core::TaskConfig& cfg,std::atomic_bool* cancelFlag = nullptr) const;
-        // ★ 新增：注册本地任务
-        //不再使用
-    void registerLocalTask(const std::string& key, LocalTaskFn fn);
-    // void register_builtin_local_tasks();
 private:
     /// 带重试逻辑的执行封装：
     /// - 根据 cfg.retryCount 决定重试次数
@@ -52,27 +45,6 @@ private:
     core::TaskResult dispatchExec(const core::TaskConfig& cfg,
                                   std::atomic_bool* cancelFlag,
                                   SteadyClock::time_point deadline) const;
-    //下面这个方式在M9已不再使用，已改用dispatchExec
-    // === 针对不同 execType 的具体执行方法 ===
-    core::TaskResult execLocal(const core::TaskConfig& cfg,
-                               std::atomic_bool* cancelFlag,
-                               SteadyClock::time_point deadline) const;
-
-    core::TaskResult execShell(const core::TaskConfig& cfg,
-                               std::atomic_bool* cancelFlag,
-                               SteadyClock::time_point deadline) const;
-
-    core::TaskResult execHttpCall(const core::TaskConfig& cfg,
-                                  std::atomic_bool* cancelFlag,
-                                  SteadyClock::time_point deadline) const;
-
-    core::TaskResult execScript(const core::TaskConfig& cfg,
-                                std::atomic_bool* cancelFlag,
-                                SteadyClock::time_point deadline) const;
-
-    core::TaskResult execRemote(const core::TaskConfig& cfg,
-                                std::atomic_bool* cancelFlag,
-                                SteadyClock::time_point deadline) const;
 };
 
 } // namespace taskhub::runner

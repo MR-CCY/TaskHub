@@ -1,8 +1,13 @@
 #include <unordered_map>
 #include <mutex>
-#include "taskRunner.h"
+#include <functional>
+#include <atomic>
+#include "task_config.h"
+#include "task_result.h"
 
 namespace taskhub::runner {
+
+using LocalTaskFn = std::function<core::TaskResult(const core::TaskConfig&, std::atomic_bool*)>;
 
 class LocalTaskRegistry {
 public:
