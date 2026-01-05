@@ -69,8 +69,7 @@ namespace taskhub {
             json out;
             out["ok"] = true;
             out["template_id"] = template_id;
-            res.status = 200;
-            res.set_content(out.dump(), "application/json");
+            resp::ok(res, out);
             return;
         } catch (const std::exception& e) {
             resp::error(res, 500, R"({"ok":false,"error":"internal server error"})");
@@ -96,8 +95,7 @@ namespace taskhub {
             json out;
             out["ok"] = true;
             out["data"] = tpl_opt->to_json();
-            res.status = 200;
-            res.set_content(out.dump(), "application/json");
+            resp::ok(res, out);
             return;
         } catch (const std::exception& e) {
             Logger::error(std::string("Failed to get template: ") + e.what());
@@ -120,8 +118,7 @@ namespace taskhub {
             json out;
             out["ok"] = true;
             out["data"] = data;
-            res.status = 200;
-            res.set_content(out.dump(), "application/json");
+            resp::ok(res, out);
             return;
         } catch (const std::exception& e) {
             Logger::error(std::string("Failed to list templates: ") + e.what());
@@ -145,8 +142,7 @@ namespace taskhub {
             } else {
                 json out;
                 out["ok"] = true;
-                res.status = 200;
-                res.set_content(out.dump(), "application/json");
+                resp::ok(res, out);
             }
             return;
         } catch (const std::exception& e) {
@@ -202,15 +198,13 @@ namespace taskhub {
                 out["ok"] = false;
                 out["error"] = rendered.error;
                 out["data"] = rendered.to_json();
-                res.status = 400;
-                res.set_content(out.dump(), "application/json");
+                resp::error(res, 400, out.dump(), 400);
                 return;
             }
             json out;
             out["ok"] = true;
             out["data"] = rendered.to_json();
-            res.status = 200;
-            res.set_content(out.dump(), "application/json");
+            resp::ok(res, out);
             return;
         } catch (const std::exception& e) {
             Logger::error(std::string("Failed to render template: ") + e.what());
@@ -260,8 +254,7 @@ namespace taskhub {
                 out["ok"] = false;
                 out["error"] = r.error;
                 out["data"] = r.to_json();
-                res.status = 400;
-                res.set_content(out.dump(), "application/json");
+                resp::error(res, 400, out.dump(), 400);
                 return;
             }
             const std::string runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
@@ -299,8 +292,7 @@ namespace taskhub {
                 json out;
                 out["ok"] = false;
                 out["error"] = dagResult.message;
-                res.status = 500;
-                res.set_content(out.dump(), "application/json");
+                resp::error(res, 500, out.dump(), 500);
                 return;
             }
 
@@ -338,7 +330,7 @@ namespace taskhub {
             summary["failed"]  = failedIds;
             summary["skipped"] = skippedIds;
             respJson["summary"] = summary;
-            res.set_content(respJson.dump(), "application/json");
+            resp::ok(res, respJson);
         } catch (const std::exception& e) {
             Logger::error(std::string("Failed to run template: ") + e.what());
             resp::error(res, 500, std::string(R"({"ok":false,"error":")") + e.what() + R"("})");
@@ -426,7 +418,7 @@ namespace taskhub {
                 } catch (const std::exception& e) {
                     Logger::error(std::string("template run_async thread exception: ") + e.what());
                 }
-            });
+            },core::TaskPriority::Critical);
 
             json data;
             data["run_id"] = runId;

@@ -4,6 +4,7 @@
 #include <fstream>
 #include <string>
 #include "core/config.h"
+#include <mutex>
 
 namespace taskhub::core {
 class LogRotation;
@@ -28,6 +29,7 @@ private:
     Options _opt;
     std::ofstream _ofs;
     std::unique_ptr<LogRotation> _rot;
+    std::mutex _mu;
 
 };
 

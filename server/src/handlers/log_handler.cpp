@@ -135,15 +135,8 @@ void LogHandler::logs(const httplib::Request &req, httplib::Response &res)
     }
     data["records"] = std::move(arr);
 
-    // 构造统一 envelope：{code, message, data}，同时在 dump 时替换非法 UTF-8，避免异常终止
-    json envelope;
-    envelope["code"] = 0;
-    envelope["message"] = "ok";
-    envelope["data"] = std::move(data);
-    res.status = 200;
-    res.set_header("Content-Type", "application/json; charset=utf-8");
-    res.set_content(envelope.dump(-1, ' ', false, json::error_handler_t::replace),
-                    "application/json; charset=utf-8");
+    // 统一响应
+    resp::ok(res, data);
 }
 
 

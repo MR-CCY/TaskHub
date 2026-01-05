@@ -3,6 +3,7 @@
 #include "scheduler/cron_job.h"
 #include "runner/task_config.h"
 #include "log/logger.h"
+#include "core/http_response.h"
 
 // 按你项目里统一用的 json 头文件来
 #include "json.hpp"
@@ -66,7 +67,7 @@ void CronHandler::list_jobs(const httplib::Request& req,
         j["jobs"].push_back(std::move(item));
     }
 
-    res.set_content(j.dump(), "application/json; charset=utf-8");
+    resp::ok(res, j);
 }
 
 // Request: POST /api/cron/jobs
@@ -88,11 +89,7 @@ void CronHandler::create_job(const httplib::Request& req,
         std::string targetTypeStr = body.value("target_type", "SingleTask");
 
         if (name.empty() || spec.empty()) {
-            json err;
-            err["ok"]      = false;
-            err["message"] = "name/spec is required";
-            res.status = 400;
-            res.set_content(err.dump(), "application/json; charset=utf-8");
+            resp::error(res, 400, "name/spec is required", 400);
             return;
         }
 
@@ -112,11 +109,7 @@ void CronHandler::create_job(const httplib::Request& req,
         // 3. 根据 targetType 解析 payload
         if (targetType == CronTargetType::SingleTask) {
             if (!body.contains("task")) {
-                json err;
-                err["ok"]      = false;
-                err["message"] = "SingleTask requires 'task' field";
-                res.status = 400;
-                res.set_content(err.dump(), "application/json; charset=utf-8");
+                resp::error(res, 400, "SingleTask requires 'task' field", 400);
                 return;
             }
 
@@ -164,11 +157,7 @@ void CronHandler::create_job(const httplib::Request& req,
             job.taskTemplate = cfg;
         } else if (targetType == CronTargetType::Dag) {
             if (!body.contains("dag") || !body["dag"].is_object()) {
-                json err;
-                err["ok"]      = false;
-                err["message"] = "Dag requires 'dag' object";
-                res.status = 400;
-                res.set_content(err.dump(), "application/json; charset=utf-8");
+                resp::error(res, 400, "Dag requires 'dag' object", 400);
                 return;
             }
 
@@ -185,11 +174,7 @@ void CronHandler::create_job(const httplib::Request& req,
             }
 
             if (!jdag.contains("tasks") || !jdag["tasks"].is_array()) {
-                json err;
-                err["ok"]      = false;
-                err["message"] = "Dag requires 'tasks' array";
-                res.status = 400;
-                res.set_content(err.dump(), "application/json; charset=utf-8");
+                resp::error(res, 400, "Dag requires 'tasks' array", 400);
                 return;
             }
 
@@ -224,11 +209,7 @@ void CronHandler::create_job(const httplib::Request& req,
             }
 
             if (specs.empty()) {
-                json err;
-                err["ok"]      = false;
-                err["message"] = "Dag tasks is empty";
-                res.status = 400;
-                res.set_content(err.dump(), "application/json; charset=utf-8");
+                resp::error(res, 400, "Dag tasks is empty", 400);
                 return;
             }
 
@@ -252,15 +233,11 @@ void CronHandler::create_job(const httplib::Request& req,
         json ok;
         ok["ok"]     = true;
         ok["job_id"] = job.id;
-        res.set_content(ok.dump(), "application/json; charset=utf-8");
+        resp::ok(res, ok);
     }
     catch (const std::exception& ex) {
         Logger::error(std::string("CronHandler::create_job exception: ") + ex.what());
-        json err;
-        err["ok"]      = false;
-        err["message"] = std::string("invalid json: ") + ex.what();
-        res.status = 400;
-        res.set_content(err.dump(), "application/json; charset=utf-8");
+        resp::error(res, 400, std::string("invalid json: ") + ex.what(), 400);
     }
 }
 
@@ -271,11 +248,7 @@ void CronHandler::delete_job(const httplib::Request& req,
 {
     // 路由里我们用了 R"(/api/cron/jobs/(\w+))"，id 在 matches[1]
     if (req.matches.size() < 2) {
-        json err;
-        err["ok"]      = false;
-        err["message"] = "missing job id";
-        res.status = 400;
-        res.set_content(err.dump(), "application/json; charset=utf-8");
+        resp::error(res, 400, "missing job id", 400);
         return;
     }
 
@@ -286,7 +259,7 @@ void CronHandler::delete_job(const httplib::Request& req,
 
     json ok;
     ok["ok"] = true;
-    res.set_content(ok.dump(), "application/json; charset=utf-8");
+    resp::ok(res, ok);
 }
 
 } // namespace taskhub::handlers

@@ -46,6 +46,7 @@ void FileLogSink::doRotate_() {
 }
 
 void FileLogSink::consume(const LogRecord& rec) {
+    std::lock_guard<std::mutex> lk(_mu);
     ensureOpen_();
     // 1. 用 formatter 生成“一行文本”
     const std::string line =LogFormatter::instance().formatLine(rec);

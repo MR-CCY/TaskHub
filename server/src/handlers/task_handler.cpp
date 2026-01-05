@@ -8,7 +8,6 @@
 #include "json.hpp"
 #include "log/logger.h"
 #include "core/task_runner.h"
-#include "auth/auth_manager.h"
 #include "ws/ws_task_events.h"
 #include "core/http_response.h"
 #include "core/worker_pool.h"
@@ -24,7 +23,7 @@
 #include "utils/utils.h"
 #include <unordered_map>
 #include <algorithm>
-
+#include "runner/task_config.h"
 namespace taskhub {
     using json = nlohmann::json;
     void TaskHandler::setup_routes(httplib::Server &server)
@@ -51,12 +50,6 @@ namespace taskhub {
     //   401 {"code":401,"message":"unauthorized","data":null}
     void TaskHandler::create(const httplib::Request &req, httplib::Response &res)
     {
-        auto user_opt = AuthManager::instance().user_from_request(req);
-        if (!user_opt) {
-            resp::unauthorized(res);
-            return;
-        }
-    
         Logger::info("GET /api/tasks");
 
         nlohmann::json req_json;
@@ -80,14 +73,9 @@ namespace taskhub {
             // ★ 广播任务创建事件
             broadcast_task_event("task_created", TaskManager::instance().get_task(task_id).value());
 
-            nlohmann::json resp;
-            resp["code"]    = 0;
-            resp["message"] = "ok";
             nlohmann::json data;
             data["id"] = task_id;
-            resp["data"]    = data;
-            res.status = 200;
-            res.set_content(resp.dump(), "application/json");
+            resp::ok(res, data);
             Logger::info("Created task: " + std::to_string(task_id));
             return;
         } catch (const std::exception& e) {
@@ -101,12 +89,6 @@ namespace taskhub {
     // Response: 200 {"code":0,"message":"ok","data":[{id,name,type,status,create_time,update_time,params,exit_code,last_output,last_error,max_retries,retry_count,timeout_sec,cancel_flag}]}; 401 未鉴权
     void TaskHandler::list(const httplib::Request &req, httplib::Response &res)
     {
-        auto user_opt = AuthManager::instance().user_from_request(req);
-        if (!user_opt) {
-            resp::unauthorized(res);
-            return;
-        }
-    
         Logger::info("GET /api/tasks");
         auto tasks = TaskManager::instance().list_tasks();
 
@@ -143,12 +125,6 @@ namespace taskhub {
     //   404 {"code":404,"message":"Task not found","data":null}; 401 未鉴权
     void TaskHandler::detail(const httplib::Request &req, httplib::Response &res)
     {
-        auto user_opt = AuthManager::instance().user_from_request(req);
-        if (!user_opt) {
-            resp::unauthorized(res);
-            return;
-        }
-    
         Logger::info("GET R(/api/tasks/:id)");
         if (req.matches.size() < 2) {
             res.status = 400;
@@ -194,12 +170,6 @@ namespace taskhub {
     //   401 未鉴权
     void TaskHandler::cancel_task(const httplib::Request &req, httplib::Response &res)
     {
-        auto user_opt = AuthManager::instance().user_from_request(req);
-        if (!user_opt) {
-            resp::unauthorized(res);
-            return;
-        }
-    
         Logger::info("POST /api/cancel_task");
 
         auto tasks = TaskManager::instance().list_tasks();
@@ -242,17 +212,6 @@ namespace taskhub {
    //     500 {"ok":false,"error":<dag error>} （DagService 失败）
    void TaskHandler::runDag(const httplib::Request &req, httplib::Response &res)
     {
-        // auto user_opt = AuthManager::instance().user_from_request(req);
-        // if (!user_opt) {
-        //     nlohmann::json resp;
-        //     resp["code"] = 401;
-        //     resp["message"] = "unauthorized";
-        //     resp["data"] = nullptr;
-    
-        //     res.status = 401;
-        //     res.set_content(resp.dump(), "application/json");
-        //     return;
-        // }
         Logger::info("POST /api/run_dag");
         try {
             // 1. 解析请求 JSON
@@ -304,15 +263,13 @@ namespace taskhub {
             summary["failed"]  = failedIds;
             summary["skipped"] = skippedIds;
             respJson["summary"] = summary;
-            res.set_content(respJson.dump(), "application/json");
+            resp::ok(res, respJson);
         }
         catch (const std::exception& ex) {
             json err;
             err["ok"]    = false;
             err["error"] = ex.what();
-            res.status  = 500;
-            res.body    = err.dump();
-            resp::ok(res); 
+            resp::error(res, 500, err.dump(), 500);
         }
     }
 
@@ -360,7 +317,7 @@ namespace taskhub {
             } catch (const std::exception& e) {
                 Logger::error(std::string("runDagAsync thread exception: ") + e.what());
             }
-        });
+        },core::TaskPriority::Critical);
 
         json data;
         data["run_id"] = runId;

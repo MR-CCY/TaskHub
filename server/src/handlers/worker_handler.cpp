@@ -80,8 +80,7 @@ namespace taskhub
 
             json j;
             j["ok"] = true;
-            res.status = 200;
-            res.set_content(j.dump(), "application/json");
+            resp::ok(res, j);
         } catch (const std::exception& e) {
             resp::error(res, 500, std::string("internal error: ") + e.what(), 500);
         } catch (...) {
@@ -115,7 +114,7 @@ namespace taskhub
                 return;
             }
     
-            res.set_content(R"({"ok":true})", "application/json");
+            resp::ok(res);
         } catch (...) {
             resp::error(res, 500, "internal error", 500);
         }
@@ -156,8 +155,7 @@ namespace taskhub
             j["ok"] = true;
             j["workers"] = arr;
 
-            res.status = 200;
-            res.set_content(j.dump(), "application/json");
+            resp::ok(res, j);
         } catch (const std::exception& e) {
             resp::error(res, 500, std::string("internal error: ") + e.what(), 500);
         } catch (...) {
@@ -175,9 +173,7 @@ namespace taskhub
         try {
             json jReq = json::parse(req.body, nullptr, false);
             if (jReq.is_discarded()) {
-                res.status = 400;
-                res.set_content(R"({"code":400,"message":"invalid json"})", "application/json");
-                resp::error(res, 400, jReq.dump(), 400);
+                resp::error(res, 400, "invalid json", 400);
                 return;
             }
             // 2) json -> TaskConfig
@@ -198,11 +194,10 @@ namespace taskhub
 
             // 4) return JSON
             json jResp = taskResultToJson(r);
-            res.status = 200;
             Logger::info("Worker execute task finished: id=" + cfg.id.value +
                         ", status=" + std::to_string(static_cast<int>(r.status)) +
                         ", durationMs=" +  std::to_string(r.durationMs));
-            res.set_content(jResp.dump(), "application/json");
+            resp::ok(res, jResp);
         } catch (const std::exception& e) {
             // 兜底：任何未预期异常返回 500，避免线程挂掉
             resp::error(res, 500, std::string("internal error: ") + e.what(), 500);
