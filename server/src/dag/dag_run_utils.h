@@ -22,10 +22,7 @@ inline void injectRunId(json& body, const std::string& runId) {
 }
 
 /// 统一插入 dag_run 和初始 task_run 记录
-inline void persistRunAndTasks(const std::string& runId,
-                               const json& body,
-                               const std::string& source,
-                               const std::string& workflowJson = "") {
+inline void persistRunAndTasks(const std::string& runId,const json& body,const std::string& source,const std::string& workflowJson = "") {
     DagRunRepo::instance().insertRun(runId, body, source, workflowJson);
 
     auto upsertTask = [&](const json& jt) {

@@ -24,7 +24,6 @@ private:
     int _maxParallel = 4;             // 可以从 DagConfig 里读
     
     void initReadyQueue(DagRunContext& ctx);
-    std::future<void> submitNode(DagRunContext& ctx, const core::TaskId& id);
     void submitNodeAsync(DagRunContext& ctx, const core::TaskId& id);
     void onNodeFinished(DagRunContext& ctx,const core::TaskId& id,const core::TaskResult& result);
 };

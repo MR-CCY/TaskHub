@@ -142,32 +142,6 @@ namespace taskhub::dag {
      * @param id 要执行的节点的任务ID
      * @return std::future<void> 可用于等待节点执行完成的对象
      */
-    std::future<void> DagExecutor::submitNode(DagRunContext &ctx, const core::TaskId &id)
-    {
-        auto* graph = &ctx.graph();
-        auto node = graph->getNode(id);
-        if (!node) return {};
-    
-        ctx.setNodeStatus(id, core::TaskStatus::Running);
-        ctx.incrementRunning();
-        if (!id.runId.empty()) {
-            TaskRunRepo::instance().markRunning(id.runId, id.value, utils::now_millis());
-        }
-
-        // 异步执行节点任务并在完成后调用onNodeFinished处理结果
-        return std::async(std::launch::async, [this, &ctx, id]() {
-            auto nodeInner = ctx.graph().getNode(id);
-            core::TaskResult result;
-            if (nodeInner) {
-                result = _runner.run(nodeInner->runnerConfig(), nullptr);
-            } else {
-                result.status = core::TaskStatus::Failed;
-                result.message = "DagExecutor: node not found in graph";
-            }
-    
-            onNodeFinished(ctx, id, result);
-        });
-    }
     void DagExecutor::submitNodeAsync(DagRunContext &ctx, const core::TaskId &id)
     {
         auto* graph = &ctx.graph();
@@ -202,6 +176,8 @@ namespace taskhub::dag {
             }
         );
 
+        const auto priority = node->runnerConfig().priority;
+
         dag::DagThreadPool::instance().post([this, &ctx, id]() {
             auto nodeInner = ctx.graph().getNode(id);
             core::TaskResult result;
@@ -215,7 +191,7 @@ namespace taskhub::dag {
             }
     
             onNodeFinished(ctx, id, result);
-        });
+        }, priority);
     }
     void DagExecutor::onNodeFinished(DagRunContext &ctx, const core::TaskId &id, const core::TaskResult &result)
     {

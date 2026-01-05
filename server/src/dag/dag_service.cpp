@@ -53,23 +53,10 @@ DagResult DagService::runDag(const json &body, const std::string& runId)
     std::map<core::TaskId, core::TaskResult> result;
     core::TaskResult tr;
     DagResult dr;
-    auto finishRunSafely = [&](int status,
-                               int total,
-                               int ok,
-                               int failed,
-                               int skipped,
-                               const std::string& message) {
+    auto finishRunSafely = [&](int status,int total,int ok,int failed,int skipped,const std::string& message) {
         if (runId.empty()) return;
         const long long endTs = utils::now_millis();
-        DagRunRepo::instance().finishRun(
-            runId,
-            status,
-            endTs,
-            total,
-            ok,
-            failed,
-            skipped,
-            message);
+        DagRunRepo::instance().finishRun(runId,status,endTs,total,ok,failed,skipped,message);
     };
         // ===== 1. 解析 DagConfig =====
         dag::DagConfig cfg;
@@ -88,6 +75,8 @@ DagResult DagService::runDag(const json &body, const std::string& runId)
             cfg.name = body.value("name", std::string{});
         }
 
+        cfg.dagId=runId; 
+           
          // ===== 2. tasks 校验 =====
         //创建json数组
         json jTasks;
