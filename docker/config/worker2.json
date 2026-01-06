@@ -1,0 +1,17 @@
+{
+  "server": { "host": "0.0.0.0", "port": 8084 },
+  "work": {
+    "is_work": true,
+    "master_host": "master",
+    "master_port": 8082,
+    "worker_host": "worker2",
+    "worker_port": 8084,
+    "heartbeat_interval_ms": 2000,
+    "max_running_tasks": 1,
+    "worker_id": "worker-2",
+    "queues": ["default"],
+    "labels": ["shell"]
+  },
+  "database": { "db_path": "/data/taskhub_worker2.db", "migrations_dir": "/app/migrations" },
+  "log": { "path": "/data/worker2.log" }
+}

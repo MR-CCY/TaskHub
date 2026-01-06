@@ -1,0 +1,68 @@
+FROM debian:bookworm-slim AS build
+
+ARG APT_RETRIES=3
+ARG DEBIAN_FRONTEND=noninteractive
+RUN set -eux; \
+    i=1; \
+    while [ "$i" -le "$APT_RETRIES" ]; do \
+      apt-get update -o Acquire::Retries=3 \
+      && apt-get install -y --no-install-recommends \
+          build-essential \
+          ca-certificates \
+          cmake \
+          ninja-build \
+          pkg-config \
+          libboost-dev \
+          libsqlite3-dev \
+      && rm -rf /var/lib/apt/lists/* \
+      && break; \
+      if [ "$i" -eq "$APT_RETRIES" ]; then exit 1; fi; \
+      i=$((i+1)); \
+      sleep 5; \
+    done
+
+WORKDIR /src
+COPY . /src
+
+ARG BUILD_JOBS=1
+RUN cmake -S /src -B /build \
+        -G Ninja \
+        -DBUILD_TASKHUB_SERVER=ON \
+        -DBUILD_TASKHUB_CLIENT=OFF \
+        -DCMAKE_BUILD_TYPE=Release \
+    && cmake --build /build -j${BUILD_JOBS}
+
+FROM debian:bookworm-slim
+
+ARG APT_RETRIES=3
+ARG DEBIAN_FRONTEND=noninteractive
+RUN set -eux; \
+    i=1; \
+    while [ "$i" -le "$APT_RETRIES" ]; do \
+      apt-get update -o Acquire::Retries=3 \
+      && apt-get install -y --no-install-recommends \
+          ca-certificates \
+          libstdc++6 \
+          libgcc-s1 \
+          libsqlite3-0 \
+          tzdata \
+      && rm -rf /var/lib/apt/lists/* \
+      && break; \
+      if [ "$i" -eq "$APT_RETRIES" ]; then exit 1; fi; \
+      i=$((i+1)); \
+      sleep 5; \
+    done
+
+WORKDIR /app
+
+# 仅拷贝编译产物与迁移文件
+COPY --from=build /build/bin/taskhub_server /app/taskhub_server
+COPY --from=build /build/bin/migrations /app/migrations
+
+RUN useradd -r -u 10001 -g nogroup taskhub \
+    && mkdir -p /data \
+    && chown -R taskhub:nogroup /data
+
+USER taskhub
+
+ENTRYPOINT ["/app/taskhub_server"]

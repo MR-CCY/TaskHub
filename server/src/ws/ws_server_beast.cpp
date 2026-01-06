@@ -316,7 +316,14 @@ namespace taskhub {
     }
     bool WsServer::start()
     {
-       
+        if (!running_) {
+            Logger::error("WsServer start failed: listener not initialized");
+            return false;
+        }
+        if (thread_.joinable()) {
+            Logger::warn("WsServer already running");
+            return true;
+        }
         do_accept();
         thread_ = std::thread([this]() {
             Logger::info("WsServer io_context run");
@@ -327,12 +334,19 @@ namespace taskhub {
     }
     void WsServer::stop()
     {
-        if (!running_) return;
-        running_ = false;
-        beast::error_code ec;
-        acceptor_.close(ec);
-        ioc_.stop();
-        if (thread_.joinable()) thread_.join();
+        if (running_) {
+            running_ = false;
+            beast::error_code ec;
+            acceptor_.close(ec);
+            ioc_.stop();
+        }
+        if (thread_.joinable()) {
+            if (thread_.get_id() == std::this_thread::get_id()) {
+                thread_.detach();
+            } else {
+                thread_.join();
+            }
+        }
     }
     void WsServer::do_accept()
     {

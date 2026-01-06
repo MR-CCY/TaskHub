@@ -2,6 +2,7 @@
 #include "core/task_manager.h"  
 #include "ws/ws_task_events.h" // broadcast_task_event
 #include "core/blocking_queue.h"
+#include <atomic>
 #include <thread>
 #include <vector>
 

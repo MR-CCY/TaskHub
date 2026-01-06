@@ -5,6 +5,7 @@
 #include <string>
 #include "core/config.h"
 #include <mutex>
+#include <memory>
 
 namespace taskhub::core {
 class LogRotation;

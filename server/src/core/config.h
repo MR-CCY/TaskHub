@@ -1,7 +1,8 @@
 #pragma once
 #include <string>
 #include <variant>
-#include <map> 
+#include <map>
+#include <vector>
 namespace taskhub {
     using ConfigVariant = std::variant<int, std::string,bool,double,float,long,std::vector<std::string>>;
 class Config {

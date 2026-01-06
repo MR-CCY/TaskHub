@@ -1,0 +1,65 @@
+services:
+  master:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.runtime
+      args:
+        APT_RETRIES: ${APT_RETRIES:-3}
+        BUILD_JOBS: ${BUILD_JOBS:-1}
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+    container_name: taskhub-master
+    ports:
+      - "8082:8082" # HTTP
+      - "8090:8090" # WS
+    volumes:
+      - ./docker/config/master.json:/etc/taskhub/config.json:ro
+      - ./docker/data/master:/data
+    networks:
+      - taskhub
+
+  worker1:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.runtime
+      args:
+        APT_RETRIES: ${APT_RETRIES:-3}
+        BUILD_JOBS: ${BUILD_JOBS:-1}
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+    container_name: taskhub-worker1
+    depends_on:
+      - master
+    ports:
+      - "8083:8083" # HTTP
+      - "8091:8090" # WS (host 8091 -> container 8090)
+    volumes:
+      - ./docker/config/worker1.json:/etc/taskhub/config.json:ro
+      - ./docker/data/worker1:/data
+    networks:
+      - taskhub
+
+  worker2:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.runtime
+      args:
+        APT_RETRIES: ${APT_RETRIES:-3}
+        BUILD_JOBS: ${BUILD_JOBS:-1}
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+    container_name: taskhub-worker2
+    depends_on:
+      - master
+    ports:
+      - "8084:8084" # HTTP
+      - "8092:8090" # WS (host 8092 -> container 8090)
+    volumes:
+      - ./docker/config/worker2.json:/etc/taskhub/config.json:ro
+      - ./docker/data/worker2:/data
+    networks:
+      - taskhub
+
+networks:
+  taskhub:
+    driver: bridge

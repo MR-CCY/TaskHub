@@ -158,7 +158,42 @@ cmake --build build
 - `m11_7_dispatch_retry_check.sh`：启动 1 Master + 2 Worker，验证负载调度与 failover 重试。用法：`TASKHUB_SERVER_BIN=... TASKHUB_FORCE_KILL_PORTS=1 ./m11_7_dispatch_retry_check.sh`
 - `m13.sh`：模板创建/渲染/执行回归（需要登录）。用法：`BASE=http://localhost:8082 ./m13.sh`
 - `m14_dag_template_worker_check.sh`：Dag/Template exec_type + worker_execute DAG 端到端测试。用法：`TASKHUB_SERVER_BIN=... ./m14_dag_template_worker_check.sh`
+- `docker_up.sh`：容器内编译并启动 1 Master + 2 Worker 容器。用法：`./docker_up.sh`
+- `seed_templates.sh`：通过 `/template` 批量创建示例模板（默认覆盖 8082/8083/8084）。用法：`BASES="http://localhost:8082 http://localhost:8083 http://localhost:8084" ./seed_templates.sh`
+
+## Docker 运行（容器内编译）
+使用 `debian:bookworm-slim` 多阶段构建，在构建阶段完成编译，运行镜像只包含编译产物。
+
+一键编译并启动：
+```bash
+./docker_up.sh
+```
+可选环境变量：
+- `TASKHUB_SKIP_BUILD=1`：跳过 build，只执行 `up -d`
+- `APT_RETRIES=5`：构建阶段 apt 重试次数（默认 3）
+- `BUILD_JOBS=1`：容器内编译并行度（默认 1，内存不足时保持 1）
+- `TZ=Asia/Shanghai`：容器时区（默认 `Asia/Shanghai`）
+
+启动 1 个 Master + 2 个 Worker：
+```bash
+docker compose up --build
+```
+
+端口映射：
+- Master：HTTP `8082`，WS `8090`
+- Worker1：HTTP `8083`，WS `8091`（容器内仍是 `8090`）
+- Worker2：HTTP `8084`，WS `8092`（容器内仍是 `8090`）
+
+配置文件：
+- `docker/config/master.json`
+- `docker/config/worker1.json`
+- `docker/config/worker2.json`
+
+数据与日志：
+- `docker/data/master`
+- `docker/data/worker1`
+- `docker/data/worker2`
 
 ## 备注
 - WebSocket 监听端口：`8090`
-- SQLite migrations 会在 CMake 构建时复制到 `build/bin/migrations`
+- SQLite migrations 会在构建阶段复制到构建产物并打包进镜像

@@ -65,7 +65,8 @@ req POST "$SERVER/api/workers/register" "{
   \"port\": $WORKER_PORT,
   \"queues\": [\"$QUEUE\"],
   \"labels\": [\"shell\"],
-  \"running_tasks\": 0
+  \"running_tasks\": 0,
+  \"max_running_tasks\": 1
 }" | pretty
 
 get_workers | pretty

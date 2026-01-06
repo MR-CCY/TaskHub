@@ -8,9 +8,7 @@
 #include "ws/ws_server_beast.h"
 #include "core/worker_pool.h"
 #include "runner/task_runner.h"
-namespace taskhub::worker {
-    class WorkerHeartbeatClient;
-}
+#include "worker/worker_heartbeat_client.h"
 namespace taskhub {
 
 class ServerApp {

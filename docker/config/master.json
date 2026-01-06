@@ -1,0 +1,8 @@
+{
+  "server": { "host": "0.0.0.0", "port": 8082 },
+  "work": { "is_work": false },
+  "worker": { "select_strategy": "least-load" },
+  "dispatch": { "max_retries": 2 },
+  "database": { "db_path": "/data/taskhub_master.db", "migrations_dir": "/app/migrations" },
+  "log": { "path": "/data/master.log" }
+}
