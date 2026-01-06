@@ -1,13 +1,13 @@
 #include "worker_registry.h"
 #include <cctype>
-#include <cstdlib>
 #include "log/logger.h"
 #include "worker_selector.h"
+#include "core/config.h"
 
 namespace taskhub::worker {
 namespace {
-    std::string normalize_strategy_name(const char* value) {
-        if (!value) return "least-load";
+    std::string normalize_strategy_name(const std::string& value) {
+        if (value.empty()) return "least-load";
         std::string s(value);
         for (auto& ch : s) {
             ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
@@ -30,13 +30,14 @@ namespace {
 
     void WorkerRegistry::initSelector()
     {
-        const char* env = std::getenv("TASKHUB_WORKER_SELECT_STRATEGY");
-        const std::string strategy = normalize_strategy_name(env);
+        const std::string configured = taskhub::Config::instance().get<std::string>(
+            "worker.select_strategy", "least-load");
+        const std::string strategy = normalize_strategy_name(configured);
         if (strategy == "rr" || strategy == "round-robin" || strategy == "round_robin") {
             _selector = std::make_unique<RoundRobinSelector>();
         } else {
-            if (env && strategy != "least-load" && strategy != "least_load") {
-                Logger::warn("Unknown worker select strategy: " + std::string(env) + ", fallback=least-load");
+            if (!configured.empty() && strategy != "least-load" && strategy != "least_load") {
+                Logger::warn("Unknown worker select strategy: " + configured + ", fallback=least-load");
             }
             _selector = std::make_unique<LeastLoadSelector>();
         }
@@ -45,14 +46,17 @@ namespace {
 
     void WorkerRegistry::upsertWorker(const WorkerInfo &info)
     {
-        std::lock_guard<std::mutex> lk(_mutex);
+        {
+            std::lock_guard<std::mutex> lk(_mutex);
 
-        WorkerInfo copy = info;
-    
-        // ✅ 注册即视为一次心跳
-        copy.lastHeartbeat = std::chrono::steady_clock::now();
-    
-        _workers[copy.id] = std::move(copy);
+            WorkerInfo copy = info;
+        
+            // ✅ 注册即视为一次心跳
+            copy.lastHeartbeat = std::chrono::steady_clock::now();
+        
+            _workers[copy.id] = std::move(copy);
+        }
+        _sweeperCv.notify_one();
     }
 
     void WorkerRegistry::removeWorker(const std::string &id)
@@ -151,15 +155,35 @@ namespace {
         stopSweeper();
 
         _stopSweeper = false;
-        _sweeperThread = std::thread([this, sweepInterval, pruneAfter]() {
+        _sweepInterval = sweepInterval;
+        _pruneAfter = pruneAfter;
+        _sweeperThread = std::thread([this]() {
             while (!_stopSweeper.load(std::memory_order_acquire)) {
-                pruneDeadWorkers(pruneAfter);
+                bool hasWorkers = false;
+                {
+                    std::unique_lock<std::mutex> lk(_mutex);
+                    if (_workers.empty()) {
+                        _sweeperCv.wait_for(lk, _sweepInterval, [this]() {
+                            return _stopSweeper.load(std::memory_order_acquire) || !_workers.empty();
+                        });
+                    }
+                    hasWorkers = !_workers.empty();
+                }
+
+                if (_stopSweeper.load(std::memory_order_acquire)) {
+                    break;
+                }
+                if (hasWorkers) {
+                    pruneDeadWorkers(_pruneAfter);
+                } else {
+                    continue;
+                }
 
                 // 分段 sleep：便于 stopSweeper() 更快生效
                 const auto slice = std::chrono::milliseconds(200);
                 auto slept = std::chrono::milliseconds(0);
-                while (slept < sweepInterval && !_stopSweeper.load(std::memory_order_acquire)) {
-                    const auto step = (sweepInterval - slept > slice) ? slice : (sweepInterval - slept);
+                while (slept < _sweepInterval && !_stopSweeper.load(std::memory_order_acquire)) {
+                    const auto step = (_sweepInterval - slept > slice) ? slice : (_sweepInterval - slept);
                     std::this_thread::sleep_for(step);
                     slept += step;
                 }
@@ -175,6 +199,7 @@ namespace {
         void WorkerRegistry::stopSweeper()
         {
             _stopSweeper.store(true, std::memory_order_release);
+            _sweeperCv.notify_all();
             if (_sweeperThread.joinable()) {
                 _sweeperThread.join();
             }

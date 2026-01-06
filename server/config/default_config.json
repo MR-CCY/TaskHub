@@ -10,9 +10,16 @@
     "worker_host": "127.0.0.1",
     "worker_port": 8083,
     "heartbeat_interval_ms": 2000,
+    "max_running_tasks": 1,
     "worker_id":"worker-1",
     "queues":["default"],
     "labels":["shell"]
+  },
+  "worker": {
+    "select_strategy": "least-load"
+  },
+  "dispatch": {
+    "max_retries": 2
   },
   "database": {
     "host": "0.0.0.0",

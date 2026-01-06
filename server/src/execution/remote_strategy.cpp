@@ -9,8 +9,8 @@
 #include "log/log_manager.h"
 #include "log/log_record.h"
 #include <chrono>
-#include <cstdlib>
 #include "ws/ws_log_streamer.h"
+#include "core/config.h"
 using json = nlohmann::json;
 
 namespace {
@@ -70,11 +70,7 @@ struct DispatchAttemptResult {
 };
 
 inline int read_dispatch_max_retries() {
-    const char* p = std::getenv("TASKHUB_DISPATCH_MAX_RETRIES");
-    if (!p) {
-        return 2;
-    }
-    int v = std::atoi(p);
+    int v = taskhub::Config::instance().get("dispatch.max_retries", 2);
     if (v < 0) {
         return 0;
     }

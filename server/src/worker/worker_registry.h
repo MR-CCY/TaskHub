@@ -8,6 +8,7 @@
 #include <thread>
 #include <memory>
 #include <atomic>
+#include <condition_variable>
 namespace taskhub::worker {
 
 class WorkerSelector;
@@ -42,6 +43,7 @@ class WorkerRegistry {
 
         std::thread _sweeperThread;
         std::atomic_bool _stopSweeper{false};
+        std::condition_variable _sweeperCv;
         std::chrono::milliseconds _sweepInterval{5000};
         std::chrono::milliseconds _pruneAfter{60000};
     };

@@ -5,7 +5,7 @@
 #include "log/logger.h"
 #include "utils/utils.h"
 #include <vector>
-#include <cstdlib>
+#include "core/config.h"
 
 using json = nlohmann::json;
 
@@ -29,12 +29,8 @@ void WorkerHeartbeatClient::start(std::string masterHost,
     _labels          = std::move(labels);
     _getRunningTasks = std::move(getRunningTasks);
     _interval        = interval;
-    if (const char* p = std::getenv("TASKHUB_WORKER_MAX_RUNNING_TASKS")) {
-        _maxRunningTasks = std::atoi(p);
-        if (_maxRunningTasks <= 0) {
-            _maxRunningTasks = 1;
-        }
-    } else {
+    _maxRunningTasks = taskhub::Config::instance().get("work.max_running_tasks", 1);
+    if (_maxRunningTasks <= 0) {
         _maxRunningTasks = 1;
     }
 

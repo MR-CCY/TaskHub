@@ -14,6 +14,32 @@ namespace taskhub
 { 
     using taskhub::worker::WorkerRegistry;
     using taskhub::worker::WorkerInfo;
+
+    namespace {
+        json worker_to_json(const WorkerInfo& w)
+        {
+            json jw;
+            jw["id"] = w.id;
+            jw["host"] = w.host;
+            jw["port"] = w.port;
+            jw["running_tasks"] = w.runningTasks;
+            jw["max_running_tasks"] = w.maxRunningTasks;
+            jw["full"] = w.isFull();
+            jw["alive"] = w.isAlive();
+
+            auto now = std::chrono::steady_clock::now();
+            auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(now - w.lastHeartbeat).count();
+            jw["last_seen_ms_ago"] = diff;
+
+            jw["queues"] = json::array();
+            for (const auto& q : w.queues) jw["queues"].push_back(q);
+
+            jw["labels"] = json::array();
+            for (const auto& lb : w.labels) jw["labels"].push_back(lb);
+
+            return jw;
+        }
+    }
     
     void WorkHandler::setup_routes(httplib::Server& server)
     {
@@ -28,6 +54,7 @@ namespace taskhub
         // TODO(M11.3+):（可选）Worker 列表接口
         // GET /api/workers
         server.Get("/api/workers", &WorkHandler::workers_list);
+        server.Get("/api/workers/connected", &WorkHandler::workers_connected);
 
         server.Post("/api/worker/execute", &WorkHandler::worker_execute);
     }
@@ -137,26 +164,36 @@ namespace taskhub
 
             json arr = json::array();
             for (const auto& w : workers) {
-                json jw;
-                jw["id"] = w.id;
-                jw["host"] = w.host;
-                jw["port"] = w.port;
-                jw["running_tasks"] = w.runningTasks;
-                jw["max_running_tasks"] = w.maxRunningTasks;
-                jw["full"] = w.isFull();
-                jw["alive"] = w.isAlive();
+                arr.push_back(worker_to_json(w));
+            }
 
-                auto now = std::chrono::steady_clock::now();
-                auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(now - w.lastHeartbeat).count();
-                jw["last_seen_ms_ago"] = diff;
+            json j;
+            j["ok"] = true;
+            j["workers"] = arr;
 
-                jw["queues"] = json::array();
-                for (const auto& q : w.queues) jw["queues"].push_back(q);
+            resp::ok(res, j);
+        } catch (const std::exception& e) {
+            resp::error(res, 500, std::string("internal error: ") + e.what(), 500);
+        } catch (...) {
+            resp::error(res, 500, "internal error: unknown", 500);
+        }
+    }
 
-                jw["labels"] = json::array();
-                for (const auto& lb : w.labels) jw["labels"].push_back(lb);
+    // Request: GET /api/workers/connected
+    // Response:
+    //   200 {"ok":true,"workers":[{...}]}（仅 alive=true）
+    void WorkHandler::workers_connected(const httplib::Request &req, httplib::Response &res)
+    {
+        Logger::info("Worker connected list request");
+        try {
+            auto workers = WorkerRegistry::instance().listWorkers();
 
-                arr.push_back(jw);
+            json arr = json::array();
+            for (const auto& w : workers) {
+                if (!w.isAlive()) {
+                    continue;
+                }
+                arr.push_back(worker_to_json(w));
             }
 
             json j;

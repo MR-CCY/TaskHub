@@ -233,6 +233,8 @@ cat > "${MASTER_DIR}/config.json" <<EOF
 {
   "server": { "host": "${MASTER_HOST}", "port": ${MASTER_PORT} },
   "work": { "is_work": false },
+  "worker": { "select_strategy": "least-load" },
+  "dispatch": { "max_retries": 2 },
   "database": { "db_path": "${MASTER_DIR}/taskhub_master.db", "migrations_dir": "./migrations" },
   "log": { "path": "${MASTER_DIR}/master.log" }
 }
@@ -248,6 +250,7 @@ cat > "${WORKER1_DIR}/config.json" <<EOF
     "worker_host": "${MASTER_HOST}",
     "worker_port": ${WORKER1_PORT},
     "heartbeat_interval_ms": 5000,
+    "max_running_tasks": 2,
     "worker_id": "worker-1",
     "queues": ["default"],
     "labels": ["shell"]
@@ -267,6 +270,7 @@ cat > "${WORKER2_DIR}/config.json" <<EOF
     "worker_host": "${MASTER_HOST}",
     "worker_port": ${WORKER2_PORT},
     "heartbeat_interval_ms": 5000,
+    "max_running_tasks": 1,
     "worker_id": "worker-2",
     "queues": ["default"],
     "labels": ["shell"]
@@ -277,16 +281,15 @@ cat > "${WORKER2_DIR}/config.json" <<EOF
 EOF
 
 echo "Starting master..."
-(cd "${MASTER_DIR}" && TASKHUB_WORKER_SELECT_STRATEGY="least-load" TASKHUB_DISPATCH_MAX_RETRIES=2 \
-  exec "${SERVER_BIN}") > "${MASTER_DIR}/stdout.log" 2>&1 &
+(cd "${MASTER_DIR}" && exec "${SERVER_BIN}") > "${MASTER_DIR}/stdout.log" 2>&1 &
 MASTER_PID=$!
 
 echo "Starting worker-1 (max_running_tasks=2)..."
-(cd "${WORKER1_DIR}" && TASKHUB_WORKER_MAX_RUNNING_TASKS=2 exec "${SERVER_BIN}") > "${WORKER1_DIR}/stdout.log" 2>&1 &
+(cd "${WORKER1_DIR}" && exec "${SERVER_BIN}") > "${WORKER1_DIR}/stdout.log" 2>&1 &
 WORKER1_PID=$!
 
 echo "Starting worker-2 (max_running_tasks=1)..."
-(cd "${WORKER2_DIR}" && TASKHUB_WORKER_MAX_RUNNING_TASKS=1 exec "${SERVER_BIN}") > "${WORKER2_DIR}/stdout.log" 2>&1 &
+(cd "${WORKER2_DIR}" && exec "${SERVER_BIN}") > "${WORKER2_DIR}/stdout.log" 2>&1 &
 WORKER2_PID=$!
 
 echo "Waiting for master to be ready..."

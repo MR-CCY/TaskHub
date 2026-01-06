@@ -14,6 +14,7 @@ private:
     static void workers_register(const httplib::Request& req, httplib::Response& res);
     static void workers_heartbeat(const httplib::Request& req, httplib::Response& res);
     static void workers_list(const httplib::Request& req, httplib::Response& res);
+    static void workers_connected(const httplib::Request& req, httplib::Response& res);
     static void worker_execute(const httplib::Request& req, httplib::Response& res);
 };
 

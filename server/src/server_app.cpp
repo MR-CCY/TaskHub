@@ -62,7 +62,7 @@ namespace taskhub {
         AuthManager::instance().init();
         Logger::info("AuthManager initialized");
 
-            //9. 初始化 DAG 子系统
+        //9. 初始化 DAG 子系统
         init_dag();
         Logger::info("DagService initialized");
         //10. 启动定时任务调度器
