@@ -589,6 +589,19 @@ Dag body:
 }
 ```
 
+Template body:
+```json
+{
+  "name": "job1",
+  "spec": "*/1 * * * *",
+  "target_type": "Template",
+  "template": {
+    "template_id": "tpl-1",
+    "params": { "name": "demo" }
+  }
+}
+```
+
 Response:
 ```json
 { "code": 0, "message": "ok", "data": { "ok": true, "job_id": "job_1767600000000" } }
@@ -667,8 +680,111 @@ Response:
 #### GET /api/workers/connected
 Same payload shape as `/api/workers`, but only includes `alive=true` workers.
 
+#### GET /api/workers/proxy/logs
+转发到指定 Worker 的日志查询（等同 `/api/tasks/logs`）。
+
+Query:
+- `worker_id` (required)
+- `task_id` (required)
+- `run_id` (optional)
+- `from` (optional, default 1)
+- `limit` (optional, default 200)
+
+Response: 同 `/api/tasks/logs`。
+
+Errors:
+```json
+{ "code": 400, "message": "missing worker_id/task_id", "data": null }
+{ "code": 404, "message": "worker not found", "data": null }
+{ "code": 503, "message": "worker not alive", "data": null }
+{ "code": 502, "message": "worker log query failed: no response", "data": null }
+```
+
+#### GET /api/workers/proxy/dag/task_runs
+转发到指定 Worker 的 `/api/dag/task_runs`。
+
+Query:
+- `worker_id` (required)
+- `run_id` (optional)
+- `name` (optional)
+- `limit` (optional, default 200)
+
+Response: 同 `/api/dag/task_runs`。
+
+Errors:
+```json
+{ "code": 400, "message": "missing worker_id", "data": null }
+{ "code": 404, "message": "worker not found", "data": null }
+{ "code": 503, "message": "worker not alive", "data": null }
+{ "code": 502, "message": "worker task_runs query failed: no response", "data": null }
+```
+
+#### GET /api/workers/proxy/dag/events
+转发到指定 Worker 的 `/api/dag/events`。
+
+Query:
+- `worker_id` (required)
+- `run_id` (optional)
+- `task_id` (optional)
+- `type` (optional)
+- `event` (optional)
+- `start_ts_ms` (optional)
+- `end_ts_ms` (optional)
+- `limit` (optional, default 200)
+
+Response: 同 `/api/dag/events`。
+
+Errors:
+```json
+{ "code": 400, "message": "missing worker_id", "data": null }
+{ "code": 404, "message": "worker not found", "data": null }
+{ "code": 503, "message": "worker not alive", "data": null }
+{ "code": 502, "message": "worker events query failed: no response", "data": null }
+```
+
 #### POST /api/worker/execute
-Request body: TaskConfig (exec_type must not be `Remote`).
+Request body:
+- 兼容旧格式：TaskConfig（exec_type 不能为 `Remote`）
+- 新格式：`type + payload`
+  - `dag/template` 会在 Worker 侧异步执行，并返回 `run_id`
+
+示例：Task（兼容）
+```json
+{
+  "task": {
+    "id": "t1",
+    "name": "hello",
+    "exec_type": "Shell",
+    "exec_command": "echo hi"
+  }
+}
+```
+
+示例：DAG（异步派发）
+```json
+{
+  "type": "dag",
+  "payload": {
+    "name": "wf-1",
+    "config": { "fail_policy": "SkipDownstream", "max_parallel": 4 },
+    "tasks": [
+      { "id": "a", "exec_type": "Shell", "exec_command": "echo a" },
+      { "id": "b", "exec_type": "Shell", "exec_command": "echo b", "deps": ["a"] }
+    ]
+  }
+}
+```
+
+示例：Template（异步派发）
+```json
+{
+  "type": "template",
+  "payload": {
+    "template_id": "tpl-1",
+    "params": { "name": "demo" }
+  }
+}
+```
 
 Response (success):
 ```json
@@ -689,10 +805,44 @@ Response (success):
 }
 ```
 
+Response (dag/template dispatch ack):
+```json
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "type": "dag",
+    "ok": true,
+    "run_id": "1767600000000_abcd12",
+    "task_ids": [
+      { "logical": "a", "task_id": "a" },
+      { "logical": "b", "task_id": "b" }
+    ]
+  }
+}
+```
+
 Errors:
 ```json
 { "code": 400, "message": "invalid json", "data": null }
 { "code": 400, "message": "worker cannot execute Remote task", "data": null }
+```
+
+Remote 任务扩展（Master -> Worker）：
+- 在 TaskConfig 的 `exec_params` 中使用：
+  - `remote.payload_type`: `task|dag|template`
+  - `remote.payload_json`: JSON 字符串（对应 payload）
+
+示例（Remote DAG）：
+```json
+{
+  "id": "remote-dag-1",
+  "exec_type": "Remote",
+  "exec_params": {
+    "remote.payload_type": "dag",
+    "remote.payload_json": "{\"tasks\":[{\"id\":\"a\",\"exec_type\":\"Shell\",\"exec_command\":\"echo a\"}]}"
+  }
+}
 ```
 
 ## WebSocket Protocol (Beast server)
@@ -725,6 +875,16 @@ Server replies:
 ```json
 { "type": "pong" }
 ```
+
+- Proxy to worker WebSocket:
+```json
+{ "token": "<jwt>", "op": "proxy", "worker_id": "worker-1", "ws_port": 8090 }
+```
+Server replies:
+```json
+{ "type": "proxy_ready", "worker_id": "worker-1", "ws_port": 8090 }
+```
+随后客户端发出的消息会原样转发到 Worker 的 WS，Worker 的推送也会透传返回。
 
 Rate limit: 30 commands per 10 seconds window.
 

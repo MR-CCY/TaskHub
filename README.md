@@ -131,6 +131,15 @@ cmake --build build
 - `database.db_path` / `database.migrations_dir`
 - `log.path`
 
+## 分布式扩展说明
+- `/api/worker/execute` 支持 `type=task|dag|template`，`dag/template` 为异步派发并返回 `run_id`
+- Master -> Worker 的远程派发可通过 `exec_params` 扩展：
+  - `remote.payload_type`: `task|dag|template`
+  - `remote.payload_json`: JSON 字符串（对应 payload）
+- 日志透传：`GET /api/workers/proxy/logs?worker_id=...&task_id=...`
+- DAG/事件透传：`/api/workers/proxy/dag/task_runs`、`/api/workers/proxy/dag/events`
+- WS 透传：在 Master WS 连接上发送 `{"op":"proxy","worker_id":"..."}`，后续消息直达 Worker WS
+
 ## API
 详见 `API.md`。
 

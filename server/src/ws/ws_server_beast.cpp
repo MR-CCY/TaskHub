@@ -2,9 +2,12 @@
 #include "log/logger.h"
 #include "ws_hub.h"
 #include "ws_protocol.h"
+#include "ws_proxy_client.h"
 #include <boost/beast/core/buffers_to_string.hpp>
 #include <json.hpp>
 #include "auth/auth_manager.h"
+#include "worker/server_worker_registry.h"
+#include <algorithm>
 namespace taskhub {
     WsSession::WsSession(tcp::socket socket)
     : ws_(std::move(socket)),
@@ -67,6 +70,16 @@ namespace taskhub {
         std::lock_guard<std::mutex> lock(sub_mtx_);
         subscriptions_.erase(channel);
     }
+    void WsSession::stop_proxy()
+    {
+        if (!proxy_client_) {
+            proxy_mode_ = false;
+            return;
+        }
+        proxy_client_->stop();
+        proxy_client_.reset();
+        proxy_mode_ = false;
+    }
 
 
     void WsSession::do_read()
@@ -83,11 +96,13 @@ namespace taskhub {
         if (ec == websocket::error::closed) {
             Logger::error("WsSession read error: " + ec.message() + " (" + std::to_string(ec.value()) + ")");
             // 连接关闭
+            stop_proxy();
             WsHub::instance().remove_session(shared_from_this());
             return;
         }
         if (ec) {
             Logger::error("WsSession read error: " + ec.message());
+            stop_proxy();
             WsHub::instance().remove_session(shared_from_this());
             return;
         }
@@ -95,6 +110,13 @@ namespace taskhub {
         // 解析客户端指令（订阅/退订等）
         const std::string payload = beast::buffers_to_string(buffer_.data());
         buffer_.consume(buffer_.size());
+        if (proxy_mode_) {
+            if (proxy_client_) {
+                proxy_client_->send(payload);
+            }
+            do_read();  // 继续读下一条
+            return;
+        }
         handle_command(payload);
         do_read();  // 继续读下一条
     }
@@ -150,7 +172,8 @@ namespace taskhub {
                     WsHub::instance().remove_session(shared_from_this());
                     return;
                 }
-                auto user = AuthManager::instance().validate_token(it->get<std::string>());
+                auth_token_ = it->get<std::string>();
+                auto user = AuthManager::instance().validate_token(auth_token_);
                 if (!user) {
                     Logger::warn("WsSession invalid token, closing");
                     beast::error_code ec;
@@ -164,6 +187,57 @@ namespace taskhub {
                     send_text(R"({"type":"authed"})");
                     return;
                 }
+            }
+            if (j.contains("op") && j["op"].is_string() && j["op"] == "proxy") {
+                if (!j.contains("worker_id") || !j["worker_id"].is_string()) {
+                    send_text(R"({"type":"proxy_error","message":"missing worker_id"})");
+                    return;
+                }
+                if (proxy_mode_) {
+                    send_text(R"({"type":"proxy_error","message":"proxy already active"})");
+                    return;
+                }
+                const std::string workerId = j["worker_id"].get<std::string>();
+                int wsPort = 8090;
+                if (j.contains("ws_port") && j["ws_port"].is_number_integer()) {
+                    wsPort = j["ws_port"].get<int>();
+                }
+                if (wsPort <= 0 || wsPort > 65535) {
+                    wsPort = 8090;
+                }
+
+                auto workers = worker::ServerWorkerRegistry::instance().listWorkers();
+                auto it = std::find_if(workers.begin(), workers.end(), [&](const worker::WorkerInfo& w) {
+                    return w.id == workerId;
+                });
+                if (it == workers.end()) {
+                    send_text(R"({"type":"proxy_error","message":"worker not found"})");
+                    return;
+                }
+                if (!it->isAlive()) {
+                    send_text(R"({"type":"proxy_error","message":"worker not alive"})");
+                    return;
+                }
+
+                auto proxy = std::make_shared<WsProxyClient>(it->host,
+                                                            static_cast<unsigned short>(wsPort),
+                                                            auth_token_,
+                                                            weak_from_this());
+                std::string err;
+                if (!proxy->start(&err)) {
+                    send_text(R"({"type":"proxy_error","message":"proxy connect failed"})");
+                    Logger::error("WsSession proxy connect failed: " + err);
+                    return;
+                }
+                {
+                    std::lock_guard<std::mutex> lock(sub_mtx_);
+                    subscriptions_.clear();
+                }
+                proxy_client_ = proxy;
+                proxy_mode_ = true;
+                send_text(std::string(R"({"type":"proxy_ready","worker_id":")") +
+                          workerId + R"(","ws_port":)" + std::to_string(wsPort) + "}");
+                return;
             }
             auto cmd = ws::parseClientCommand(j);
             switch (cmd.op) {

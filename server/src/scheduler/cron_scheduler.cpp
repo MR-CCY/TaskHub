@@ -4,9 +4,136 @@
 #include "runner/task_config.h"
 #include "dag/dag_service.h"
 #include "dag/dag_run_utils.h"
+#include "template/template_store.h"
+#include "template/template_renderer.h"
 #include "utils/utils.h"
 #include "json.hpp"
+#include <utility>
 namespace taskhub::scheduler {
+    namespace {
+        using json = nlohmann::json;
+
+        bool dispatch_single_task(const CronJob& job, const std::string& runId)
+        {
+            if (!job.taskTemplate.has_value()) {
+                Logger::error("CronScheduler: taskTemplate not set for SingleTask job id=" +
+                    job.id);
+                return false;
+            }
+            auto& runner = runner::TaskRunner::instance();
+            core::TaskConfig cfg = *job.taskTemplate;
+            cfg.id.runId = runId;
+
+            Logger::info("CronScheduler: execute SingleTask job, taskId=" + cfg.id.value);
+            core::TaskResult r = runner.run(cfg, nullptr);
+
+            Logger::info("CronScheduler: SingleTask result, taskId=" + cfg.id.value +
+                        ", status=" + std::to_string(static_cast<int>(r.status)) +
+                        ", message=" + r.message);
+            return r.ok();
+        }
+
+        bool dispatch_dag_job(const CronJob& job, const std::string& runId)
+        {
+            if (!job.dagPayload.has_value()) {
+                Logger::error("CronScheduler: dagPayload not set for Dag job id=" + job.id);
+                return false;
+            }
+
+            auto d = *job.dagPayload; // copy to mutate runId
+
+            json dagBody;
+            dagBody["name"] = job.name;
+            json cfgJson = json::object();
+            cfgJson["fail_policy"] = d.config.failPolicy == dag::FailPolicy::FailFast ? "FailFast" : "SkipDownstream";
+            cfgJson["max_parallel"] = d.config.maxParallel;
+            cfgJson["cron_job_id"]  = job.id;
+            cfgJson["name"]         = job.name;
+            dagBody["config"]       = cfgJson;
+
+            json tasks = json::array();
+            for (const auto& spec : d.specs) {
+                json jt = core::buildRequestJson(spec.runnerCfg)["task"];
+                jt["id"] = spec.id.value;
+                json deps = json::array();
+                for (const auto& dep : spec.deps) {
+                    deps.push_back(dep.value);
+                }
+                jt["deps"] = std::move(deps);
+                tasks.push_back(std::move(jt));
+            }
+            dagBody["tasks"] = std::move(tasks);
+
+            dagrun::injectRunId(dagBody, runId);
+            dagrun::persistRunAndTasks(runId, dagBody, "cron");
+
+            auto r = dag::DagService::instance().runDag(dagBody, runId);
+            Logger::info("CronScheduler: Dag job result, id=" + job.id +
+                        ", success=" + std::string(r.success ? "true" : "false") +
+                        ", message=" + r.message);
+            return r.success;
+        }
+
+        bool dispatch_template_job(const CronJob& job, const std::string& runId)
+        {
+            if (!job.templatePayload.has_value()) {
+                Logger::error("CronScheduler: templatePayload not set for Template job id=" + job.id);
+                return false;
+            }
+            const auto& payload = *job.templatePayload;
+            auto& store = tpl::TemplateStore::instance();
+            auto tplOpt = store.get(payload.templateId);
+            if (!tplOpt) {
+                Logger::error("CronScheduler: template not found, id=" + payload.templateId);
+                return false;
+            }
+
+            tpl::ParamMap p;
+            for (auto& [k, v] : payload.params.items()) {
+                p[k] = v;
+            }
+            auto r = tpl::TemplateRenderer::render(*tplOpt, p);
+            if (!r.ok) {
+                Logger::error("CronScheduler: template render error: " + r.error);
+                return false;
+            }
+
+            json rendered = std::move(r.rendered);
+            if (!rendered.contains("config") || !rendered["config"].is_object()) {
+                rendered["config"] = json::object();
+            }
+            rendered["config"]["template_id"] = payload.templateId;
+            rendered["config"]["cron_job_id"] = job.id;
+            if (!rendered.contains("name")) {
+                rendered["name"] = tplOpt->name;
+            }
+            rendered["config"]["name"] = rendered.value("name", tplOpt->name);
+
+            dagrun::injectRunId(rendered, runId);
+            dagrun::persistRunAndTasks(runId, rendered, "cron");
+
+            auto dagResult = dag::DagService::instance().runDag(rendered, runId);
+            Logger::info("CronScheduler: Template job result, id=" + job.id +
+                        ", success=" + std::string(dagResult.success ? "true" : "false") +
+                        ", message=" + dagResult.message);
+            return dagResult.success;
+        }
+
+        bool dispatch_job(const CronJob& job, const std::string& runId)
+        {
+            switch (job.targetType) {
+                case CronTargetType::SingleTask:
+                    return dispatch_single_task(job, runId);
+                case CronTargetType::Dag:
+                    return dispatch_dag_job(job, runId);
+                case CronTargetType::Template:
+                    return dispatch_template_job(job, runId);
+                default:
+                    Logger::warn("CronScheduler: Unknown targetType for job id=" + job.id);
+                    return false;
+            }
+        }
+    }
     CronScheduler &CronScheduler::instance()
     {
         // TODO: 在此处插入 return 语句
@@ -130,65 +257,9 @@ namespace taskhub::scheduler {
                     const std::string runTag = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
                     const std::string runId  = "cron_" + jobCopy.id + "_" + runTag;
 
-                                // ===== 真正执行逻辑（同步调用） =====
+                    // ===== 真正执行逻辑（同步调用） =====
                     try {
-                        if (jobCopy.targetType == CronTargetType::SingleTask) {
-                            auto& runner=runner::TaskRunner::instance();
-                            if (!jobCopy.taskTemplate.has_value()) {
-                                Logger::error("CronScheduler: taskTemplate not set for SingleTask job id=" +
-                                    jobCopy.id);
-                            } else {
-                                core::TaskConfig cfg = *jobCopy.taskTemplate;
-
-                                cfg.id.runId = runId;
-
-                                Logger::info("CronScheduler: execute SingleTask job, taskId=" + cfg.id.value);
-                                core::TaskResult r = runner.run(cfg, nullptr);
-
-                                Logger::info("CronScheduler: SingleTask result, taskId=" + cfg.id.value +
-                                            ", status=" + std::to_string(static_cast<int>(r.status)) +
-                                            ", message=" + r.message);
-                            }
-                        } else if (jobCopy.targetType == CronTargetType::Dag) {
-                            auto& dagService=dag::DagService::instance();
-
-                            if (jobCopy.dagPayload.has_value()) {
-                                auto d = *jobCopy.dagPayload; // copy to mutate runId
-
-                                nlohmann::json dagBody;
-                                dagBody["name"] = jobCopy.name;
-                                nlohmann::json cfgJson = nlohmann::json::object();
-                                cfgJson["fail_policy"] = d.config.failPolicy == dag::FailPolicy::FailFast ? "FailFast" : "SkipDownstream";
-                                cfgJson["max_parallel"] = d.config.maxParallel;
-                                cfgJson["cron_job_id"]  = jobCopy.id;
-                                cfgJson["name"]         = jobCopy.name;
-                                dagBody["config"]       = cfgJson;
-
-                                nlohmann::json tasks = nlohmann::json::array();
-                                for (const auto& spec : d.specs) {
-                                    nlohmann::json jt = core::buildRequestJson(spec.runnerCfg)["task"];
-                                    jt["id"] = spec.id.value;
-                                    nlohmann::json deps = nlohmann::json::array();
-                                    for (const auto& dep : spec.deps) {
-                                        deps.push_back(dep.value);
-                                    }
-                                    jt["deps"] = std::move(deps);
-                                    tasks.push_back(std::move(jt));
-                                }
-                                dagBody["tasks"] = std::move(tasks);
-
-                                dagrun::injectRunId(dagBody, runId);
-                                dagrun::persistRunAndTasks(runId, dagBody, "cron");
-
-                                auto r = dagService.runDag(dagBody, runId);
-                                Logger::info("CronScheduler: Dag job result, id=" + jobCopy.id +
-                                                ", success=" + std::string(r.success ? "true" : "false") +
-                                                ", message=" + r.message);
-                            }
-                           
-                        } else {
-                            Logger::warn("CronScheduler: Unknown targetType for job id=" + jobCopy.id);
-                        }
+                        dispatch_job(jobCopy, runId);
                     } catch (const std::exception& ex) {
                         Logger::error(std::string("CronScheduler: exception when executing job id=")
                                     + jobCopy.id + ", what=" + ex.what());

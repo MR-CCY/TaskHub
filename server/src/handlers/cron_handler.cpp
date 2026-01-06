@@ -47,7 +47,9 @@ void CronHandler::list_jobs(const httplib::Request& req,
         item["enabled"]     = job.enabled;
         item["target_type"] = (job.targetType == CronTargetType::SingleTask)
                                 ? "SingleTask"
-                                : (job.targetType == CronTargetType::Dag ? "Dag" : "Unknown");
+                                : (job.targetType == CronTargetType::Dag
+                                    ? "Dag"
+                                    : (job.targetType == CronTargetType::Template ? "Template" : "Unknown"));
 
         // next_time 简单转成时间戳（你后面可以封装成 ISO 字符串）
         auto ts = std::chrono::duration_cast<std::chrono::seconds>(
@@ -61,6 +63,9 @@ void CronHandler::list_jobs(const httplib::Request& req,
             const auto& cfg = *job.taskTemplate;
             summary["exec_type"]    = TaskExecTypetoString(cfg.execType);
             summary["exec_command"] = cfg.execCommand;
+        } else if (job.targetType == CronTargetType::Template &&
+                   job.templatePayload.has_value()) {
+            summary["template_id"] = job.templatePayload->templateId;
         }
         item["summary"] = summary;
 
@@ -74,6 +79,7 @@ void CronHandler::list_jobs(const httplib::Request& req,
 //   Body JSON:
 //     SingleTask: {"name":"job1","spec":"*/1 * * * *","target_type":"SingleTask","task":{"id":"task","name":"...","exec_type":"Local|Remote|Shell", "exec_command":"...", "timeout_ms":0,"retry_count":0,"priority":"Normal|Low|High|Critical"}}
 //     Dag: {"name":"job1","spec":"*/1 * * * *","target_type":"Dag","dag":{"config":{"fail_policy":"SkipDownstream"|"FailFast","max_parallel":4},"tasks":[{"id":"a","deps":["b"],"name":"a","timeout_ms":0,"retry_count":0,"retryDelay":1000,"exec_type":"Local","exec_command":"..."}]}}
+//     Template: {"name":"job1","spec":"*/1 * * * *","target_type":"Template","template":{"template_id":"tpl-1","params":{...}}}
 // Response:
 //   200 {"ok":true,"job_id":"job_x"}
 //   400 {"ok":false,"message":"..."}（缺字段/解析失败）
@@ -96,6 +102,8 @@ void CronHandler::create_job(const httplib::Request& req,
         CronTargetType targetType = CronTargetType::SingleTask;
         if (targetTypeStr == "Dag") {
             targetType = CronTargetType::Dag;
+        } else if (targetTypeStr == "Template") {
+            targetType = CronTargetType::Template;
         }
 
         // 2. 构造 CronJob（id 简单用 name + 时间戳，你也可以自己改成别的规则）
@@ -224,6 +232,23 @@ void CronHandler::create_job(const httplib::Request& req,
 
             job.targetType = CronTargetType::Dag;
             job.dagPayload = std::move(payload);
+        } else if (targetType == CronTargetType::Template) {
+            if (!body.contains("template") || !body["template"].is_object()) {
+                resp::error(res, 400, "Template requires 'template' object", 400);
+                return;
+            }
+            auto jtpl = body["template"];
+            const std::string templateId = jtpl.value("template_id", "");
+            json params = jtpl.value("params", json::object());
+            if (templateId.empty() || !params.is_object()) {
+                resp::error(res, 400, "template_id/params is required", 400);
+                return;
+            }
+            CronJob::TemplateJobPayload payload;
+            payload.templateId = templateId;
+            payload.params = std::move(params);
+            job.targetType = CronTargetType::Template;
+            job.templatePayload = std::move(payload);
         }
 
         // 4. 加入 CronScheduler

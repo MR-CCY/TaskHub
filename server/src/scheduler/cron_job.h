@@ -2,11 +2,13 @@
 
 #include <string>
 #include <chrono>
+#include <optional>
 #include "cron_parser.h"
 #include "runner/task_config.h" 
 #include "dag/dag_types.h"
 #include "dag/dag_builder.h"
 #include "dag/dag_run_context.h"
+#include "json.hpp"
 namespace taskhub::scheduler {
 
 /// 未来会扩展：单任务 / DAG 等
@@ -44,6 +46,11 @@ struct CronJob {
         dag::DagEventCallbacks callbacks;
     };
     std::optional<DagJobPayload> dagPayload;
+    struct TemplateJobPayload {
+        std::string templateId;
+        nlohmann::json params;
+    };
+    std::optional<TemplateJobPayload> templatePayload;
 
     // 构造函数：从 spec 解析出 cronExpr，并且计算 nextTime
     CronJob(const std::string& jobId,

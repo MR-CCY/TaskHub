@@ -33,6 +33,7 @@ private:
     void handle_command(const std::string& payload);
     void subscribe(const std::string& channel);
     void unsubscribe(const std::string& channel);
+    void stop_proxy();
 
     void do_read();
     void on_read(beast::error_code ec, std::size_t bytes_transferred);
@@ -45,6 +46,9 @@ private:
     mutable std::mutex sub_mtx_;
     std::unordered_set<std::string> subscriptions_;
     bool authed_{false};
+    bool proxy_mode_{false};
+    std::string auth_token_;
+    std::shared_ptr<class WsProxyClient> proxy_client_;
     std::deque<std::chrono::steady_clock::time_point> cmd_timestamps_;
 };
 

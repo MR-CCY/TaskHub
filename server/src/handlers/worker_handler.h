@@ -15,6 +15,9 @@ private:
     static void workers_heartbeat(const httplib::Request& req, httplib::Response& res);
     static void workers_list(const httplib::Request& req, httplib::Response& res);
     static void workers_connected(const httplib::Request& req, httplib::Response& res);
+    static void workers_proxy_logs(const httplib::Request& req, httplib::Response& res);
+    static void workers_proxy_task_runs(const httplib::Request& req, httplib::Response& res);
+    static void workers_proxy_task_events(const httplib::Request& req, httplib::Response& res);
     static void worker_execute(const httplib::Request& req, httplib::Response& res);
 };
 
