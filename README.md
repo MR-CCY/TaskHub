@@ -136,6 +136,10 @@ cmake --build build
 - Master -> Worker 的远程派发可通过 `exec_params` 扩展：
   - `remote.payload_type`: `task|dag|template`
   - `remote.payload_json`: JSON 字符串（对应 payload）
+- 本地同步 DAG / Template 任务：
+  - `exec_type: Dag`，`exec_params.dag_json` = DAG JSON 字符串
+  - `exec_type: Template`，`exec_params.template_id` + `exec_params.template_params_json`
+  - 会生成新的 `run_id` 并落库（`dag_run`/`task_run`），payload 内部 `run_id` 会被覆盖
 - 日志透传：`GET /api/workers/proxy/logs?worker_id=...&task_id=...`
 - DAG/事件透传：`/api/workers/proxy/dag/task_runs`、`/api/workers/proxy/dag/events`
 - WS 透传：在 Master WS 连接上发送 `{"op":"proxy","worker_id":"..."}`，后续消息直达 Worker WS

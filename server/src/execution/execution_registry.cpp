@@ -4,6 +4,8 @@
 #include "http_strategy.h"
 #include "script_strategy.h"
 #include "remote_strategy.h"
+#include "dag_strategy.h"
+#include "template_strategy.h"
 #include "log/logger.h"
 namespace taskhub::runner {
     ExecutionStrategyRegistry &ExecutionStrategyRegistry::instance()
@@ -44,6 +46,12 @@ namespace taskhub::runner {
         //
         reg.registerStrategy(core::TaskExecType::Remote,
                              std::make_unique<RemoteExecutionStrategy>());
+
+        reg.registerStrategy(core::TaskExecType::Dag,
+                             std::make_unique<DagExecutionStrategy>());
+
+        reg.registerStrategy(core::TaskExecType::Template,
+                             std::make_unique<TemplateExecutionStrategy>());
     
         Logger::info("ExecutionStrategyRegistry: default strategies registered");
     }

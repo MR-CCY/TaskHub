@@ -23,6 +23,8 @@ enum class TaskExecType {
     Script,     // 执行脚本
     HttpCall,   // 调用 HTTP API
     Shell,      // Shell 命令
+    Dag,        // 同步执行 DAG
+    Template,   // 同步执行模板
 };
 
 /// TaskConfig：描述一个任务的所有必要执行参数
@@ -45,6 +47,10 @@ struct TaskConfig {
     // { "handler": "taskA_handler" }
     // Remote
     // { "inner_exec_type": "Shell" }
+    // Dag
+    // { "dag_json": "{...}" }
+    // Template
+    // { "template_id": "tpl-1", "template_params_json": "{...}" }
     std::unordered_map<std::string, std::string> execParams; // 参数包
 
     // ---- 超时配置（M7）----
@@ -94,6 +100,10 @@ inline std::string TaskExecTypetoString(TaskExecType type){
             return "HttpCall";
         case TaskExecType::Shell:
             return "Shell";
+        case TaskExecType::Dag:
+            return "Dag";
+        case TaskExecType::Template:
+            return "Template";
         default:
             return "Unknown";
     }
@@ -108,6 +118,8 @@ inline TaskExecType StringToTaskExecType(std::string type){
     if (type == "script")  return TaskExecType::Script;
     if (type == "httpcall" || type == "http_call" || type == "http") return TaskExecType::HttpCall;
     if (type == "shell")   return TaskExecType::Shell;
+    if (type == "dag")     return TaskExecType::Dag;
+    if (type == "template" || type == "temple") return TaskExecType::Template;
 
     return TaskExecType::Local;
 }

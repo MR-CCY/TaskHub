@@ -845,6 +845,34 @@ Remote 任务扩展（Master -> Worker）：
 }
 ```
 
+本地同步 DAG / Template 任务（exec_type）：
+- `exec_type: "Dag"`，`exec_params.dag_json` = DAG JSON 字符串
+- `exec_type: "Template"`，`exec_params.template_id` + `exec_params.template_params_json`（JSON 字符串）
+- 会生成新的 `run_id` 并落库（`dag_run`/`task_run`）；payload 内部的 `run_id` 会被覆盖
+
+示例（Dag 任务）：
+```json
+{
+  "id": "dag-task-1",
+  "exec_type": "Dag",
+  "exec_params": {
+    "dag_json": "{\"tasks\":[{\"id\":\"a\",\"exec_type\":\"Shell\",\"exec_command\":\"echo a\"}]}"
+  }
+}
+```
+
+示例（Template 任务）：
+```json
+{
+  "id": "tpl-task-1",
+  "exec_type": "Template",
+  "exec_params": {
+    "template_id": "tpl-1",
+    "template_params_json": "{\"name\":\"demo\"}"
+  }
+}
+```
+
 ## WebSocket Protocol (Beast server)
 
 ### Connect and Auth
