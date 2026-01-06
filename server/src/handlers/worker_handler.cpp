@@ -1,5 +1,5 @@
 #include "worker_handler.h"
-#include "worker/worker_registry.h"
+#include "worker/server_worker_registry.h"
 #include "log/logger.h"
 #include "json.hpp"
 #include "runner/task_config.h"
@@ -12,7 +12,7 @@ using json = nlohmann::json;
 
 namespace taskhub
 { 
-    using taskhub::worker::WorkerRegistry;
+    using taskhub::worker::ServerWorkerRegistry;
     using taskhub::worker::WorkerInfo;
 
     namespace {
@@ -105,7 +105,7 @@ namespace taskhub
                 return;
             }
 
-            WorkerRegistry::instance().upsertWorker(info);
+            ServerWorkerRegistry::instance().upsertWorker(info);
 
             Logger::info("Worker registered: id=" + info.id + ", host=" + info.host +
                          ", port=" + std::to_string(info.port) +
@@ -140,7 +140,7 @@ namespace taskhub
                 return;
             }
     
-            bool ok = WorkerRegistry::instance().touchHeartbeat(id, running);
+            bool ok = ServerWorkerRegistry::instance().touchHeartbeat(id, running);
             if (!ok) {
                 Logger::warn("worker heartbeat: worker not found"+id);
                 resp::error(res, 404, "worker not found", 404);
@@ -160,7 +160,7 @@ namespace taskhub
     {
         Logger::info("Worker list request");
         try {
-            auto workers = WorkerRegistry::instance().listWorkers();
+            auto workers = ServerWorkerRegistry::instance().listWorkers();
 
             json arr = json::array();
             for (const auto& w : workers) {
@@ -186,7 +186,7 @@ namespace taskhub
     {
         Logger::info("Worker connected list request");
         try {
-            auto workers = WorkerRegistry::instance().listWorkers();
+            auto workers = ServerWorkerRegistry::instance().listWorkers();
 
             json arr = json::array();
             for (const auto& w : workers) {

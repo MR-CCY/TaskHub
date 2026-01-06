@@ -13,14 +13,15 @@ namespace taskhub::worker {
 
 class WorkerSelector;
 
-class WorkerRegistry {
+// Server-side registry used by Master to track and schedule workers.
+class ServerWorkerRegistry {
     public:
-        static WorkerRegistry& instance();
+        static ServerWorkerRegistry& instance();
             // 不允许拷贝 / 移动
-        WorkerRegistry(const WorkerRegistry&) = delete;
-        WorkerRegistry& operator=(const WorkerRegistry&) = delete;
-        WorkerRegistry(WorkerRegistry&&) = delete;
-        WorkerRegistry& operator=(WorkerRegistry&&) = delete;
+        ServerWorkerRegistry(const ServerWorkerRegistry&) = delete;
+        ServerWorkerRegistry& operator=(const ServerWorkerRegistry&) = delete;
+        ServerWorkerRegistry(ServerWorkerRegistry&&) = delete;
+        ServerWorkerRegistry& operator=(ServerWorkerRegistry&&) = delete;
         void upsertWorker(const WorkerInfo& info);    // 注册或更新
         void removeWorker(const std::string& id);
         std::vector<WorkerInfo> listWorkers() const;
@@ -35,7 +36,7 @@ class WorkerRegistry {
         void stopSweeper();
         
     private:
-        WorkerRegistry(); 
+        ServerWorkerRegistry();
         void initSelector();
         mutable std::mutex _mutex;
         std::unordered_map<std::string, WorkerInfo> _workers;

@@ -6,6 +6,7 @@
 #include <chrono>
 #include <vector>
 namespace taskhub::worker {
+    // Worker-side heartbeat client running inside worker process.
     class WorkerHeartbeatClient {
     public:
         void start(std::string masterHost,

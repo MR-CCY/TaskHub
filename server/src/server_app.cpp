@@ -14,7 +14,7 @@
 #include "execution/execution_registry.h"
 #include "scheduler/cron_scheduler.h"
 #include "dag/dag_types.h" 
-#include "worker/worker_registry.h"   
+#include "worker/server_worker_registry.h"   
 #include <filesystem>
 #include <vector>
 #include "worker/worker_heartbeat_client.h"
@@ -90,7 +90,7 @@ namespace taskhub {
                             std::to_string(intervalMs) + "ms");
 
         }else{
-            worker::WorkerRegistry::instance().startSweeper(std::chrono::seconds(5),
+            worker::ServerWorkerRegistry::instance().startSweeper(std::chrono::seconds(5),
                                                         std::chrono::seconds(60));
         }
         

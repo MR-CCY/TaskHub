@@ -21,12 +21,12 @@ sequenceDiagram
 
     W1->>S: POST /api/workers/register (id/host/port/queues/labels/max_running_tasks/running_tasks)
     W2->>S: POST /api/workers/register (...)
-    S->>S: WorkerRegistry.upsertWorker()
+    S->>S: ServerWorkerRegistry.upsertWorker()
 
     loop Heartbeat
         W1->>S: POST /api/workers/heartbeat (id/running_tasks)
         W2->>S: POST /api/workers/heartbeat (id/running_tasks)
-        S->>S: WorkerRegistry.touchHeartbeat()
+        S->>S: ServerWorkerRegistry.touchHeartbeat()
     end
 
     Note over S: TaskRunner -> RemoteExecutionStrategy -> WorkerSelector

@@ -1,7 +1,7 @@
 #include "remote_strategy.h"
 #include <json.hpp>
 #include <httplib.h>
-#include "worker/worker_registry.h"
+#include "worker/server_worker_registry.h"
 #include "worker/worker_info.h"
 #include "runner/task_config.h"
 #include "runner/task_result.h"
@@ -409,7 +409,7 @@ namespace taskhub::runner {
                 return result;
             }
 
-            auto optWorker = worker::WorkerRegistry::instance().pickWorkerForQueue(queue);
+            auto optWorker = worker::ServerWorkerRegistry::instance().pickWorkerForQueue(queue);
             if (!optWorker.has_value()) {
                 result.status  = core::TaskStatus::Failed;
                 result.message = "RemoteExecution: no available worker for queue=" + queue;
@@ -450,7 +450,7 @@ namespace taskhub::runner {
             DispatchAttemptResult attemptResult = dispatch_once(worker);
             result = attemptResult.result;
             if (attemptResult.retryable) {
-                worker::WorkerRegistry::instance().markDispatchFailure(worker.id, cooldown);
+                worker::ServerWorkerRegistry::instance().markDispatchFailure(worker.id, cooldown);
             }
             if (!attemptResult.retryable || attempt == maxAttempts) {
                 return result;

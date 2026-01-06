@@ -1,4 +1,4 @@
-#include "worker_registry.h"
+#include "server_worker_registry.h"
 #include <cctype>
 #include "log/logger.h"
 #include "worker_selector.h"
@@ -6,6 +6,12 @@
 
 namespace taskhub::worker {
 namespace {
+    /**
+     * @brief 将策略名称标准化为小写格式
+     * 
+     * @param value 输入的策略名称字符串
+     * @return std::string 标准化后的小写策略名称，如果输入为空则返回"least-load"
+     */
     std::string normalize_strategy_name(const std::string& value) {
         if (value.empty()) return "least-load";
         std::string s(value);
@@ -16,19 +22,32 @@ namespace {
     }
 }
 
-    WorkerRegistry& WorkerRegistry::instance()
+    /**
+     * @brief 获取ServerWorkerRegistry单例实例
+     * 
+     * @return ServerWorkerRegistry& 单例实例的引用
+     */
+    ServerWorkerRegistry& ServerWorkerRegistry::instance()
     {
-        // TODO: 在此处插入 return 语句
-        static WorkerRegistry instance;
+        static ServerWorkerRegistry instance;
         return instance;
     }
 
-    WorkerRegistry::WorkerRegistry()
+    /**
+     * @brief 构造ServerWorkerRegistry实例，初始化选择器
+     */
+    ServerWorkerRegistry::ServerWorkerRegistry()
     {
         initSelector();
     }
 
-    void WorkerRegistry::initSelector()
+    /**
+     * @brief 初始化工作进程选择策略
+     * 
+     * 从配置中读取工作进程选择策略，默认为"least-load"，
+     * 根据配置创建相应的选择器实例（RoundRobinSelector或LeastLoadSelector）
+     */
+    void ServerWorkerRegistry::initSelector()
     {
         const std::string configured = taskhub::Config::instance().get<std::string>(
             "worker.select_strategy", "least-load");
@@ -41,10 +60,17 @@ namespace {
             }
             _selector = std::make_unique<LeastLoadSelector>();
         }
-        Logger::info("Worker selector strategy: " + std::string(_selector->name()));
+        Logger::info("ServerWorkerRegistry selector strategy: " + std::string(_selector->name()));
     }
 
-    void WorkerRegistry::upsertWorker(const WorkerInfo &info)
+    /**
+     * @brief 更新或插入工作进程信息
+     * 
+     * 将工作进程信息添加到注册表中，如果已存在则更新，同时更新心跳时间
+     * 
+     * @param info 工作进程信息
+     */
+    void ServerWorkerRegistry::upsertWorker(const WorkerInfo &info)
     {
         {
             std::lock_guard<std::mutex> lk(_mutex);
@@ -59,13 +85,23 @@ namespace {
         _sweeperCv.notify_one();
     }
 
-    void WorkerRegistry::removeWorker(const std::string &id)
+    /**
+     * @brief 从注册表中移除指定ID的工作进程
+     * 
+     * @param id 要移除的工作进程ID
+     */
+    void ServerWorkerRegistry::removeWorker(const std::string &id)
     {
         std::lock_guard<std::mutex> lk(_mutex);
         _workers.erase(id);
     }
 
-    std::vector<WorkerInfo> WorkerRegistry::listWorkers() const
+    /**
+     * @brief 获取所有注册的工作进程列表
+     * 
+     * @return std::vector<WorkerInfo> 工作进程信息列表的副本
+     */
+    std::vector<WorkerInfo> ServerWorkerRegistry::listWorkers() const
     {
         std::lock_guard<std::mutex> lk(_mutex);
         std::vector<WorkerInfo> result;
@@ -76,7 +112,14 @@ namespace {
         return result;
     }
 
-    bool WorkerRegistry::touchHeartbeat(const std::string &id, int runningTasks)
+    /**
+     * @brief 更新指定工作进程的心跳时间和运行任务数
+     * 
+     * @param id 工作进程ID
+     * @param runningTasks 当前运行的任务数
+     * @return bool 如果找到对应ID的工作进程并更新成功返回true，否则返回false
+     */
+    bool ServerWorkerRegistry::touchHeartbeat(const std::string &id, int runningTasks)
     {
         std::lock_guard<std::mutex> lk(_mutex);
 
@@ -90,7 +133,13 @@ namespace {
         return true;
     }
 
-    std::optional<WorkerInfo> WorkerRegistry::pickWorkerForQueue(const std::string &queue) const
+    /**
+     * @brief 为指定队列选择一个合适的工作进程
+     * 
+     * @param queue 队列名称
+     * @return std::optional<WorkerInfo> 选中的工作进程信息，如果没有选择器则返回nullopt
+     */
+    std::optional<WorkerInfo> ServerWorkerRegistry::pickWorkerForQueue(const std::string &queue) const
     {
         std::lock_guard<std::mutex> lk(_mutex);
         if (!_selector) {
@@ -99,7 +148,13 @@ namespace {
         return _selector->pick(_workers, queue);
     }
 
-    void WorkerRegistry::markDispatchFailure(const std::string &id, std::chrono::milliseconds cooldown)
+    /**
+     * @brief 标记工作进程调度失败并设置冷却时间
+     * 
+     * @param id 工作进程ID
+     * @param cooldown 冷却时间
+     */
+    void ServerWorkerRegistry::markDispatchFailure(const std::string &id, std::chrono::milliseconds cooldown)
     {
         std::lock_guard<std::mutex> lk(_mutex);
         auto it = _workers.find(id);
@@ -116,7 +171,7 @@ namespace {
      * 
      * @param pruneAfter 指定工作进程死亡后等待清理的时间阈值
      */
-    void WorkerRegistry::pruneDeadWorkers(std::chrono::milliseconds pruneAfter)
+    void ServerWorkerRegistry::pruneDeadWorkers(std::chrono::milliseconds pruneAfter)
     {
         std::lock_guard<std::mutex> lk(_mutex);
         Logger::debug("Pruning dead workers...");
@@ -149,7 +204,7 @@ namespace {
      * @param sweepInterval 清理间隔时间，每隔此时间执行一次清理操作
      * @param pruneAfter 判断工作进程死亡的时间阈值，超过此时间未响应的工作进程将被清理
      */
-    void WorkerRegistry::startSweeper(std::chrono::milliseconds sweepInterval, std::chrono::milliseconds pruneAfter)
+    void ServerWorkerRegistry::startSweeper(std::chrono::milliseconds sweepInterval, std::chrono::milliseconds pruneAfter)
     {
         // 如果已经启动过，先停掉再启动，避免重复线程
         stopSweeper();
@@ -196,7 +251,7 @@ namespace {
          * 该函数用于停止后台的清理线程。首先设置停止标志位，然后等待清理线程结束。
          * 如果清理线程正在运行且可连接，则等待其执行完毕。
          */
-        void WorkerRegistry::stopSweeper()
+        void ServerWorkerRegistry::stopSweeper()
         {
             _stopSweeper.store(true, std::memory_order_release);
             _sweeperCv.notify_all();

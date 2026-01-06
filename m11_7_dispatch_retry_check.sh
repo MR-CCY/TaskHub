@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# 查找Python解释器
 PYTHON_BIN=""
 if command -v python3 >/dev/null 2>&1; then
   PYTHON_BIN="python3"
@@ -27,7 +28,7 @@ if [[ -z "${SERVER_BIN}" ]]; then
 fi
 
 if [[ -z "${SERVER_BIN}" ]]; then
-  echo "taskhub_server not found. Build it first or set TASKHUB_SERVER_BIN."
+  echo "taskhub_server not found. Build it first or set TASKHUB_FORCE_KILL_PORTS=1."
   exit 1
 fi
 
@@ -37,6 +38,8 @@ WORKER1_PORT=8083
 WORKER2_PORT=8084
 MASTER_URL="http://${MASTER_HOST}:${MASTER_PORT}"
 
+# 检查指定端口是否被占用
+# 参数: $1 - 要检查的端口号
 port_in_use() {
   local port="$1"
   if command -v lsof >/dev/null 2>&1; then
@@ -50,6 +53,8 @@ port_in_use() {
   return 1
 }
 
+# 终止占用指定端口的进程
+# 参数: $1 - 端口号
 kill_port_listeners() {
   local port="$1"
   if ! command -v lsof >/dev/null 2>&1; then
@@ -62,6 +67,8 @@ kill_port_listeners() {
   fi
 }
 
+# 确保指定端口是空闲的，如果被占用则根据设置决定是否强制终止
+# 参数: $1 - 端口号
 ensure_port_free() {
   local port="$1"
   if port_in_use "${port}"; then
@@ -83,6 +90,8 @@ ensure_port_free() {
   fi
 }
 
+# 等待指定端口关闭
+# 参数: $1 - 端口号, $2 - 重试次数(可选), $3 - 延迟时间(可选)
 wait_for_port_close() {
   local port="$1"
   local retries="${2:-20}"
@@ -167,6 +176,9 @@ if [[ -n "${DB_TEMPLATE}" ]]; then
   cp "${DB_TEMPLATE}" "${WORKER2_DIR}/taskhub_worker2.db"
 fi
 
+# 获取工作节点数量
+# 参数: 无
+# 返回值: WORKERS_COUNT变量中存储的节点数量
 workers_count() {
   local payload
   payload="$(curl -s "${MASTER_URL}/api/workers" 2>/dev/null || true)"
@@ -196,6 +208,8 @@ workers_count() {
   WORKERS_COUNT="$(printf '%s' "${payload}" | grep -o '"id"[[:space:]]*:[[:space:]]*"[^"]*"' | wc -l | tr -d ' ')"
 }
 
+# 格式化JSON输出
+# 参数: $1 - JSON字符串
 pretty_print_json() {
   local payload="${1:-}"
   if [[ -z "${payload}" ]]; then
@@ -212,6 +226,9 @@ pretty_print_json() {
   printf '%s\n' "${payload}"
 }
 
+# 从JSON响应中提取token
+# 参数: $1 - JSON响应字符串
+# 返回值: 提取的token字符串
 extract_token() {
   local payload="${1:-}"
   if [[ -z "${payload}" ]]; then
