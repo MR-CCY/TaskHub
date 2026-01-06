@@ -1,7 +1,25 @@
 #!/usr/bin/env bash
 set -e
 
-ENDPOINT="http://localhost:8082"
+ENDPOINT="${ENDPOINT:-http://localhost:8082}"
+USER="${USER:-admin}"
+PASS="${PASS:-123456}"
+TOKEN=""
+AUTH_HEADER=""
+
+login() {
+  local resp
+  resp=$(curl -s -X POST "$ENDPOINT/api/login" \
+    -H "Content-Type: application/json" \
+    -d "{\"username\":\"$USER\",\"password\":\"$PASS\"}")
+  TOKEN=$(echo "$resp" | jq -r '.data.token')
+  if [[ -z "${TOKEN:-}" || "$TOKEN" == "null" ]]; then
+    echo "ERROR: login failed, no token in response" >&2
+    echo "$resp" >&2
+    exit 1
+  fi
+  AUTH_HEADER="Authorization: Bearer $TOKEN"
+}
 echo "Using endpoint: $ENDPOINT"
 
 # ----------------------------------------
@@ -13,8 +31,10 @@ run_post() {
   echo "=============================="
   echo "▶ $title"
   echo "------------------------------"
-  curl -s -X POST "$@" | jq
+  curl -s -X POST "$@" -H "$AUTH_HEADER" | jq
 }
+
+login
 
 # ----------------------------------------
 # 1. Create SingleTask cron
@@ -31,7 +51,7 @@ run_post "Create Cron SingleTask (every minute)" \
     "name": "cron_test_single",
     "exec_type": "Shell",
     "exec_command": "echo [Cron SingleTask] Hello",
-    "priority": "Normal",
+    "priority": 0,
     "timeout_ms": 0,
     "retry_count": 0
   }
@@ -79,7 +99,7 @@ echo
 echo "=============================="
 echo "▶ List cron jobs"
 echo "------------------------------"
-curl -s "$ENDPOINT/api/cron/jobs" | jq
+curl -s "$ENDPOINT/api/cron/jobs" -H "$AUTH_HEADER" | jq
 
 
 echo

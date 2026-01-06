@@ -148,8 +148,16 @@ cmake --build build
 详见 `API.md`。
 
 ## 脚本
-- `m11_7_dispatch_retry_check.sh`：启动 1 Master + 2 Worker，验证负载调度与 failover 重试。
-- 其他本地脚本：`m11_3.sh`、`m11_4.sh`、`m13.sh` 等。
+- `m7.sh`：M7 超时/重试/取消回归（需要 `jq`）。用法：`./m7.sh`
+- `m7_min.sh`：轮询单个任务状态。用法：`./m7_min.sh <task_id>`
+- `m8.sh`：DAG 回归（`/api/dag/run`，需要登录）。用法：`BASE_URL=http://localhost:8082 ./m8.sh`
+- `dag_abcd_test.sh`：DAG ABCD/SkipDownstream + 日志校验（需要 `python3`，需要登录）。用法：`BASE=http://localhost:8082 ./dag_abcd_test.sh`
+- `m10.sh`：Cron 单任务/ DAG 创建 + 列表（需要登录）。用法：`ENDPOINT=http://localhost:8082 ./m10.sh`
+- `m11_3.sh`：Worker 注册/心跳 + Remote 派发测试（需要登录）。用法：`SERVER=http://localhost:8082 WORKER_PORT=8083 ./m11_3.sh`
+- `m11_4.sh`：Worker TTL/prune 行为测试。用法：`./m11_4.sh`
+- `m11_7_dispatch_retry_check.sh`：启动 1 Master + 2 Worker，验证负载调度与 failover 重试。用法：`TASKHUB_SERVER_BIN=... TASKHUB_FORCE_KILL_PORTS=1 ./m11_7_dispatch_retry_check.sh`
+- `m13.sh`：模板创建/渲染/执行回归（需要登录）。用法：`BASE=http://localhost:8082 ./m13.sh`
+- `m14_dag_template_worker_check.sh`：Dag/Template exec_type + worker_execute DAG 端到端测试。用法：`TASKHUB_SERVER_BIN=... ./m14_dag_template_worker_check.sh`
 
 ## 备注
 - WebSocket 监听端口：`8090`

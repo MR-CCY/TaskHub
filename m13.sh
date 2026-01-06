@@ -2,6 +2,10 @@
 set -euo pipefail
 
 BASE="${BASE:-http://localhost:8082}"
+USER="${USER:-admin}"
+PASS="${PASS:-123456}"
+TOKEN=""
+AUTH_HEADER=""
 
 # 你可以改成自己的
 TID_SINGLE="tpl_single_echo"
@@ -20,6 +24,22 @@ need_cmd() {
 need_cmd curl
 need_cmd jq
 
+login() {
+  local resp
+  resp="$(curl -s -X POST "$BASE/api/login" \
+    -H "Content-Type: application/json" \
+    -d "{\"username\":\"$USER\",\"password\":\"$PASS\"}")"
+  TOKEN="$(echo "$resp" | jq -r '.data.token')"
+  if [ -z "${TOKEN:-}" ] || [ "$TOKEN" == "null" ]; then
+    echo "ERROR: login failed, no token in response"
+    echo "$resp" | jq .
+    exit 1
+  fi
+  AUTH_HEADER="Authorization: Bearer $TOKEN"
+}
+
+login
+
 req() {
   # $1=METHOD $2=URL $3=JSON(optional)
   local method="$1"
@@ -28,10 +48,12 @@ req() {
 
   if [ -n "$data" ]; then
     curl -sS -X "$method" "$url" \
+      -H "$AUTH_HEADER" \
       -H "Content-Type: application/json" \
       -d "$data"
   else
-    curl -sS -X "$method" "$url"
+    curl -sS -X "$method" "$url" \
+      -H "$AUTH_HEADER"
   fi
 }
 

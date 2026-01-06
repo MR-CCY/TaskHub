@@ -2,15 +2,27 @@
 set -euo pipefail
 
 BASE="${BASE:-http://localhost:8082}"
+USER="${USER:-admin}"
+PASS="${PASS:-123456}"
+TOKEN=""
+AUTH_HEADER=""
 
 req() {
   local method="$1"; shift
   local url="$1"; shift
   local body="${1:-}"
   if [[ "$method" == "GET" ]]; then
-    curl -sS "$url"
+    if [[ -n "${TOKEN}" ]]; then
+      curl -sS "$url" -H "$AUTH_HEADER"
+    else
+      curl -sS "$url"
+    fi
   else
-    curl -sS -X "$method" "$url" -H "Content-Type: application/json" -d "$body"
+    if [[ -n "${TOKEN}" ]]; then
+      curl -sS -X "$method" "$url" -H "$AUTH_HEADER" -H "Content-Type: application/json" -d "$body"
+    else
+      curl -sS -X "$method" "$url" -H "Content-Type: application/json" -d "$body"
+    fi
   fi
 }
 
@@ -45,11 +57,11 @@ count_logs() {
 
     # records 长度
     local n
-    n="$(echo "$r" | python3 -c 'import json,sys; o=json.load(sys.stdin); print(len(o.get("records", [])))')"
+    n="$(echo "$r" | python3 -c 'import json,sys; o=json.load(sys.stdin); data=o.get("data",{}) if isinstance(o,dict) else {}; recs=o.get("records") if isinstance(o,dict) else None; recs = recs if isinstance(recs,list) else data.get("records",[]); print(len(recs))')"
 
     # next_from
     local next_from
-    next_from="$(echo "$r" | python3 -c 'import json,sys; o=json.load(sys.stdin); v=o.get("next_from"); print("" if v is None else v)')"
+    next_from="$(echo "$r" | python3 -c 'import json,sys; o=json.load(sys.stdin); data=o.get("data",{}) if isinstance(o,dict) else {}; v=data.get("next_from", o.get("next_from") if isinstance(o,dict) else None); print("" if v is None else v)')"
 
     total=$((total + n))
 
@@ -74,7 +86,9 @@ last_log_ts() {
   echo "$r" | python3 -c '
 import json,sys
 o=json.load(sys.stdin)
-recs=o.get("records",[])
+data=o.get("data",{}) if isinstance(o,dict) else {}
+recs=o.get("records") if isinstance(o,dict) else None
+recs=recs if isinstance(recs,list) else data.get("records",[])
 print(recs[-1].get("ts_ms",0) if recs else 0)
 '
 }
@@ -111,6 +125,15 @@ print(f"[OK] {name} does not contain {notwant}")
 echo "BASE=$BASE"
 echo
 
+resp="$(curl -s -X POST "$BASE/api/login" -H "Content-Type: application/json" -d "{\"username\":\"$USER\",\"password\":\"$PASS\"}")"
+TOKEN="$(echo "$resp" | python3 -c 'import json,sys; data=json.load(sys.stdin); print(data.get("data",{}).get("token",""))')"
+if [[ -z "${TOKEN}" || "${TOKEN}" == "null" ]]; then
+  echo "ERROR: login failed, no token in response"
+  echo "$resp"
+  exit 1
+fi
+AUTH_HEADER="Authorization: Bearer $TOKEN"
+
 # -----------------------------
 # CASE 1: all success
 # -----------------------------
@@ -125,7 +148,7 @@ BODY_OK="$(cat <<'JSON'
 {
   "config": { "fail_policy": "SkipDownstream", "max_parallel": 2 },
   "tasks": [
-    { "id": "A", "exec_type": "Shell", "exec_params": { "inner.exec_command": "echo DAG_A_OK", "inner.exec_type": "Shell" }, "exec_command": "echo DAG_A_OK" },
+    { "id": "A", "exec_type": "Shell", "exec_command": "echo DAG_A_OK" },
     { "id": "B", "deps": ["A"], "exec_type": "Shell", "exec_command": "echo DAG_B_OK" },
     { "id": "C", "deps": ["A"], "exec_type": "Shell", "exec_command": "echo DAG_C_OK" },
     { "id": "D", "deps": ["B","C"], "exec_type": "Shell", "exec_command": "echo DAG_D_OK" }

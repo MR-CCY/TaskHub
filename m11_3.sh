@@ -6,9 +6,16 @@ WORKER_HOST="${WORKER_HOST:-127.0.0.1}"
 WORKER_PORT="${WORKER_PORT:-8083}"
 WORKER_ID="${WORKER_ID:-worker-1}"
 QUEUE="${QUEUE:-default}"
+USER="${USER:-admin}"
+PASS="${PASS:-123456}"
+TOKEN=""
 
 HAS_JQ=0
 command -v jq >/dev/null 2>&1 && HAS_JQ=1
+if [[ $HAS_JQ -ne 1 ]]; then
+  echo "ERROR: jq is required but not installed." >&2
+  exit 1
+fi
 
 pretty() {
   if [[ $HAS_JQ -eq 1 ]]; then jq .; else cat; fi
@@ -26,7 +33,11 @@ req() {
   local method="$1"; shift
   local url="$1"; shift
   local data="$1"; shift
-  curl -sS -X "$method" "$url" -H "Content-Type: application/json" -d "$data"
+  if [[ -n "${TOKEN}" ]]; then
+    curl -sS -X "$method" "$url" -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" -d "$data"
+  else
+    curl -sS -X "$method" "$url" -H "Content-Type: application/json" -d "$data"
+  fi
 }
 
 get_workers() {
@@ -36,6 +47,16 @@ get_workers() {
 echo "Using server: $SERVER"
 echo "Worker: id=$WORKER_ID, host=$WORKER_HOST, port=$WORKER_PORT, queue=$QUEUE"
 echo "TTL: 10s (from isAlive())"
+
+echo "=> 登录获取 TOKEN ..."
+TOKEN="$(curl -s -X POST "$SERVER/api/login" \
+  -H "Content-Type: application/json" \
+  -d "{\"username\":\"$USER\",\"password\":\"$PASS\"}" \
+  | jq -r '.data.token')"
+if [[ -z "${TOKEN}" || "${TOKEN}" == "null" ]]; then
+  echo "ERROR: login failed, no token in response"
+  exit 1
+fi
 
 title "CASE 1: Register worker (expect alive=true, last_seen_ms_ago small)"
 req POST "$SERVER/api/workers/register" "{
@@ -59,7 +80,9 @@ sleep 11
 get_workers | pretty
 
 title "CASE 4: Remote DAG while worker is dead -> expect NO worker available / task fail"
-# 这里用你已经确定的 Remote 约定：exec_params.inner.exec_type/command
+# 使用新 Remote payload 规范：remote.payload_type + remote.payload_json
+REMOTE_PAYLOAD_DEAD="$(jq -c -n --arg id "R_dead" --arg cmd "echo SHOULD_NOT_RUN" \
+  '{id:$id, exec_type:"Shell", exec_command:$cmd}')"
 req POST "$SERVER/api/dag/run" "{
   \"config\": { \"fail_policy\": \"FailFast\", \"max_parallel\": 1 },
   \"tasks\": [
@@ -69,8 +92,8 @@ req POST "$SERVER/api/dag/run" "{
       \"exec_type\": \"Remote\",
       \"queue\": \"$QUEUE\",
       \"exec_params\": {
-        \"inner.exec_type\": \"Shell\",
-        \"inner.exec_command\": \"echo SHOULD_NOT_RUN\"
+        \"remote.payload_type\": \"task\",
+        \"remote.payload_json\": $REMOTE_PAYLOAD_DEAD
       },
       \"timeout_ms\": 5000,
       \"capture_output\": true
@@ -86,6 +109,8 @@ req POST "$SERVER/api/workers/heartbeat" "{
 get_workers | pretty
 
 title "CASE 6: Remote DAG after heartbeat -> expect success + stdout contains hello"
+REMOTE_PAYLOAD_OK="$(jq -c -n --arg id "R_ok" --arg cmd "echo hello_from_remote_OK" \
+  '{id:$id, exec_type:"Shell", exec_command:$cmd}')"
 req POST "$SERVER/api/dag/run" "{
   \"config\": { \"fail_policy\": \"FailFast\", \"max_parallel\": 1 },
   \"tasks\": [
@@ -95,8 +120,8 @@ req POST "$SERVER/api/dag/run" "{
       \"exec_type\": \"Remote\",
       \"queue\": \"$QUEUE\",
       \"exec_params\": {
-        \"inner.exec_type\": \"Shell\",
-        \"inner.exec_command\": \"echo hello_from_remote_OK\"
+        \"remote.payload_type\": \"task\",
+        \"remote.payload_json\": $REMOTE_PAYLOAD_OK
       },
       \"timeout_ms\": 5000,
       \"capture_output\": true

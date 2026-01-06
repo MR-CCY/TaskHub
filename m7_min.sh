@@ -1,8 +1,33 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-API_BASE="http://localhost:8082"
-TOKEN="cFLE6XhTJx2g21gIQONxCI0pjSziHsSZ"  # 用你当前环境里的 TOKEN；或者直接写死：TOKEN="vnu0..."
+API_BASE="${API_BASE:-http://localhost:8082}"
+USER="${USER:-admin}"
+PASS="${PASS:-123456}"
+TASK_ID="${1:-}"
+
+if [[ -z "${TASK_ID}" ]]; then
+  echo "Usage: $0 <task_id>"
+  exit 1
+fi
+
+if ! command -v jq >/dev/null 2>&1; then
+  echo "ERROR: jq is required but not installed." >&2
+  exit 1
+fi
+
+login() {
+  local resp
+  resp=$(curl -s -X POST "$API_BASE/api/login" \
+    -H "Content-Type: application/json" \
+    -d "{\"username\":\"$USER\",\"password\":\"$PASS\"}")
+
+  TOKEN=$(echo "$resp" | jq -r '.data.token')
+  if [[ -z "${TOKEN:-}" || "$TOKEN" == "null" ]]; then
+    echo "ERROR: login failed, no token in response" >&2
+    exit 1
+  fi
+}
 
 wait_task() {
   local id="$1"
@@ -33,4 +58,5 @@ wait_task() {
   done
 }
 
-wait_task 37
+login
+wait_task "${TASK_ID}"

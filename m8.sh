@@ -10,6 +10,10 @@
 
 BASE_URL=${BASE_URL:-http://localhost:8082}
 ENDPOINT="$BASE_URL/api/dag/run"
+USER="${USER:-admin}"
+PASS="${PASS:-123456}"
+TOKEN=""
+AUTH_HEADER=""
 
 echo "Using endpoint: $ENDPOINT"
 echo
@@ -23,6 +27,26 @@ pretty() {
   fi
 }
 
+login() {
+  local resp
+  resp=$(curl -s -X POST "$BASE_URL/api/login" \
+    -H "Content-Type: application/json" \
+    -d "{\"username\":\"$USER\",\"password\":\"$PASS\"}")
+
+  if command -v jq >/dev/null 2>&1; then
+    TOKEN=$(echo "$resp" | jq -r '.data.token')
+  else
+    TOKEN=$(python3 -c 'import json,sys; data=json.load(sys.stdin); print(data.get("data",{}).get("token",""))' <<<"$resp")
+  fi
+
+  if [[ -z "${TOKEN:-}" || "$TOKEN" == "null" ]]; then
+    echo "ERROR: login failed, no token in response" >&2
+    echo "$resp" >&2
+    exit 1
+  fi
+  AUTH_HEADER="Authorization: Bearer $TOKEN"
+}
+
 run_case() {
   local name="$1"
   echo "=============================="
@@ -30,10 +54,12 @@ run_case() {
   echo "------------------------------"
   shift
   # 其余参数传给 curl
-  curl -s "$@" | pretty
+  curl -s "$@" -H "$AUTH_HEADER" | pretty
   echo
   echo
 }
+
+login
 
 # # 1. 线性 DAG：A -> B -> C（全部成功）
 # run_case "CASE 1: linear DAG A -> B -> C (all success)" \
