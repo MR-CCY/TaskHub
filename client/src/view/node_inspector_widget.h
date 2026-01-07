@@ -1,12 +1,17 @@
 #pragma once
-#include <QWidget>
 #include <QVariant>
+#include <QWidget>
 
-class QLineEdit;
-class QCheckBox;
-class QComboBox;
-class QLabel;
-class QPushButton;
+class QJsonObject;
+class QStackedWidget;
+class NodeInspectorCommonWidget;
+class NodeInspectorHttpWidget;
+class NodeInspectorShellWidget;
+class NodeInspectorRemoteWidget;
+class NodeInspectorDagWidget;
+class NodeInspectorTemplateWidget;
+class NodeInspectorActionWidget;
+class NodeInspectorRuntimeWidget;
 
 // Node-level inspector form.
 class NodeInspectorWidget : public QWidget {
@@ -41,54 +46,19 @@ signals:
 
 private:
     void buildUi();
-    void updateLabels(const QString& execType);
-    void setFieldVisible(QLabel* label, QWidget* editor, bool visible);
+    void updateExecSection(const QString& execType);
 
 private:
-    QLabel* nameLabel_ = nullptr;
-    QLabel* cmdLabel_ = nullptr;
-    QLabel* timeoutLabel_ = nullptr;
-    QLabel* retryLabel_ = nullptr;
-    QLabel* queueLabel_ = nullptr;
-    QLabel* captureLabel_ = nullptr;
-    QLabel* httpMethodLabel_ = nullptr;
-    QLabel* httpBodyLabel_ = nullptr;
-    QLabel* shellCwdLabel_ = nullptr;
-    QLabel* shellShellLabel_ = nullptr;
-    QLabel* innerTypeLabel_ = nullptr;
-    QLabel* innerCmdLabel_ = nullptr;
-    QLabel* dagJsonLabel_ = nullptr;
-    QLabel* templateIdLabel_ = nullptr;
-    QLabel* templateParamsLabel_ = nullptr;
-
-    QLineEdit* nameEdit_ = nullptr;
-    QLineEdit* cmdEdit_ = nullptr;
-    QLineEdit* timeoutEdit_ = nullptr;
-    QLineEdit* retryEdit_ = nullptr;
-    QLineEdit* queueEdit_ = nullptr;
-    QCheckBox* captureBox_ = nullptr;
-    QComboBox* httpMethodCombo_ = nullptr;
-    QLineEdit* httpBodyEdit_ = nullptr;
-    QLineEdit* shellCwdEdit_ = nullptr;
-    QLineEdit* shellShellEdit_ = nullptr;
-    QLineEdit* innerTypeEdit_ = nullptr;
-    QLineEdit* innerCmdEdit_ = nullptr;
-    QLineEdit* dagJsonEdit_ = nullptr;
-    QLineEdit* templateIdEdit_ = nullptr;
-    QLineEdit* templateParamsEdit_ = nullptr;
-    QPushButton* saveBtn_ = nullptr;
-    class QTimeEdit* cronTimeEdit_ = nullptr;
-    QPushButton* cronBtn_ = nullptr;
-
-    // runtime display
-    QLabel* runtimeStatusLabel_ = nullptr;
-    QLabel* runtimeDurationLabel_ = nullptr;
-    QLabel* runtimeExitLabel_ = nullptr;
-    QLabel* runtimeAttemptLabel_ = nullptr;
-    QLabel* runtimeWorkerLabel_ = nullptr;
-    QLabel* runtimeMessageLabel_ = nullptr;
-    QLabel* runtimeStdoutLabel_ = nullptr;
-    QLabel* runtimeStderrLabel_ = nullptr;
+    NodeInspectorCommonWidget* common_ = nullptr;
+    QStackedWidget* execStack_ = nullptr;
+    QWidget* emptyExec_ = nullptr;
+    NodeInspectorHttpWidget* http_ = nullptr;
+    NodeInspectorShellWidget* shell_ = nullptr;
+    NodeInspectorRemoteWidget* remote_ = nullptr;
+    NodeInspectorDagWidget* dag_ = nullptr;
+    NodeInspectorTemplateWidget* template_ = nullptr;
+    NodeInspectorActionWidget* actions_ = nullptr;
+    NodeInspectorRuntimeWidget* runtime_ = nullptr;
 
     bool readOnly_ = false;
 };

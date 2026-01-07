@@ -200,7 +200,7 @@ void InspectorPanel::createNodeCron(const QString& spec)
     QJsonObject task;
     static const char* keys[] = {
         "id", "name", "exec_type", "exec_command", "timeout_ms", "retry_count",
-        "retry_delay_ms", "retry_exp_backoff", "priority", "queue", "capture_output"
+        "retry_delay_ms", "retry_exp_backoff", "priority", "queue", "capture_output","description"
     };
     for (auto* key : keys) {
         if (!props.contains(key)) continue;
@@ -253,8 +253,8 @@ void InspectorPanel::saveNodeEdits() {
     pushChange("exec_params.body", exec.value("body"), nodeWidget_->httpBodyValue());
     pushChange("exec_params.cwd", exec.value("cwd"), nodeWidget_->shellCwdValue());
     pushChange("exec_params.shell", exec.value("shell"), nodeWidget_->shellShellValue());
-    pushChange("exec_params.inner.exec_type", exec.value("inner.exec_type"), nodeWidget_->innerExecTypeValue());
-    pushChange("exec_params.inner.exec_command", exec.value("inner.exec_command"), nodeWidget_->innerExecCommandValue());
+    // pushChange("exec_params.inner.exec_type", exec.value("inner.exec_type"), nodeWidget_->innerExecTypeValue());
+    // pushChange("exec_params.inner.exec_command", exec.value("inner.exec_command"), nodeWidget_->innerExecCommandValue());
     const QString execType = props.value("exec_type").toString().trimmed().toLower();
     if (execType == "dag") {
         pushChange("exec_params.dag_json", exec.value("dag_json"), nodeWidget_->dagJsonValue());

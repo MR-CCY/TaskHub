@@ -58,7 +58,7 @@ QJsonObject buildDagJson(CanvasScene* scene, const QString& failPolicy, int maxP
             if (skey == "exec_params") {
                 t[skey] = variantMapToStringObject(v.toMap());
             } else if (skey == "metadata") {
-                t[skey] = variantMapToStringObject(v.toMap());
+                // t[skey] = variantMapToStringObject(v.toMap());
             } else if (skey == "timeout_ms" || skey == "retry_delay_ms") {
                 t[skey] = static_cast<qint64>(v.toLongLong());
             } else if (skey == "retry_count" || skey == "priority") {
