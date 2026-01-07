@@ -16,13 +16,14 @@
 #include "tasks/task_manager.h"
 
 // 引入具体的 Task
-#include "tasks/select_task.h"      // 下面会给你
-#include "tasks/create_task.h"      // 之前给过，稍作调整
+#include "tasks/select_task.h"    
+#include "tasks/create_task.h" 
 #include "tasks/connect_task.h"
 #include "commands/command.h"
 #include "tasks/main_task.h"
 #include "tasks/delete_task.h"
 #include "tasks/import_task.h"
+#include "tasks/layout_task.h"
 #include "tasks/zoom_task.h"
 #include "tasks/edit_node_task.h"
 #include "Item/node_type.h"
@@ -133,6 +134,11 @@ void CanvasBench::editSelectedNode() {
     task->execute();
 }
 
+void CanvasBench::layoutDag() {
+    auto* task = new LayoutTask(scene_, this);
+    taskMgr_->push(task);
+    task->execute();
+}
 
 void CanvasBench::exportJson() {
     const QJsonObject root = buildDagJson(scene_, "SkipDownstream", 4);

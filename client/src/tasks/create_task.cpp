@@ -4,9 +4,27 @@
 #include "view/canvasscene.h"
 #include "Item/rect_item.h"
 #include "Item/node_item_factory.h"
+#include "Item/container_rect_item.h"
 #include "operator/create_rect_operator.h"
 #include <QMouseEvent>
 #include <QDebug>
+#include <QMessageBox>
+
+namespace {
+ContainerRectItem* findContainerAt(QGraphicsScene* scene, const QPointF& scenePos) {
+    if (!scene) return nullptr;
+    const auto items = scene->items(scenePos);
+    for (auto* item : items) {
+        if (auto* container = dynamic_cast<ContainerRectItem*>(item)) {
+            const QRectF inner = container->mapRectToScene(container->contentRect());
+            if (inner.contains(scenePos)) {
+                return container;
+            }
+        }
+    }
+    return nullptr;
+}
+}
 
 CreateTask::CreateTask(QObject* parent) 
     : Task(200, parent) // Level 100, 假设比 SelectTask 高
@@ -30,18 +48,29 @@ bool CreateTask::dispatch(QEvent* e) {
 
             // 2. 创建 Item (Model)
             auto pos = v->mapToScene(me->pos());
+            ContainerRectItem* container = findContainerAt(scene, pos);
+            if (useFactory_ && container && NodeItemFactory::isContainerType(nodeType_)) {
+                QMessageBox::information(v, QObject::tr("提示"), QObject::tr("容器节点不能放入容器"));
+                removeSelf();
+                return true;
+            }
+
             RectItem* item = nullptr;
             if (useFactory_) {
-                item = NodeItemFactory::createNode(nodeType_, QRectF(0, 0, 150, 150));
+                item = NodeItemFactory::createNode(nodeType_, QRectF(0, 0, 150, 150), container);
             } else {
-                item = new RectItem(QRectF(0, 0, 150, 150));
+                item = new RectItem(QRectF(0, 0, 150, 150), container);
             }
             if (!item) {
                 qWarning() << "CreateTask failed to create item";
                 removeSelf();
                 return true;
             }
-            item->setPos(pos);
+            if (container) {
+                item->setPos(container->mapFromScene(pos));
+            } else {
+                item->setPos(pos);
+            }
             
             // 3. 注入上下文 (Crucial Step)
             item->attachContext(scene, nullptr, undo);
@@ -49,6 +78,9 @@ bool CreateTask::dispatch(QEvent* e) {
             // 4. 创建 Operator (Service) 并执行
             CreateRectOperator op(v, item);
             op.doOperator(true);
+            if (container) {
+                container->adjustToChildren();
+            }
 
             // 5. 任务完成，退出自己（一次性任务）
             removeSelf();

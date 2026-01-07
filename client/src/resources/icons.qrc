@@ -11,5 +11,6 @@
     <file>image/http.png</file>
     <file>image/local.png</file>
     <file>image/remote.png</file>
+    <file>image/layout.png</file>
   </qresource>
 </RCC>

@@ -2,6 +2,50 @@
 
 #include "Item/line_item.h"
 #include "Item/rect_item.h"
+#include "Item/container_rect_item.h"
+
+namespace {
+void adjustContainersForItems(const QSet<QGraphicsItem*>& items) {
+    QSet<ContainerRectItem*> containers;
+    for (auto* item : items) {
+        auto* rect = dynamic_cast<RectItem*>(item);
+        if (!rect) continue;
+        auto* container = dynamic_cast<ContainerRectItem*>(rect->parentItem());
+        if (container) {
+            containers.insert(container);
+        }
+    }
+    for (auto* container : containers) {
+        if (container->scene()) {
+            container->adjustToChildren();
+        }
+    }
+}
+
+void adjustContainersForParents(const QHash<QGraphicsItem*, QGraphicsItem*>& parents) {
+    QSet<ContainerRectItem*> containers;
+    for (auto it = parents.begin(); it != parents.end(); ++it) {
+        auto* container = dynamic_cast<ContainerRectItem*>(it.value());
+        if (container) {
+            containers.insert(container);
+        }
+    }
+    for (auto* container : containers) {
+        if (container->scene()) {
+            container->adjustToChildren();
+        }
+    }
+}
+
+void adjustParentContainer(RectItem* item) {
+    if (!item) return;
+    auto* container = dynamic_cast<ContainerRectItem*>(item->parentItem());
+    if (!container) return;
+    if (container->scene()) {
+        container->adjustToChildren();
+    }
+}
+}
 
 BaseCommand::BaseCommand(const QString& text, QUndoCommand* parent)
     : QUndoCommand(text, parent) {}
@@ -36,8 +80,14 @@ void CreateConnectionCommand::unExecute() {
 MoveRectCommand::MoveRectCommand(RectItem* item, QPointF oldPos, QPointF newPos)
     : BaseCommand("Move Rect"), item_(item), oldPos_(oldPos), newPos_(newPos) {}
 
-void MoveRectCommand::execute() { item_->setPos(newPos_); }
-void MoveRectCommand::unExecute() { item_->setPos(oldPos_); }
+void MoveRectCommand::execute() {
+    item_->setPos(newPos_);
+    adjustParentContainer(item_);
+}
+void MoveRectCommand::unExecute() {
+    item_->setPos(oldPos_);
+    adjustParentContainer(item_);
+}
 
 AdjustLineCommand::AdjustLineCommand(LineItem* item, QPointF oldOff, QPointF newOff)
     : BaseCommand("Adjust Line"), item_(item), oldOff_(oldOff), newOff_(newOff) {}
@@ -46,7 +96,12 @@ void AdjustLineCommand::execute() { item_->setControlOffset(newOff_); }
 void AdjustLineCommand::unExecute() { item_->setControlOffset(oldOff_); }
 
 DeleteCommand::DeleteCommand(QGraphicsScene* scene, const QSet<QGraphicsItem*>& items)
-    : BaseCommand("Delete"), scene_(scene), items_(items) {}
+    : BaseCommand("Delete"), scene_(scene), items_(items) {
+    for (auto* item : items_) {
+        parents_[item] = item->parentItem();
+        positions_[item] = item->pos();
+    }
+}
 
 DeleteCommand::~DeleteCommand() {
     if (!items_.isEmpty() && (*items_.begin())->scene() == nullptr) {
@@ -81,9 +136,22 @@ void DeleteCommand::execute() {
         scene_->removeItem(i);
     }
     // for (auto* item : items_) ;
+    adjustContainersForItems(items_);
+    adjustContainersForParents(parents_);
 }
 
 void DeleteCommand::unExecute() {
+    for (auto* i : items_) {
+        auto itParent = parents_.find(i);
+        if (itParent != parents_.end() && itParent.value()) {
+            i->setParentItem(itParent.value());
+        }
+        auto itPos = positions_.find(i);
+        if (itPos != positions_.end()) {
+            i->setPos(itPos.value());
+        }
+    }
+
     for(const auto& i : items_){
         if (auto* item = dynamic_cast<BaseItem*>(i)) {
             if (item->kind() == BaseItem::Kind::Node) {
@@ -107,9 +175,13 @@ void DeleteCommand::unExecute() {
                 }
             }
         }
-        scene_->addItem(i);
+        if (!i->parentItem()) {
+            scene_->addItem(i);
+        }
     }
     // for (auto* item : items_) scene_->addItem(item);
+    adjustContainersForItems(items_);
+    adjustContainersForParents(parents_);
 }
 
 SetPropertyCommand::SetPropertyCommand(RectItem* item, const QString& keyPath, const QVariant& oldValue, const QVariant& newValue, QUndoCommand* parent)

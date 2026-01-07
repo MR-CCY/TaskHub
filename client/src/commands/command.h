@@ -1,6 +1,7 @@
 #pragma once
 #include <QGraphicsItem>
 #include <QGraphicsScene>
+#include <QHash>
 #include <QList>
 #include <QPointF>
 #include <QUndoCommand>
@@ -98,4 +99,6 @@ public:
 private:
     QGraphicsScene* scene_;
     QSet<QGraphicsItem*> items_;
+    QHash<QGraphicsItem*, QGraphicsItem*> parents_;
+    QHash<QGraphicsItem*, QPointF> positions_;
 };

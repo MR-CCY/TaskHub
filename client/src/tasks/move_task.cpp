@@ -42,14 +42,19 @@ bool MoveTask::dispatch(QEvent* e)
         if (auto* rect = dynamic_cast<RectItem*>(target_)) {
             // 移动 Rect：直接 setPos
             // 因为 RectItem 内部实现了 itemChange 通知 LineItem，所以线会自动跟随
-            rect->setPos(scenePos - rect->boundingRect().center());
+            QPointF parentPos = scenePos;
+            if (auto* parent = rect->parentItem()) {
+                parentPos = parent->mapFromScene(scenePos);
+            }
+            rect->setPos(parentPos - rect->boundingRect().center());
         } 
         else if (auto* line = dynamic_cast<LineItem*>(target_)) {
             // 移动 Line：调整贝塞尔控制点
             QPointF p1 = line->mapFromItem(line->startItem(), line->startItem()->boundingRect().center());
             QPointF p2 = line->mapFromItem(line->endItem(), line->endItem()->boundingRect().center());
             QPointF center = (p1 + p2) / 2;
-            line->setControlOffset(scenePos - center);
+            QPointF linePos = line->mapFromScene(scenePos);
+            line->setControlOffset(linePos - center);
         }
         return true;
     }

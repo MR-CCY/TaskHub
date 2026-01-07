@@ -28,6 +28,9 @@ public:
     QString shellShellValue() const;
     QString innerExecTypeValue() const;
     QString innerExecCommandValue() const;
+    QString dagJsonValue() const;
+    QString templateIdValue() const;
+    QString templateParamsJsonValue() const;
     QString cronSpecValue() const;
     void setRuntimeValues(const QJsonObject& obj);
     void setReadOnlyMode(bool ro);
@@ -54,6 +57,9 @@ private:
     QLabel* shellShellLabel_ = nullptr;
     QLabel* innerTypeLabel_ = nullptr;
     QLabel* innerCmdLabel_ = nullptr;
+    QLabel* dagJsonLabel_ = nullptr;
+    QLabel* templateIdLabel_ = nullptr;
+    QLabel* templateParamsLabel_ = nullptr;
 
     QLineEdit* nameEdit_ = nullptr;
     QLineEdit* cmdEdit_ = nullptr;
@@ -67,6 +73,9 @@ private:
     QLineEdit* shellShellEdit_ = nullptr;
     QLineEdit* innerTypeEdit_ = nullptr;
     QLineEdit* innerCmdEdit_ = nullptr;
+    QLineEdit* dagJsonEdit_ = nullptr;
+    QLineEdit* templateIdEdit_ = nullptr;
+    QLineEdit* templateParamsEdit_ = nullptr;
     QPushButton* saveBtn_ = nullptr;
     class QTimeEdit* cronTimeEdit_ = nullptr;
     QPushButton* cronBtn_ = nullptr;

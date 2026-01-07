@@ -6,7 +6,6 @@
 #include <QSet>
 
 #include "base_item.h"
-#include "commands/create_command.h"
 
 class LineItem;
 
@@ -49,6 +48,8 @@ public:
       
       // 可选：提供 rect 访问（子类一般不需要直接碰 rect_）
       QRectF rect() const { return rect_; }
+protected:
+      void setRect(const QRectF& rect);
 protected:
       // 外观参数统一放这里（你后续统一风格只改这里）
       qreal radius_ = 10.0;

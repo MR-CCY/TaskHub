@@ -31,6 +31,7 @@ void DagEditBench::buildUi()
     actDelete_  = toolbar_->addAction(QIcon(":/icons/image/del.png"), tr("删除"));
     actExportJson_ = toolbar_->addAction(QIcon(":/icons/image/daochu.png"), tr("导出 json"));
     actImportJson_ = toolbar_->addAction(QIcon(":/icons/image/daoru.png"), tr("导入 json"));
+    actLayout_ = toolbar_->addAction(QIcon(":/icons/image/layout.png"),tr("布局"));
 
     actUndo_->setShortcut(QKeySequence::Undo);
     actRedo_->setShortcut(QKeySequence::Redo);
@@ -61,6 +62,7 @@ void DagEditBench::wireUi()
     connect(actRedo_, &QAction::triggered, this, &DagEditBench::redo);
     connect(actExportJson_, &QAction::triggered, this, &DagEditBench::exportJson);
     connect(actImportJson_, &QAction::triggered, this, &DagEditBench::importJson);
+    connect(actLayout_, &QAction::triggered, this, &DagEditBench::layoutDag);
 
     if (auto* stack = undoStack()->internalStack()) {
         connect(stack, &QUndoStack::canUndoChanged, actUndo_, &QAction::setEnabled);

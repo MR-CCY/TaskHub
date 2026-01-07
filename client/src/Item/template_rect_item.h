@@ -1,10 +1,9 @@
-// remote_rect_item.h
 #pragma once
 #include "container_rect_item.h"
 
-class RemoteRectItem : public ContainerRectItem {
+class TemplateRectItem : public ContainerRectItem {
 public:
-    explicit RemoteRectItem(const QRectF& rect, QGraphicsItem* parent = nullptr);
+    explicit TemplateRectItem(const QRectF& rect, QGraphicsItem* parent = nullptr);
 
     QString typeLabel() const override;
     QColor headerColor() const override;

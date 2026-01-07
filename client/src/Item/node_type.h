@@ -7,4 +7,6 @@ enum class NodeType {
     Http,
     Remote,
     Local,
+    Dag,
+    Template,
 };

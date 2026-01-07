@@ -67,6 +67,13 @@ void InspectorPanel::buildUi() {
     stack_->addWidget(dagWidget_);
     stack_->addWidget(nodeWidget_);
     stack_->addWidget(lineWidget_);
+
+    const int maxWidth = qMax(dagWidget_->sizeHint().width(),
+                              qMax(nodeWidget_->sizeHint().width(), lineWidget_->sizeHint().width()));
+    if (maxWidth > 0) {
+        stack_->setMinimumWidth(maxWidth);
+        setMinimumWidth(maxWidth);
+    }
 }
 void InspectorPanel::setReadOnlyMode(bool ro)
 {
@@ -248,6 +255,13 @@ void InspectorPanel::saveNodeEdits() {
     pushChange("exec_params.shell", exec.value("shell"), nodeWidget_->shellShellValue());
     pushChange("exec_params.inner.exec_type", exec.value("inner.exec_type"), nodeWidget_->innerExecTypeValue());
     pushChange("exec_params.inner.exec_command", exec.value("inner.exec_command"), nodeWidget_->innerExecCommandValue());
+    const QString execType = props.value("exec_type").toString().trimmed().toLower();
+    if (execType == "dag") {
+        pushChange("exec_params.dag_json", exec.value("dag_json"), nodeWidget_->dagJsonValue());
+    } else if (execType == "template") {
+        pushChange("exec_params.template_id", exec.value("template_id"), nodeWidget_->templateIdValue());
+        pushChange("exec_params.template_params_json", exec.value("template_params_json"), nodeWidget_->templateParamsJsonValue());
+    }
     undo_->endMacro();
     onSelectionChanged();
 }
@@ -261,12 +275,14 @@ void InspectorPanel::saveLineEdits() {
     auto* newEnd = pendingLineEnd_;
     if (!newStart || !newEnd) return;
     if (newStart == currentLine_->startItem() && newEnd == currentLine_->endItem()) return;
+    QGraphicsItem* parent = nullptr;
+    if (!LineItemFactory::canConnect(newStart, newEnd, parent)) return;
     undo_->beginMacro("Reconnect Line");
     QSet<QGraphicsItem*> delItems;
     delItems.insert(currentLine_);
     auto* delCmd = new DeleteCommand(scene_, delItems);
     undo_->push(delCmd);
-    auto* line = LineItemFactory::createLine(newStart, newEnd);
+    auto* line = LineItemFactory::createLine(newStart, newEnd, parent);
     line->attachContext(scene_, nullptr, undo_);
     line->execCreateCmd(true);
     undo_->endMacro();

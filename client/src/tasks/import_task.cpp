@@ -10,12 +10,14 @@
 #include "view/canvasscene.h"
 #include "view/canvasview.h"
 #include "commands/undostack.h"
+#include "tasks/layout_task.h"
 #include "Item/rect_item.h"
 #include "Item/line_item.h"
 #include "Item/line_item_factory.h"
 #include "Item/node_item_factory.h"
 #include "Item/node_type.h"
-
+#include "layout_task.h"
+#include "task_manager.h"
 ImportTask::ImportTask(CanvasScene* scene, UndoStack* undo, CanvasView* view, QWidget* parentWidget, QObject* parent)
     : Task(200, parent), scene_(scene), undo_(undo), view_(view), parentWidget_(parentWidget) {}
 
@@ -70,7 +72,6 @@ void ImportTask::execute() {
 
     // 创建缺失节点（宏包裹）
     undo_->beginMacro("Import DAG");
-    int idx = 0;
     for (const auto& jt : tasks) {
         const QJsonObject obj = jt.toObject();
         const QString id = obj.value("id").toString();
@@ -80,8 +81,6 @@ void ImportTask::execute() {
         NodeType nt = typeFromExec(execType);
         RectItem* node = NodeItemFactory::createNode(nt, QRectF(0, 0, 140, 140));
         if (!node) continue;
-
-        layoutNode(node, idx++);
 
         // props 填充
         QVariantMap cfg;
@@ -123,7 +122,11 @@ void ImportTask::execute() {
             const QString depId = depVal.toString();
             auto* src = idToNode.value(depId, nullptr);
             if (!src || src == target) continue;
-            auto* line = LineItemFactory::createLine(src, target);
+            QGraphicsItem* parent = nullptr;
+            if (!LineItemFactory::canConnect(src, target, parent)) {
+                continue;
+            }
+            auto* line = LineItemFactory::createLine(src, target, parent);
             if (!line) continue;
             line->attachContext(scene_, nullptr, undo_);
             line->execCreateCmd(true);
@@ -131,6 +134,11 @@ void ImportTask::execute() {
     }
 
     undo_->endMacro();
+    if (auto* mgr = manager()) {
+        auto* layoutTask = new LayoutTask(scene_, mgr);
+        mgr->push(layoutTask);
+        layoutTask->execute();
+    }
     removeSelf();
 }
 
@@ -191,23 +199,13 @@ bool ImportTask::resolveConflicts(const QJsonArray& tasks, const QHash<QString, 
     return true;
 }
 
-void ImportTask::layoutNode(RectItem* node, int index) {
-    const int cols = 4;           // 少放点列，行间隔大一些，减少交叉
-    const qreal spacingX = 260;   // 加大横向间距
-    const qreal spacingY = 220;   // 加大纵向间距
-    int row = index / cols;
-    int col = index % cols;
-    // 交错布局：奇数行右移一点，减少竖直重合
-    qreal x = col * spacingX + (row % 2) * (spacingX * 0.4);
-    qreal y = row * spacingY;
-    node->setPos(x, y);
-}
-
 NodeType ImportTask::typeFromExec(const QString& execType) const {
     const QString t = execType.trimmed();
     if (t.compare("Shell", Qt::CaseInsensitive) == 0) return NodeType::Shell;
     if (t.compare("HttpCall", Qt::CaseInsensitive) == 0) return NodeType::Http;
     if (t.compare("Remote", Qt::CaseInsensitive) == 0) return NodeType::Remote;
     if (t.compare("Local", Qt::CaseInsensitive) == 0) return NodeType::Local;
+    if (t.compare("Dag", Qt::CaseInsensitive) == 0) return NodeType::Dag;
+    if (t.compare("Template", Qt::CaseInsensitive) == 0) return NodeType::Template;
     return NodeType::Local;
 }

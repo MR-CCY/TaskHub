@@ -1,6 +1,8 @@
 #include "rect_item.h"
 
 #include "line_item.h"
+#include "container_rect_item.h"
+#include "commands/create_command.h"
 
 static QString ellipsize(const QString& s, int maxChars) {
     if (s.size() <= maxChars) return s;
@@ -16,12 +18,54 @@ void RectItem::execCreateCmd(bool canUndo)
     auto* cmd = new CreateCommand(sceneCtx(), this);
     cmd->pushTo(undo());
 }
+
+void RectItem::setRect(const QRectF& rect)
+{
+    if (rect_ == rect) return;
+    prepareGeometryChange();
+    rect_ = rect;
+    update();
+}
 QVariant RectItem::itemChange(GraphicsItemChange change, const QVariant &value)
 {
+    if (change == ItemPositionChange) {
+        QPointF newPos = value.toPointF();
+        if (auto* parentContainer = dynamic_cast<ContainerRectItem*>(parentItem())) {
+            return newPos;
+        }
+
+        if (scene()) {
+            const bool isContainer = dynamic_cast<ContainerRectItem*>(this) != nullptr;
+            const QRectF newBounds = boundingRect().translated(newPos);
+            for (auto* item : scene()->items()) {
+                auto* container = dynamic_cast<ContainerRectItem*>(item);
+                if (!container || container == this) continue;
+                const QRectF inner = container->mapRectToScene(container->contentRect());
+                if (isContainer) {
+                    if (inner.contains(newBounds)) {
+                        return pos();
+                    }
+                } else {
+                    if (newBounds.intersects(inner)) {
+                        return pos();
+                    }
+                }
+            }
+        }
+        return newPos;
+    }
     if (change == ItemPositionHasChanged) {
         // 当我移动时，通知所有连线更新
         for (auto* line : lines_) {
             line->trackNodes();
+        }
+        if (auto* parentContainer = dynamic_cast<ContainerRectItem*>(parentItem())) {
+            parentContainer->adjustToChildren();
+        }
+    }
+    if (change == ItemSceneHasChanged) {
+        if (auto* parentContainer = dynamic_cast<ContainerRectItem*>(parentItem())) {
+            parentContainer->adjustToChildren();
         }
     }
     return BaseItem::itemChange(change, value);

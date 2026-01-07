@@ -155,11 +155,13 @@ void ApiClient::getJson(const QString& apiName, const QString& path) {
             if (env.data.isObject()) emit infoOk(env.data.toObject());
             else emit requestFailed(apiName, httpStatus, "info data is not an object");
         } else if (apiName == "templates") {
+            QJsonArray items;
             if (env.data.isArray()) {
-                emit templatesOk(env.data.toArray());
-            } else {
-                emit templatesOk(QJsonArray());
+                items = env.data.toArray();
+            } else if (env.data.isObject()) {
+                items = env.data.toObject().value("data").toArray();
             }
+            emit templatesOk(items);
         } else if (apiName == "dagRuns") {
             if (env.data.isObject()) {
                 emit dagRunsOk(env.data.toObject().value("items").toArray());
@@ -167,7 +169,13 @@ void ApiClient::getJson(const QString& apiName, const QString& path) {
                 emit dagRunsOk(QJsonArray());
             }
         } else if (apiName == "cronJobs") {
-            emit cronJobsOk(root.value("jobs").toArray());
+            QJsonArray jobs;
+            if (env.data.isObject()) {
+                jobs = env.data.toObject().value("jobs").toArray();
+            } else if (env.data.isArray()) {
+                jobs = env.data.toArray();
+            }
+            emit cronJobsOk(jobs);
         }
     });
 
@@ -265,7 +273,10 @@ void ApiClient::postJson(const QString& apiName, const QString& path, const QJso
                 emit dagEventsOk(QJsonArray());
             }
         } else if (apiName == "cronCreate") {
-            const QString jobId = root.value("job_id").toString();
+            QString jobId;
+            if (env.data.isObject()) {
+                jobId = env.data.toObject().value("job_id").toString();
+            }
             emit cronJobCreated(jobId);
         }
     });

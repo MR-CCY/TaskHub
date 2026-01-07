@@ -35,6 +35,7 @@ public slots:
     void exportJson();       // 导出 JSON
     void importJson();       // 导入 JSON
     void editSelectedNode(); // 编辑节点属性
+    void layoutDag();        // DAG 自动布局
 
 protected:
     CanvasScene* scene() const { return scene_; }

@@ -17,25 +17,16 @@
 #include "view/canvasview.h"
 
 namespace {
-void layoutNode(RectItem* node, int index) {
-    const int cols = 4;
-    const qreal spacingX = 260;
-    const qreal spacingY = 220;
-    int row = index / cols;
-    int col = index % cols;
-    const qreal offsetX = (row % 2 == 0) ? 0 : spacingX / 2;
-    const qreal x = col * spacingX + offsetX;
-    const qreal y = row * spacingY;
-    node->setPos(x, y);
-}
-
 NodeType typeFromExec(const QString& execType) {
     const QString t = execType.toLower();
     if (t == "shell") return NodeType::Shell;
-    if (t == "http") return NodeType::Http;
+    if (t == "http" || t == "httpcall") return NodeType::Http;
     if (t == "remote") return NodeType::Remote;
+    if (t == "dag") return NodeType::Dag;
+    if (t == "template") return NodeType::Template;
     return NodeType::Local;
 }
+
 }
 
 DagRunViewerBench::DagRunViewerBench(QWidget* parent)
@@ -72,7 +63,6 @@ bool DagRunViewerBench::loadDagJson(const QJsonObject& obj)
     idMap_.clear();
 
     QList<RectItem*> nodes;
-    int idx = 0;
     for (const auto& jt : tasks) {
         if (!jt.isObject()) continue;
         const QJsonObject t = jt.toObject();
@@ -106,7 +96,6 @@ bool DagRunViewerBench::loadDagJson(const QJsonObject& obj)
         }
         node->setTaskConfig(cfg);
 
-        layoutNode(node, idx++);
         node->attachContext(scene(), nullptr, undoStack());
         node->execCreateCmd(true);
         nodes.append(node);
@@ -129,13 +118,18 @@ bool DagRunViewerBench::loadDagJson(const QJsonObject& obj)
             const QString depId = depVal.toString();
             auto* src = idMap_.value(depId, nullptr);
             if (!src || src == target) continue;
-            auto* line = LineItemFactory::createLine(src, target);
+            QGraphicsItem* parent = nullptr;
+            if (!LineItemFactory::canConnect(src, target, parent)) {
+                continue;
+            }
+            auto* line = LineItemFactory::createLine(src, target, parent);
             if (!line) continue;
             line->attachContext(scene(), nullptr, undoStack());
             line->execCreateCmd(true);
         }
     }
 
+    layoutDag();
     return true;
 }
 

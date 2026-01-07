@@ -7,7 +7,7 @@ int gRemoteIdCounter = 1;
 }
 
 RemoteRectItem::RemoteRectItem(const QRectF& rect, QGraphicsItem* parent)
-    : RectItem(rect, parent)
+    : ContainerRectItem(rect, parent)
 {
     QVariantMap execParams;
     execParams["inner.exec_type"] = QString("Shell");

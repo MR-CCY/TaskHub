@@ -29,6 +29,7 @@ QPointF projectToRectEdge(const QRectF& rect, const QPointF& target) {
     }
     return target;
 }
+
 }
 
 ConnectTask::ConnectTask(QObject* parent) 
@@ -128,7 +129,12 @@ bool ConnectTask::dispatch(QEvent* e) {
                 // ========================
             
                 // 创建真实的连接线
-                auto* line = LineItemFactory::createLine(startItem_, rectItem);
+                QGraphicsItem* parent = nullptr;
+                if (!LineItemFactory::canConnect(startItem_, rectItem, parent)) {
+                    qDebug() << "Connection blocked: cross-container nodes.";
+                    return true;
+                }
+                auto* line = LineItemFactory::createLine(startItem_, rectItem, parent);
                 // 注入上下文并执行命令
                 line->attachContext(dynamic_cast<CanvasScene*>(view()->scene()), nullptr, view()->undoStack());
                 line->execCreateCmd(true); // 存入 UndoStack

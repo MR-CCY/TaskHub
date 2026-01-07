@@ -35,6 +35,9 @@ void NodeInspectorWidget::buildUi()
     shellShellLabel_ = new QLabel(tr("shell shell"), this);
     innerTypeLabel_ = new QLabel(tr("inner exec_type"), this);
     innerCmdLabel_ = new QLabel(tr("inner exec_command"), this);
+    dagJsonLabel_ = new QLabel(tr("dag json"), this);
+    templateIdLabel_ = new QLabel(tr("template_id"), this);
+    templateParamsLabel_ = new QLabel(tr("template_params_json"), this);
 
     nameEdit_ = new QLineEdit(this);
     cmdEdit_ = new QLineEdit(this);
@@ -51,6 +54,9 @@ void NodeInspectorWidget::buildUi()
     shellShellEdit_ = new QLineEdit(this);
     innerTypeEdit_ = new QLineEdit(this);
     innerCmdEdit_ = new QLineEdit(this);
+    dagJsonEdit_ = new QLineEdit(this);
+    templateIdEdit_ = new QLineEdit(this);
+    templateParamsEdit_ = new QLineEdit(this);
     saveBtn_ = new QPushButton(tr("保存节点"), this);
     cronTimeEdit_ = new QTimeEdit(this);
     cronTimeEdit_->setDisplayFormat("HH:mm");
@@ -68,6 +74,9 @@ void NodeInspectorWidget::buildUi()
     form->addRow(shellShellLabel_, shellShellEdit_);
     form->addRow(innerTypeLabel_, innerTypeEdit_);
     form->addRow(innerCmdLabel_, innerCmdEdit_);
+    form->addRow(dagJsonLabel_, dagJsonEdit_);
+    form->addRow(templateIdLabel_, templateIdEdit_);
+    form->addRow(templateParamsLabel_, templateParamsEdit_);
     form->addRow(saveBtn_);
     auto* cronRow = new QHBoxLayout();
     cronRow->setSpacing(4);
@@ -121,6 +130,9 @@ void NodeInspectorWidget::setValues(const QVariantMap& props, const QVariantMap&
     shellShellEdit_->setText(exec.value("shell").toString());
     innerTypeEdit_->setText(exec.value("inner.exec_type").toString());
     innerCmdEdit_->setText(exec.value("inner.exec_command").toString());
+    dagJsonEdit_->setText(exec.value("dag_json").toString());
+    templateIdEdit_->setText(exec.value("template_id").toString());
+    templateParamsEdit_->setText(exec.value("template_params_json").toString());
 }
 
 QString NodeInspectorWidget::nameValue() const { return nameEdit_->text(); }
@@ -135,6 +147,9 @@ QString NodeInspectorWidget::shellCwdValue() const { return shellCwdEdit_->text(
 QString NodeInspectorWidget::shellShellValue() const { return shellShellEdit_->text(); }
 QString NodeInspectorWidget::innerExecTypeValue() const { return innerTypeEdit_->text(); }
 QString NodeInspectorWidget::innerExecCommandValue() const { return innerCmdEdit_->text(); }
+QString NodeInspectorWidget::dagJsonValue() const { return dagJsonEdit_->text(); }
+QString NodeInspectorWidget::templateIdValue() const { return templateIdEdit_->text(); }
+QString NodeInspectorWidget::templateParamsJsonValue() const { return templateParamsEdit_->text(); }
 QString NodeInspectorWidget::cronSpecValue() const {
     const QTime t = cronTimeEdit_->time();
     return QString("%1 %2 * * *").arg(t.minute()).arg(t.hour());
@@ -189,18 +204,23 @@ void NodeInspectorWidget::setReadOnlyMode(bool ro)
     shellShellEdit_->setReadOnly(ro);
     innerTypeEdit_->setReadOnly(ro);
     innerCmdEdit_->setReadOnly(ro);
+    dagJsonEdit_->setReadOnly(ro);
+    templateIdEdit_->setReadOnly(ro);
+    templateParamsEdit_->setReadOnly(ro);
     saveBtn_->setVisible(!ro);
     cronTimeEdit_->setReadOnly(ro);
     cronBtn_->setEnabled(!ro);
 }
 
 namespace {
-enum class ExecKind { Local, Remote, Script, Http, Shell };
+enum class ExecKind { Local, Remote, Script, Http, Shell, Dag, Template };
 ExecKind toExecKind(const QString& s) {
     const QString t = s.trimmed().toLower();
     if (t == "httpcall" || t == "http_call" || t == "http") return ExecKind::Http;
     if (t == "shell") return ExecKind::Shell;
     if (t == "remote") return ExecKind::Remote;
+    if (t == "dag") return ExecKind::Dag;
+    if (t == "template") return ExecKind::Template;
     if (t == "script") return ExecKind::Script;
     return ExecKind::Local;
 }
@@ -219,6 +239,9 @@ void NodeInspectorWidget::updateLabels(const QString& execType)
         setFieldVisible(shellShellLabel_, shellShellEdit_, false);
         setFieldVisible(innerTypeLabel_, innerTypeEdit_, false);
         setFieldVisible(innerCmdLabel_, innerCmdEdit_, false);
+        setFieldVisible(dagJsonLabel_, dagJsonEdit_, false);
+        setFieldVisible(templateIdLabel_, templateIdEdit_, false);
+        setFieldVisible(templateParamsLabel_, templateParamsEdit_, false);
         break;
     case ExecKind::Shell:
         cmdLabel_->setText(tr("Shell 命令"));
@@ -228,6 +251,9 @@ void NodeInspectorWidget::updateLabels(const QString& execType)
         setFieldVisible(shellShellLabel_, shellShellEdit_, true);
         setFieldVisible(innerTypeLabel_, innerTypeEdit_, false);
         setFieldVisible(innerCmdLabel_, innerCmdEdit_, false);
+        setFieldVisible(dagJsonLabel_, dagJsonEdit_, false);
+        setFieldVisible(templateIdLabel_, templateIdEdit_, false);
+        setFieldVisible(templateParamsLabel_, templateParamsEdit_, false);
         break;
     case ExecKind::Remote:
         cmdLabel_->setText(tr("远程命令/URL"));
@@ -237,6 +263,33 @@ void NodeInspectorWidget::updateLabels(const QString& execType)
         setFieldVisible(shellShellLabel_, shellShellEdit_, false);
         setFieldVisible(innerTypeLabel_, innerTypeEdit_, true);
         setFieldVisible(innerCmdLabel_, innerCmdEdit_, true);
+        setFieldVisible(dagJsonLabel_, dagJsonEdit_, false);
+        setFieldVisible(templateIdLabel_, templateIdEdit_, false);
+        setFieldVisible(templateParamsLabel_, templateParamsEdit_, false);
+        break;
+    case ExecKind::Dag:
+        cmdLabel_->setText(tr("DAG JSON (可选)"));
+        setFieldVisible(httpMethodLabel_, httpMethodCombo_, false);
+        setFieldVisible(httpBodyLabel_, httpBodyEdit_, false);
+        setFieldVisible(shellCwdLabel_, shellCwdEdit_, false);
+        setFieldVisible(shellShellLabel_, shellShellEdit_, false);
+        setFieldVisible(innerTypeLabel_, innerTypeEdit_, false);
+        setFieldVisible(innerCmdLabel_, innerCmdEdit_, false);
+        setFieldVisible(dagJsonLabel_, dagJsonEdit_, true);
+        setFieldVisible(templateIdLabel_, templateIdEdit_, false);
+        setFieldVisible(templateParamsLabel_, templateParamsEdit_, false);
+        break;
+    case ExecKind::Template:
+        cmdLabel_->setText(tr("模板命令/URL (可选)"));
+        setFieldVisible(httpMethodLabel_, httpMethodCombo_, false);
+        setFieldVisible(httpBodyLabel_, httpBodyEdit_, false);
+        setFieldVisible(shellCwdLabel_, shellCwdEdit_, false);
+        setFieldVisible(shellShellLabel_, shellShellEdit_, false);
+        setFieldVisible(innerTypeLabel_, innerTypeEdit_, false);
+        setFieldVisible(innerCmdLabel_, innerCmdEdit_, false);
+        setFieldVisible(dagJsonLabel_, dagJsonEdit_, false);
+        setFieldVisible(templateIdLabel_, templateIdEdit_, true);
+        setFieldVisible(templateParamsLabel_, templateParamsEdit_, true);
         break;
     case ExecKind::Script:
         cmdLabel_->setText(tr("脚本/命令"));
@@ -246,6 +299,9 @@ void NodeInspectorWidget::updateLabels(const QString& execType)
         setFieldVisible(shellShellLabel_, shellShellEdit_, false);
         setFieldVisible(innerTypeLabel_, innerTypeEdit_, false);
         setFieldVisible(innerCmdLabel_, innerCmdEdit_, false);
+        setFieldVisible(dagJsonLabel_, dagJsonEdit_, false);
+        setFieldVisible(templateIdLabel_, templateIdEdit_, false);
+        setFieldVisible(templateParamsLabel_, templateParamsEdit_, false);
         break;
     case ExecKind::Local:
     default:
@@ -256,6 +312,9 @@ void NodeInspectorWidget::updateLabels(const QString& execType)
         setFieldVisible(shellShellLabel_, shellShellEdit_, false);
         setFieldVisible(innerTypeLabel_, innerTypeEdit_, false);
         setFieldVisible(innerCmdLabel_, innerCmdEdit_, false);
+        setFieldVisible(dagJsonLabel_, dagJsonEdit_, false);
+        setFieldVisible(templateIdLabel_, templateIdEdit_, false);
+        setFieldVisible(templateParamsLabel_, templateParamsEdit_, false);
         break;
     }
 }

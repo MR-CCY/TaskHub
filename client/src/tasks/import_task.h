@@ -19,7 +19,6 @@ private:
     bool validateTasks(const QJsonObject& root, QJsonArray& tasksOut);
     QVariantMap jsonObjectToStringMap(const QJsonObject& obj) const;
     bool resolveConflicts(const QJsonArray& tasks, const QHash<QString, RectItem*>& existing, QHash<QString, RectItem*>& idToNode);
-    void layoutNode(RectItem* node, int index);
     NodeType typeFromExec(const QString& execType) const;
 
     CanvasScene* scene_;
