@@ -1,6 +1,7 @@
 #pragma once
 #include "task.h"
 #include "Item/node_type.h"
+class QGraphicsItem;
 class CanvasScene;
 class UndoStack;
 class CanvasView;
@@ -20,6 +21,9 @@ private:
     QVariantMap jsonObjectToStringMap(const QJsonObject& obj) const;
     bool resolveConflicts(const QJsonArray& tasks, const QHash<QString, RectItem*>& existing, QHash<QString, RectItem*>& idToNode);
     NodeType typeFromExec(const QString& execType) const;
+
+    void loadLevel(const QJsonArray& tasks, QGraphicsItem* parentNode, const QHash<QString, RectItem*>& preCreated = {});
+    bool inflateDagJson(RectItem* node, const QString& dagJson);
 
     CanvasScene* scene_;
     UndoStack* undo_;

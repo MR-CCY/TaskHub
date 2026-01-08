@@ -180,14 +180,6 @@ QString NodeInspectorWidget::shellCmdValue() const
     return shell_ ? shell_->cmdValue() : QString();
 }
 
-QString NodeInspectorWidget::innerExecTypeValue() const {
-    return remote_ ? remote_->innerTypeValue() : QString();
-}
-
-QString NodeInspectorWidget::innerExecCommandValue() const {
-    return remote_ ? remote_->innerCmdValue() : QString();
-}
-
 QString NodeInspectorWidget::dagJsonValue() const {
     return dag_ ? dag_->dagJsonValue() : QString();
 }
@@ -202,6 +194,14 @@ QString NodeInspectorWidget::templateParamsJsonValue() const {
 
 QString NodeInspectorWidget::cronSpecValue() const {
     return actions_ ? actions_->cronSpecValue() : QString();
+}
+
+QString NodeInspectorWidget::remoteFailPolicyValue() const {
+    return (remote_ && execStack_->currentWidget() == remote_) ? remote_->failPolicyValue() : QString();
+}
+
+int NodeInspectorWidget::remoteMaxParallelValue() const {
+    return (remote_ && execStack_->currentWidget() == remote_) ? remote_->maxParallelValue() : 4;
 }
 
 void NodeInspectorWidget::setRuntimeValues(const QJsonObject& obj)

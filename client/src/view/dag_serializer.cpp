@@ -11,6 +11,9 @@
 #include "Item/line_item.h"
 #include "view/canvasscene.h"
 
+#include "Item/remote_rect_item.h"
+#include "Item/dag_rect_item.h"
+
 namespace {
 QJsonObject variantMapToStringObject(const QVariantMap& m) {
     QJsonObject obj;
@@ -19,17 +22,8 @@ QJsonObject variantMapToStringObject(const QVariantMap& m) {
     }
     return obj;
 }
-}
 
-QJsonObject buildDagJson(CanvasScene* scene, const QString& failPolicy, int maxParallel, const QString& dagName)
-{
-    if (!scene) return QJsonObject();
-    QList<RectItem*> nodes;
-    for (auto* gitem : scene->items()) {
-        if (auto* r = dynamic_cast<RectItem*>(gitem)) {
-            nodes.append(r);
-        }
-    }
+QJsonObject serializeLevel(const QList<RectItem*>& nodes, const QJsonObject& config) {
     if (nodes.isEmpty()) return QJsonObject();
 
     QHash<RectItem*, QString> idMap;
@@ -52,11 +46,40 @@ QJsonObject buildDagJson(CanvasScene* scene, const QString& failPolicy, int maxP
             "priority", "queue", "capture_output", "metadata"
         };
         for (auto key : keys) {
-            if (!props.contains(key)) continue;
-            QVariant v = props.value(key);
             QString skey = QString::fromUtf8(key);
+            if (!props.contains(skey)) {
+                if (skey == "exec_command") t[skey] = "";
+                continue;
+            }
+            QVariant v = props.value(skey);
             if (skey == "exec_params") {
-                t[skey] = variantMapToStringObject(v.toMap());
+                QVariantMap execMap = v.toMap();
+                
+                // 处理容器节点的递归序列化
+                bool isRemote = dynamic_cast<RemoteRectItem*>(n) != nullptr;
+                bool isDagNode = dynamic_cast<DagRectItem*>(n) != nullptr;
+                
+                if (isRemote || isDagNode) {
+                    QList<RectItem*> children;
+                    for (auto* kid : n->childItems()) {
+                        if (auto* r = dynamic_cast<RectItem*>(kid)) {
+                            children.append(r);
+                        }
+                    }
+                    if (!children.isEmpty()) {
+                        QJsonObject subConfig;
+                        subConfig["fail_policy"] = execMap.value("remote.fail_policy", "SkipDownstream").toString();
+                        subConfig["max_parallel"] = execMap.value("remote.max_parallel", 4).toInt();
+                        subConfig["name"] = n->prop("name").toString() + "_sub";
+                        
+                        QJsonObject subDag = serializeLevel(children, subConfig);
+                        if (!subDag.isEmpty()) {
+                            execMap["dag_json"] = QJsonDocument(subDag).toJson(QJsonDocument::Compact);
+                        }
+                    }
+                }
+                
+                t[skey] = variantMapToStringObject(execMap);
             } else if (skey == "metadata") {
                 // t[skey] = variantMapToStringObject(v.toMap());
             } else if (skey == "timeout_ms" || skey == "retry_delay_ms") {
@@ -85,11 +108,31 @@ QJsonObject buildDagJson(CanvasScene* scene, const QString& failPolicy, int maxP
     }
 
     QJsonObject root;
+    root["config"] = config;
+    root["tasks"] = tasks;
+    return root;
+}
+}
+
+QJsonObject buildDagJson(CanvasScene* scene, const QString& failPolicy, int maxParallel, const QString& dagName)
+{
+    if (!scene) return QJsonObject();
+    
+    // 只获取顶层节点
+    QList<RectItem*> topNodes;
+    for (auto* gitem : scene->items()) {
+        if (auto* r = dynamic_cast<RectItem*>(gitem)) {
+            // 如果父节点不是 RectItem，则视为顶层节点
+            if (!dynamic_cast<RectItem*>(r->parentItem())) {
+                topNodes.append(r);
+            }
+        }
+    }
+    
     QJsonObject config;
     config["fail_policy"] = failPolicy;
     config["max_parallel"] = maxParallel;
     if (!dagName.isEmpty()) config["name"] = dagName;
-    root["config"] = config;
-    root["tasks"] = tasks;
-    return root;
+
+    return serializeLevel(topNodes, config);
 }

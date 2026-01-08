@@ -11,6 +11,9 @@
 #include "template/template_store.h"
 #include "template/template_renderer.h"
 #include "core/http_response.h"
+#include "handlers/log_handler.h"
+#include "handlers/task_handler.h"
+#include "db/task_run_repo.h"
 #include "utils/http_params.h"
 #include "utils/utils.h"
 #include <chrono>
@@ -166,7 +169,7 @@ namespace taskhub
         {
             std::string query;
             for (const auto& p : req.params) {
-                if (p.first == "worker_id") {
+                if (p.first == "worker_id" || p.first == "remote_path") {
                     continue;
                 }
                 if (!query.empty()) {
@@ -177,6 +180,100 @@ namespace taskhub
                 query += p.second;
             }
             return query;
+        }
+
+        struct ProxyTarget {
+            bool isLocal{false};
+            WorkerInfo worker;
+            std::string nextRemotePath;
+        };
+
+        // 递归/多跳解析逻辑
+        std::optional<ProxyTarget> resolve_proxy_target(const std::string& runId, const std::string& remotePath, std::string& error)
+        {
+            ProxyTarget target;
+            if (remotePath.empty()) {
+                target.isLocal = true;
+                return target;
+            }
+
+            // 1. 拆分路径: "A/B/C" -> head="A", tail="B/C"
+            std::string head = remotePath;
+            std::string tail;
+            auto slashPos = remotePath.find('/');
+            if (slashPos != std::string::npos) {
+                head = remotePath.substr(0, slashPos);
+                tail = remotePath.substr(slashPos + 1);
+            }
+
+            // 2. 根据 head (logicalId) + runId 查库
+            auto taskRun = TaskRunRepo::instance().get(runId, head);
+            if (!taskRun) {
+                error = "remote logical node not found: " + head + " in run: " + runId;
+                return std::nullopt;
+            }
+
+            // 3. 拿到 workerId
+            std::string workerId = taskRun->workerId;
+            if (workerId.empty()) {
+                error = "worker_id not found for node: " + head;
+                return std::nullopt;
+            }
+
+            auto optWorker = find_worker_by_id(workerId);
+            if (!optWorker) {
+                error = "worker not found or offline: " + workerId;
+                return std::nullopt;
+            }
+            if (!optWorker->isAlive()) {
+                error = "worker not alive: " + workerId;
+                return std::nullopt;
+            }
+
+            target.isLocal = false;
+            target.worker = *optWorker;
+            target.nextRemotePath = tail;
+            return target;
+        }
+
+        void proxy_forward(const ProxyTarget& target, const std::string& originalPath, const httplib::Request& req, httplib::Response& res) 
+        {
+            httplib::Client cli(target.worker.host, target.worker.port);
+            cli.set_connection_timeout(2, 0);
+            cli.set_read_timeout(10, 0); 
+            cli.set_write_timeout(5, 0);
+
+            std::string path = originalPath; // 比如 /api/workers/proxy/logs
+            
+            // 重构 query param
+            // 保留大部分参数，除了 remote_path 需要替换
+            std::string query;
+            for (const auto& p : req.params) {
+                if (p.first == "remote_path" || p.first == "worker_id") continue;
+                if (!query.empty()) query += "&";
+                query += p.first + "=" + p.second;
+            }
+            // append next remote_path
+             if (!query.empty()) query += "&";
+             query += "remote_path=" + target.nextRemotePath;
+
+             // 如果 originalPath 不含 ?，加 ?
+             if (path.find('?') == std::string::npos) {
+                 path += "?" + query;
+             } else {
+                 // 理论上 originalPath 是 path base
+                 // 这里 originalPath 传入的是 req.path 吗？
+                 // 下面调用时传入 req.path
+                 path += "?" + query;
+             }
+
+            auto workerResp = cli.Get(path.c_str());
+            if (!workerResp) {
+                resp::error(res, 502, "proxy forward failed: no response", 502);
+                return;
+            }
+            res.status = workerResp->status;
+            res.set_content(workerResp->body, "application/json; charset=utf-8");
         }
     }
     
@@ -350,156 +447,91 @@ namespace taskhub
         }
     }
 
-    // Request: GET /api/workers/proxy/logs?worker_id=...&task_id=...&run_id=...&from=...&limit=...
-    // Response: 转发 /api/tasks/logs 返回内容
+    // Request: GET /api/workers/proxy/logs?remote_path=...&run_id=...&task_id=...
+    // Response: 转发 or 本地查询
     void WorkHandler::workers_proxy_logs(const httplib::Request &req, httplib::Response &res)
     {
-        if (!req.has_param("worker_id") || !req.has_param("task_id")) {
-            resp::bad_request(res, "missing worker_id/task_id");
+        std::string remotePath = req.get_param_value("remote_path");
+        std::string runId = req.get_param_value("run_id");
+
+        // 兼容旧逻辑：如果传了 worker_id 且没传 remote_path，走旧的直连转发
+        if (req.has_param("worker_id") && remotePath.empty()) {
+             const std::string workerId = req.get_param_value("worker_id");
+             const std::string taskId = req.get_param_value("task_id");
+             auto optWorker = find_worker_by_id(workerId);
+             if (!optWorker.has_value() || !optWorker->isAlive()) {
+                 resp::error(res, 404, "worker not found or dead", 404);
+                 return;
+             }
+             ProxyTarget t;
+             t.isLocal = false;
+             t.worker = *optWorker;
+             t.nextRemotePath = ""; // 旧逻辑不用 path
+             proxy_forward(t, "/api/tasks/logs", req, res);
+             return;
+        }
+
+        std::string err;
+        auto target = resolve_proxy_target(runId, remotePath, err);
+        if (!target) {
+            resp::error(res, 404, err, 404);
             return;
         }
 
-        const std::string workerId = req.get_param_value("worker_id");
-        const std::string taskId = req.get_param_value("task_id");
-        const std::string runId = req.has_param("run_id") ? req.get_param_value("run_id") : "";
-        const std::string from = req.has_param("from") ? req.get_param_value("from") : "";
-        const std::string limit = req.has_param("limit") ? req.get_param_value("limit") : "";
-
-        auto optWorker = find_worker_by_id(workerId);
-        if (!optWorker.has_value()) {
-            resp::not_found(res, "worker not found", 404);
-            return;
+        if (target->isLocal) {
+            // 本地执行：直接调用 LogHandler
+            // query: task_id, run_id, from, limit
+            LogHandler::query(req, res);
+        } else {
+            // 转发
+            proxy_forward(*target, "/api/workers/proxy/logs", req, res);
         }
-        const auto& worker = *optWorker;
-        if (!worker.isAlive()) {
-            resp::error(res, 503, "worker not alive", 503);
-            return;
-        }
-
-        std::string path = "/api/tasks/logs?task_id=" + taskId;
-        if (!runId.empty()) {
-            path += "&run_id=" + runId;
-        }
-        if (!from.empty()) {
-            path += "&from=" + from;
-        }
-        if (!limit.empty()) {
-            path += "&limit=" + limit;
-        }
-
-        httplib::Client cli(worker.host, worker.port);
-        cli.set_connection_timeout(2, 0);
-        cli.set_read_timeout(10, 0);
-        cli.set_write_timeout(5, 0);
-
-        auto workerResp = cli.Get(path.c_str());
-        if (!workerResp) {
-            resp::error(res, 502, "worker log query failed: no response", 502);
-            return;
-        }
-        if (workerResp->status >= 300) {
-            resp::error(res, 502, "worker log query failed: " + std::to_string(workerResp->status), 502);
-            return;
-        }
-
-        res.status = workerResp->status;
-        res.set_content(workerResp->body, "application/json; charset=utf-8");
     }
 
-    // Request: GET /api/workers/proxy/dag/task_runs?worker_id=...&run_id=...&name=...&limit=...
-    // Response: 转发 /api/dag/task_runs 返回内容
+    // Request: GET /api/workers/proxy/dag/task_runs?remote_path=...&run_id=...
     void WorkHandler::workers_proxy_task_runs(const httplib::Request &req, httplib::Response &res)
     {
-        if (!req.has_param("worker_id")) {
-            resp::bad_request(res, "missing worker_id");
-            return;
-        }
-        const std::string workerId = req.get_param_value("worker_id");
-        auto optWorker = find_worker_by_id(workerId);
-        if (!optWorker.has_value()) {
-            resp::not_found(res, "worker not found", 404);
-            return;
-        }
-        const auto& worker = *optWorker;
-        if (!worker.isAlive()) {
-            resp::error(res, 503, "worker not alive", 503);
+        std::string remotePath = req.get_param_value("remote_path");
+        std::string runId = req.get_param_value("run_id");
+
+        std::string err;
+        auto target = resolve_proxy_target(runId, remotePath, err);
+        if (!target) {
+            resp::error(res, 404, err, 404);
             return;
         }
 
-        std::string path = "/api/dag/task_runs";
-        const std::string query = build_query_without_worker_id(req);
-        if (!query.empty()) {
-            path += "?";
-            path += query;
+        if (target->isLocal) {
+            TaskHandler::queryTaskRuns(req, res);
+        } else {
+            proxy_forward(*target, "/api/workers/proxy/dag/task_runs", req, res);
         }
-
-        httplib::Client cli(worker.host, worker.port);
-        cli.set_connection_timeout(2, 0);
-        cli.set_read_timeout(10, 0);
-        cli.set_write_timeout(5, 0);
-
-        auto workerResp = cli.Get(path.c_str());
-        if (!workerResp) {
-            resp::error(res, 502, "worker task_runs query failed: no response", 502);
-            return;
-        }
-        if (workerResp->status >= 300) {
-            resp::error(res, 502, "worker task_runs query failed: " + std::to_string(workerResp->status), 502);
-            return;
-        }
-        res.status = workerResp->status;
-        res.set_content(workerResp->body, "application/json; charset=utf-8");
     }
 
-    // Request: GET /api/workers/proxy/dag/events?worker_id=...&run_id=...&task_id=...&type=...&event=...&start_ts_ms=...&end_ts_ms=...&limit=...
-    // Response: 转发 /api/dag/events 返回内容
+    // Request: GET /api/workers/proxy/dag/events
     void WorkHandler::workers_proxy_task_events(const httplib::Request &req, httplib::Response &res)
     {
-        if (!req.has_param("worker_id")) {
-            resp::bad_request(res, "missing worker_id");
-            return;
-        }
-        const std::string workerId = req.get_param_value("worker_id");
-        auto optWorker = find_worker_by_id(workerId);
-        if (!optWorker.has_value()) {
-            resp::not_found(res, "worker not found", 404);
-            return;
-        }
-        const auto& worker = *optWorker;
-        if (!worker.isAlive()) {
-            resp::error(res, 503, "worker not alive", 503);
+        std::string remotePath = req.get_param_value("remote_path");
+        std::string runId = req.get_param_value("run_id");
+
+        std::string err;
+        auto target = resolve_proxy_target(runId, remotePath, err);
+        if (!target) {
+            resp::error(res, 404, err, 404);
             return;
         }
 
-        std::string path = "/api/dag/events";
-        const std::string query = build_query_without_worker_id(req);
-        if (!query.empty()) {
-            path += "?";
-            path += query;
+        if (target->isLocal) {
+            TaskHandler::queryTaskEvents(req, res);
+        } else {
+            proxy_forward(*target, "/api/workers/proxy/dag/events", req, res);
         }
-
-        httplib::Client cli(worker.host, worker.port);
-        cli.set_connection_timeout(2, 0);
-        cli.set_read_timeout(10, 0);
-        cli.set_write_timeout(5, 0);
-
-        auto workerResp = cli.Get(path.c_str());
-        if (!workerResp) {
-            resp::error(res, 502, "worker events query failed: no response", 502);
-            return;
-        }
-        if (workerResp->status >= 300) {
-            resp::error(res, 502, "worker events query failed: " + std::to_string(workerResp->status), 502);
-            return;
-        }
-        res.status = workerResp->status;
-        res.set_content(workerResp->body, "application/json; charset=utf-8");
     }
     // Request: POST /api/worker/execute
-    //   Body JSON: TaskConfig（同 Dag/Runner），exec_type 不能为 Remote
+    //   Body JSON: {"type":"dag","payload":{...}}  （当前用于 Remote 节点的 DAG 异步派发）
     // Response:
-    //   200 {status:int,message,exit_code,duration_ms,stdout,stderr,attempt,max_attempts,metadata:{...}}
-    //   400 {"code":400,"message":"invalid json"|"worker cannot execute Remote task","data":null}; 500 {"code":500,"message":"internal error: ...","data":null}
+    //   200 {"type":"dag","ok":true,"run_id":"...","task_ids":[{logical,task_id},...]}
+    //   400 {"code":400,"message":"invalid json"|"...","data":null}; 500 {"code":500,"message":"internal error: ...","data":null}
     void WorkHandler::worker_execute(const httplib::Request &req, httplib::Response &res)
     {
         Logger::info("Worker execute task request: " + req.body);
@@ -512,144 +544,55 @@ namespace taskhub
             const std::string payloadType = normalize_payload_type(jReq);
             const json& payload = extract_payload(jReq);
 
-            if (payloadType == "dag") {
-                if (!payload.is_object()) {
-                    resp::bad_request(res, "dag payload must be object", 400);
-                    return;
-                }
-                json dagBody = payload;
-                if (!dagBody.contains("tasks") || !dagBody["tasks"].is_array()) {
-                    resp::bad_request(res, R"({"error":"tasks must be array"})", 400);
-                    return;
-                }
-
-                std::vector<json> taskList;
-                std::string err;
-                if (!build_task_list_from_tasks_array(dagBody["tasks"], taskList, err)) {
-                    resp::bad_request(res, err, 400);
-                    return;
-                }
-
-                std::string runId = dagBody.value("run_id", std::string{});
-                if (runId.empty()) {
-                    runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
-                }
-
-                dagrun::injectRunId(dagBody, runId);
-                dagrun::persistRunAndTasks(runId, dagBody, "worker_execute");
-                Logger::info("Worker execute dag: run_id=" + runId +
-                             ", tasks=" + std::to_string(taskList.size()));
-
-                dag::DagThreadPool::instance().post(
-                    [dagBody = std::move(dagBody), runId]() mutable {
-                        try {
-                            dag::DagService::instance().runDag(dagBody, runId);
-                        } catch (const std::exception& e) {
-                            Logger::error(std::string("worker_execute dag thread exception: ") + e.what());
-                        }
-                    }, core::TaskPriority::Critical);
-
-                json data;
-                data["type"] = "dag";
-                data["ok"] = true;
-                data["run_id"] = runId;
-                data["task_ids"] = taskList;
-                resp::ok(res, data);
+            if (payloadType != "dag") {
+                resp::bad_request(res, "worker only supports dag payload for Remote nodes", 400);
                 return;
             }
 
-            if (payloadType == "template") {
-                if (!payload.is_object()) {
-                    resp::bad_request(res, "template payload must be object", 400);
-                    return;
-                }
-                const std::string templateId = payload.value("template_id", std::string{});
-                json params = payload.value("params", json::object());
-                if (templateId.empty() || !params.is_object()) {
-                    resp::bad_request(res, R"({"error":"missing required fields"})", 400);
-                    return;
-                }
-
-                auto& store = tpl::TemplateStore::instance();
-                auto tplOpt = store.get(templateId);
-                if (!tplOpt) {
-                    resp::error(res, 404, R"({"error":"template not found"})", 404);
-                    return;
-                }
-
-                tpl::ParamMap p;
-                for (auto& [k, v] : params.items()) {
-                    p[k] = v;
-                }
-                auto r = tpl::TemplateRenderer::render(*tplOpt, p);
-                if (!r.ok) {
-                    resp::error(res, 400, r.error, 400);
-                    return;
-                }
-
-                json rendered = r.rendered;
-                if (!rendered.contains("config") || !rendered["config"].is_object()) {
-                    rendered["config"] = json::object();
-                }
-                rendered["config"]["template_id"] = templateId;
-                if (!rendered.contains("name")) {
-                    rendered["name"] = tplOpt->name;
-                }
-                rendered["config"]["name"] = rendered.value("name", tplOpt->name);
-
-                std::vector<json> taskList;
-                std::string err;
-                if (!build_task_list_from_payload(rendered, taskList, err)) {
-                    resp::bad_request(res, err, 400);
-                    return;
-                }
-
-                std::string runId = payload.value("run_id", std::string{});
-                if (runId.empty()) {
-                    runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
-                }
-
-                dagrun::injectRunId(rendered, runId);
-                dagrun::persistRunAndTasks(runId, rendered, "template");
-                Logger::info("Worker execute template: template_id=" + templateId +
-                             ", run_id=" + runId +
-                             ", tasks=" + std::to_string(taskList.size()));
-
-                dag::DagThreadPool::instance().post(
-                    [rendered = std::move(rendered), runId]() mutable {
-                        try {
-                            dag::DagService::instance().runDag(rendered, runId);
-                        } catch (const std::exception& e) {
-                            Logger::error(std::string("worker_execute template thread exception: ") + e.what());
-                        }
-                    }, core::TaskPriority::Critical);
-
-                json data;
-                data["type"] = "template";
-                data["ok"] = true;
-                data["run_id"] = runId;
-                data["template_id"] = templateId;
-                data["task_ids"] = taskList;
-                resp::ok(res, data);
+            if (!payload.is_object()) {
+                resp::bad_request(res, "dag payload must be object", 400);
+                return;
+            }
+            json dagBody = payload;
+            if (!dagBody.contains("tasks") || !dagBody["tasks"].is_array()) {
+                resp::bad_request(res, R"({"error":"tasks must be array"})", 400);
                 return;
             }
 
-            // task (default)
-            core::TaskConfig cfg = core::parseTaskConfigFromReq(payload);
-            if (cfg.execType == core::TaskExecType::Remote) {
-                resp::error(res, 400, "worker cannot execute Remote task", 400);
+            std::vector<json> taskList;
+            std::string err;
+            if (!build_task_list_from_tasks_array(dagBody["tasks"], taskList, err)) {
+                resp::bad_request(res, err, 400);
                 return;
             }
-            Logger::info("Worker execute task: id=" + cfg.id.value + ", name=" + cfg.name + ", execType=" + core::TaskExecTypetoString(cfg.execType));
-            core::TaskResult r = runner::TaskRunner::instance().run(cfg, nullptr);
 
-            json jResp = taskResultToJson(r);
-            Logger::info("Worker execute task finished: id=" + cfg.id.value +
-                        ", status=" + std::to_string(static_cast<int>(r.status)) +
-                        ", durationMs=" +  std::to_string(r.durationMs));
-            resp::ok(res, jResp);
-        } catch (const std::exception& e) {
-            // 兜底：任何未预期异常返回 500，避免线程挂掉
+            std::string runId = dagBody.value("run_id", std::string{});
+            if (runId.empty()) {
+                runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
+            }
+
+            dagrun::injectRunId(dagBody, runId);
+            dagrun::persistRunAndTasks(runId, dagBody, "worker_execute");
+            Logger::info("Worker execute dag: run_id=" + runId +
+                            ", tasks=" + std::to_string(taskList.size()));
+
+            dag::DagThreadPool::instance().post(
+                [dagBody = std::move(dagBody), runId]() mutable {
+                    try {
+                        dag::DagService::instance().runDag(dagBody, runId);
+                    } catch (const std::exception& e) {
+                        Logger::error(std::string("worker_execute dag thread exception: ") + e.what());
+                    }
+                }, core::TaskPriority::Critical);
+
+            json data;
+            data["type"] = "dag";
+            data["ok"] = true;
+            data["run_id"] = runId;
+            data["task_ids"] = taskList;
+            resp::ok(res, data);
+    } catch (const std::exception& e) {
+        // 兜底：任何未预期异常返回 500，避免线程挂掉
             resp::error(res, 500, std::string("internal error: ") + e.what(), 500);
         } catch (...) {
             resp::error(res, 500, "internal error: unknown", 500);

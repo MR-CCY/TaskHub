@@ -24,7 +24,6 @@ void ContainerRectItem::adjustToChildren() {
     for (auto* child : kids) {
         auto* node = dynamic_cast<RectItem*>(child);
         if (!node) continue;
-        if (dynamic_cast<ContainerRectItem*>(node)) continue;
         if (!node->scene()) continue;
         nodes.append(node);
     }
@@ -88,6 +87,12 @@ void ContainerRectItem::adjustToChildren() {
     }
 
     setRect(outer);
+
+    if (auto* parentContainer = dynamic_cast<ContainerRectItem*>(parentItem())) {
+        if (parentContainer->scene()) {
+            parentContainer->adjustToChildren();
+        }
+    }
 }
 
 QString ContainerRectItem::typeLabel() const { return "BOX"; }

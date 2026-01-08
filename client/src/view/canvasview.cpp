@@ -18,8 +18,8 @@ CanvasView::CanvasView(QWidget* parent)
 {
     setRenderHint(QPainter::Antialiasing, true);
 
-    // Q1-2 会用到（框选）
-    setDragMode(QGraphicsView::RubberBandDrag);
+    // 使用自定义的 SelectTask / MoveTask 处理交互，禁用默认拖拽模式以防冲突
+    setDragMode(QGraphicsView::NoDrag);
     setViewportUpdateMode(QGraphicsView::BoundingRectViewportUpdate);
 
     // 缩放以鼠标为中心

@@ -9,6 +9,15 @@
 MoveTask::MoveTask(QGraphicsItem* target, QPointF startScenePos, QObject* parent)
     : Task(100, parent), target_(target)
 {
+    if (!target_) return;
+
+    // 获取点击位置相对于父级的偏移（如果无父级，则相对于场景）
+    QPointF parentClickPos = startScenePos;
+    if (auto* p = target_->parentItem()) {
+        parentClickPos = p->mapFromScene(startScenePos);
+    }
+    clickOffset_ = parentClickPos - target_->pos();
+
     // 初始化记录原始状态
     if (auto* rect = dynamic_cast<RectItem*>(target_)) {
         startPos_ = rect->pos();
@@ -32,21 +41,19 @@ bool MoveTask::dispatch(QEvent* e)
         auto* me = static_cast<QMouseEvent*>(e);
         QPointF scenePos = view()->mapToScene(me->pos());
         
-        hasMoved_ = true;
-        // 1. 设置拖拽光标（只设置一次即可，或者每次设也无妨）
+        // 1. 设置拖拽光标（只设置一次即可）
         if (!hasMoved_) {
             view()->setCursor(Qt::ClosedHandCursor);
             hasMoved_ = true;
         }
 
         if (auto* rect = dynamic_cast<RectItem*>(target_)) {
-            // 移动 Rect：直接 setPos
-            // 因为 RectItem 内部实现了 itemChange 通知 LineItem，所以线会自动跟随
-            QPointF parentPos = scenePos;
-            if (auto* parent = rect->parentItem()) {
-                parentPos = parent->mapFromScene(scenePos);
+            // 移动 Rect：使用初始偏移保持位置相对一致，避免跳变
+            QPointF parentClickPos = scenePos;
+            if (auto* p = rect->parentItem()) {
+                parentClickPos = p->mapFromScene(scenePos);
             }
-            rect->setPos(parentPos - rect->boundingRect().center());
+            rect->setPos(parentClickPos - clickOffset_);
         } 
         else if (auto* line = dynamic_cast<LineItem*>(target_)) {
             // 移动 Line：调整贝塞尔控制点

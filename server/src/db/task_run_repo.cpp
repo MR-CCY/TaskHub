@@ -246,7 +246,8 @@ std::vector<TaskRunRepo::TaskRunRow> TaskRunRepo::query(const std::string& runId
 
     std::string sql =
         "SELECT id, run_id, logical_id, task_id, name, exec_type, exec_command, exec_params_json, deps_json, "
-        "status, exit_code, duration_ms, message, stdout, stderr, attempt, max_attempts, start_ts_ms, end_ts_ms "
+        "status, exit_code, duration_ms, message, stdout, stderr, attempt, max_attempts, start_ts_ms, end_ts_ms, "
+        "worker_id, worker_host, worker_port "
         "FROM task_run WHERE 1=1";
 
     std::vector<std::string> params;
@@ -298,11 +299,67 @@ std::vector<TaskRunRepo::TaskRunRow> TaskRunRepo::query(const std::string& runId
         r.maxAttempts   = sqlite3_column_int(stmt, 16);
         r.startTsMs     = sqlite3_column_int64(stmt, 17);
         r.endTsMs       = sqlite3_column_int64(stmt, 18);
+        r.workerId      = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 19));
+        r.workerHost    = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 20));
+        r.workerPort    = sqlite3_column_int(stmt, 21);
         rows.push_back(std::move(r));
     }
 
     sqlite3_finalize(stmt);
     return rows;
+}
+
+std::optional<TaskRunRepo::TaskRunRow> TaskRunRepo::get(const std::string& runId, const std::string& logicalId)
+{
+    sqlite3* db = Db::instance().handle();
+    if (!db) return std::nullopt;
+
+    const char* sql =
+        "SELECT id, run_id, logical_id, task_id, name, exec_type, exec_command, exec_params_json, deps_json, "
+        "status, exit_code, duration_ms, message, stdout, stderr, attempt, max_attempts, start_ts_ms, end_ts_ms, "
+        "worker_id, worker_host, worker_port "
+        "FROM task_run WHERE run_id=? AND logical_id=?";
+
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        return std::nullopt;
+    }
+
+    sqlite3_bind_text(stmt, 1, runId.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, logicalId.c_str(), -1, SQLITE_TRANSIENT);
+
+    std::optional<TaskRunRow> result;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        TaskRunRow r;
+        r.id            = sqlite3_column_int(stmt, 0);
+        r.runId         = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        r.logicalId     = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+        r.taskId        = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+        r.name          = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+        r.execType      = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5));
+        r.execCommand   = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6));
+        r.execParamsJson= reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7));
+        r.depsJson      = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 8));
+        r.status        = sqlite3_column_int(stmt, 9);
+        r.exitCode      = sqlite3_column_int(stmt, 10);
+        r.durationMs    = sqlite3_column_int64(stmt, 11);
+        const unsigned char* msg = sqlite3_column_text(stmt, 12);
+        r.message       = msg ? reinterpret_cast<const char*>(msg) : "";
+        const unsigned char* out = sqlite3_column_text(stmt, 13);
+        r.stdoutText    = out ? reinterpret_cast<const char*>(out) : "";
+        const unsigned char* err = sqlite3_column_text(stmt, 14);
+        r.stderrText    = err ? reinterpret_cast<const char*>(err) : "";
+        r.attempt       = sqlite3_column_int(stmt, 15);
+        r.maxAttempts   = sqlite3_column_int(stmt, 16);
+        r.startTsMs     = sqlite3_column_int64(stmt, 17);
+        r.endTsMs       = sqlite3_column_int64(stmt, 18);
+        r.workerId      = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 19));
+        r.workerHost    = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 20));
+        r.workerPort    = sqlite3_column_int(stmt, 21);
+        result = std::move(r);
+    }
+    sqlite3_finalize(stmt);
+    return result;
 }
 
 } // namespace taskhub

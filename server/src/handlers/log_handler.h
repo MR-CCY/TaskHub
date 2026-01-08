@@ -8,10 +8,9 @@ namespace taskhub {
 class LogHandler {
 
 public:
-/// 注册 Worker 相关的 HTTP 路由
     static void setup_routes(httplib::Server& server);
+    static void query(const httplib::Request& req, httplib::Response& res);
 private:
-    static void logs(const httplib::Request& req, httplib::Response& res);
 };
 
-} // namespace taskhub::handlers
+} // namespace taskhub

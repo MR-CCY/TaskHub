@@ -72,7 +72,7 @@ static json logRecordToJson(const taskhub::core::LogRecord& r) {
 void LogHandler::setup_routes(httplib::Server &server)
 {
     // GET /api/tasks/logs?task_id=xxx&from=1&limit=200
-    server.Get("/api/tasks/logs", &LogHandler::logs);
+    server.Get("/api/tasks/logs", &LogHandler::query);
 }
 
 // Request: GET /api/tasks/logs?task_id=<id>&run_id=<rid?>&from=<seq?>&limit=<n?>
@@ -80,7 +80,7 @@ void LogHandler::setup_routes(httplib::Server &server)
 // Response:
 //   200 {"code":0,"message":"ok","data":{"task_id":string,"from":u64,"limit":int,"next_from":u64,"records":[{seq,task_id,run_id?,dag_run_id?,cron_job_id?,worker_id?,level:int,stream:int,message,ts_ms,duration_ms,attempt,fields:{}}]}}
 //   400 {"code":400,"message":"missing task_id","data":null}; 500 {"code":500,"message":"log query failed: ...","data":null}
-void LogHandler::logs(const httplib::Request &req, httplib::Response &res)
+void LogHandler::query(const httplib::Request &req, httplib::Response &res)
 {
     // ---- parse query params ----
     // required

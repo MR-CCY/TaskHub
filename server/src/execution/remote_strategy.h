@@ -20,8 +20,6 @@ private:
     DispatchAttemptResult dispatch_once(const worker::WorkerInfo& workerInfo,
                                         const core::ExecutionContext& ctx,
                                         const std::string& queue,
-                                        bool useTypedRequest,
-                                        const std::string& payloadType,
                                         const json& payloadJson);
 };
 

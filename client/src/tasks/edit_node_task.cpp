@@ -86,8 +86,6 @@ void EditNodeTask::execute() {
     QLineEdit* httpBody = nullptr;
     QLineEdit* shellCwd = nullptr;
     QLineEdit* shellShell = nullptr;
-    QLineEdit* innerType = nullptr;
-    QLineEdit* innerCmd = nullptr;
 
     if (execType.compare("HttpCall", Qt::CaseInsensitive) == 0) {
         httpMethod = new QLineEdit(execParams.value("method").toString(), dlg);
@@ -100,10 +98,7 @@ void EditNodeTask::execute() {
         form->addRow(tr("cwd"), shellCwd);
         form->addRow(tr("shell"), shellShell);
     } else if (execType.compare("Remote", Qt::CaseInsensitive) == 0) {
-        innerType = new QLineEdit(execParams.value("inner.exec_type").toString(), dlg);
-        innerCmd = new QLineEdit(execParams.value("inner.exec_command").toString(), dlg);
-        form->addRow(tr("inner exec_type"), innerType);
-        form->addRow(tr("inner exec_command"), innerCmd);
+        // Remote 节点目前在 Inspector 面板中处理队列选择，不再此处编辑 inner 任务
     }
 
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, dlg);
@@ -133,10 +128,6 @@ void EditNodeTask::execute() {
         if (shellCwd) {
             pushChange("exec_params.cwd", execParams.value("cwd"), shellCwd->text());
             pushChange("exec_params.shell", execParams.value("shell"), shellShell->text());
-        }
-        if (innerType) {
-            pushChange("exec_params.inner.exec_type", execParams.value("inner.exec_type"), innerType->text());
-            pushChange("exec_params.inner.exec_command", execParams.value("inner.exec_command"), innerCmd->text());
         }
 
         undo_->endMacro();

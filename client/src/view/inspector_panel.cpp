@@ -312,6 +312,9 @@ void InspectorPanel::saveNodeEdits() {
     } else if (execType == "template") {
         pushChange("exec_params.template_id", exec.value("template_id"), nodeWidget_->templateIdValue());
         pushChange("exec_params.template_params_json", exec.value("template_params_json"), nodeWidget_->templateParamsJsonValue());
+    } else if (execType == "remote") {
+        pushChange("exec_params.remote.fail_policy", exec.value("remote.fail_policy"), nodeWidget_->remoteFailPolicyValue());
+        pushChange("exec_params.remote.max_parallel", exec.value("remote.max_parallel"), nodeWidget_->remoteMaxParallelValue());
     }
     undo_->endMacro();
     onSelectionChanged();

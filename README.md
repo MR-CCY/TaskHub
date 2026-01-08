@@ -29,21 +29,21 @@ sequenceDiagram
         S->>S: ServerWorkerRegistry.touchHeartbeat()
     end
 
-    Note over S: TaskRunner -> RemoteExecutionStrategy -> WorkerSelector
+    Note over S: TaskRunner -> RemoteExecutionStrategy -> WorkerSelector (Remote 节点派发 DAG)
 
     S->>S: pickWorkerForQueue(queue) (alive + queueMatch + notFull + notCooling)
-    S->>W2: POST /api/worker/execute (task=short-1)
-    W2-->>S: 200 TaskResult JSON (ACK)
+    S->>W2: POST /api/worker/execute (type=dag, payload=dag_json)
+    W2-->>S: 200 {"type":"dag","ok":true,"run_id":"...","task_ids":[...]} (ACK)
 
     Note over S: Failover 示例（W2 不可达）
     S->>S: pickWorkerForQueue(queue) -> W2
-    S->>W2: POST /api/worker/execute (task=failover-1)
+    S->>W2: POST /api/worker/execute (type=dag, payload=dag_json)
     W2--x S: 连接失败/超时/5xx
     S->>S: markDispatchFailure(W2, cooldown)
     S->>S: retry attempt=2 (dispatch.max_retries)
     S->>S: pickWorkerForQueue(queue) -> W1
-    S->>W1: POST /api/worker/execute (task=failover-1)
-    W1-->>S: 200 TaskResult JSON (ACK)
+    S->>W1: POST /api/worker/execute (type=dag, payload=dag_json)
+    W1-->>S: 200 {"type":"dag","ok":true,"run_id":"...","task_ids":[...]} (ACK)
 ```
 
 ## 目录结构
@@ -132,16 +132,13 @@ cmake --build build
 - `log.path`
 
 ## 分布式扩展说明
-- `/api/worker/execute` 支持 `type=task|dag|template`，`dag/template` 为异步派发并返回 `run_id`
-- Master -> Worker 的远程派发可通过 `exec_params` 扩展：
-  - `remote.payload_type`: `task|dag|template`
-  - `remote.payload_json`: JSON 字符串（对应 payload）
+- Remote 节点（`exec_type: Remote`）当前用于“派发子 DAG”：必须提供 `exec_params.dag_json`（DAG JSON 字符串），Master 会转成 `{"type":"dag","payload":...}` 调用 Worker 的 `/api/worker/execute`，并返回 `run_id/task_ids` ACK
 - 本地同步 DAG / Template 任务：
   - `exec_type: Dag`，`exec_params.dag_json` = DAG JSON 字符串
   - `exec_type: Template`，`exec_params.template_id` + `exec_params.template_params_json`
-  - 会生成新的 `run_id` 并落库（`dag_run`/`task_run`），payload 内部 `run_id` 会被覆盖
-- 日志透传：`GET /api/workers/proxy/logs?worker_id=...&task_id=...`
-- DAG/事件透传：`/api/workers/proxy/dag/task_runs`、`/api/workers/proxy/dag/events`
+- 透传查询（支持多级 Remote 嵌套，按 `remote_path` 逐跳定位）：
+  - 日志：`GET /api/workers/proxy/logs?run_id=...&remote_path=R_1/R_2&task_id=...`
+  - DAG/事件：`/api/workers/proxy/dag/task_runs`、`/api/workers/proxy/dag/events`（同样支持 `remote_path`）
 - WS 透传：在 Master WS 连接上发送 `{"op":"proxy","worker_id":"..."}`，后续消息直达 Worker WS
 
 ## API

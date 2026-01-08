@@ -8,7 +8,6 @@
 #include "operator/create_rect_operator.h"
 #include <QMouseEvent>
 #include <QDebug>
-#include <QMessageBox>
 
 namespace {
 ContainerRectItem* findContainerAt(QGraphicsScene* scene, const QPointF& scenePos) {
@@ -49,11 +48,6 @@ bool CreateTask::dispatch(QEvent* e) {
             // 2. 创建 Item (Model)
             auto pos = v->mapToScene(me->pos());
             ContainerRectItem* container = findContainerAt(scene, pos);
-            if (useFactory_ && container && NodeItemFactory::isContainerType(nodeType_)) {
-                QMessageBox::information(v, QObject::tr("提示"), QObject::tr("容器节点不能放入容器"));
-                removeSelf();
-                return true;
-            }
 
             RectItem* item = nullptr;
             if (useFactory_) {

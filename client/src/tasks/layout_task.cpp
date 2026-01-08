@@ -256,6 +256,21 @@ void LayoutTask::execute() {
         }
     }
 
+    const auto containerDepth = [](const ContainerRectItem* c) -> int {
+        int d = 0;
+        for (auto* p = c ? c->parentItem() : nullptr; p; p = p->parentItem()) {
+            if (dynamic_cast<ContainerRectItem*>(p)) {
+                ++d;
+            }
+        }
+        return d;
+    };
+
+    std::sort(containers.begin(), containers.end(),
+              [&](const ContainerRectItem* a, const ContainerRectItem* b) {
+                  return containerDepth(a) > containerDepth(b); // deep-first
+              });
+
     for (auto* container : containers) {
         QVector<RectItem*> childNodes;
         QSet<RectItem*> childSet;
@@ -264,7 +279,6 @@ void LayoutTask::execute() {
         for (auto* child : children) {
             auto* node = dynamic_cast<RectItem*>(child);
             if (!node) continue;
-            if (dynamic_cast<ContainerRectItem*>(node)) continue;
             if (!node->scene()) continue;
             childNodes.append(node);
             childSet.insert(node);

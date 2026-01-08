@@ -8,6 +8,7 @@
 #include <QLineEdit>
 #include <QComboBox>
 #include <QPushButton>
+#include <QSpinBox>
 #include <QJsonObject>
 #include <QSet>
 
@@ -18,12 +19,9 @@ NodeInspectorRemoteWidget::NodeInspectorRemoteWidget(QWidget* parent)
     form->setContentsMargins(0, 0, 0, 0);
     form->setSpacing(6);
 
-    innerTypeLabel_ = new QLabel(tr("inner exec_type"), this);
-    innerCmdLabel_ = new QLabel(tr("inner exec_command"), this);
     queueLabel_ = new QLabel(tr("队列(queue)"), this);
-
-    innerTypeEdit_ = new QLineEdit(this);
-    innerCmdEdit_ = new QLineEdit(this);
+    failPolicyLabel_ = new QLabel(tr("失败策略"), this);
+    maxParallelLabel_ = new QLabel(tr("并发限制"), this);
 
     auto* qLayout = new QHBoxLayout();
     queueCombo_ = new QComboBox(this);
@@ -51,9 +49,17 @@ NodeInspectorRemoteWidget::NodeInspectorRemoteWidget(QWidget* parent)
     qLayout->addWidget(queueCombo_, 1);
     qLayout->addWidget(moreBtn_);
 
-    form->addRow(innerTypeLabel_, innerTypeEdit_);
-    form->addRow(innerCmdLabel_, innerCmdEdit_);
+    failPolicyCombo_ = new QComboBox(this);
+    failPolicyCombo_->addItem(tr("失败即终止"), QStringLiteral("FailFast"));
+    failPolicyCombo_->addItem(tr("失败则跳过"), QStringLiteral("SkipDownstream"));
+
+    maxParallelSpin_ = new QSpinBox(this);
+    maxParallelSpin_->setRange(1, 128);
+    maxParallelSpin_->setValue(4);
+
     form->addRow(queueLabel_, qLayout);
+    form->addRow(failPolicyLabel_, failPolicyCombo_);
+    form->addRow(maxParallelLabel_, maxParallelSpin_);
 
     connect(moreBtn_, &QPushButton::clicked, this, [this]() {
         WorkerListDialog dlg(this);
@@ -63,22 +69,27 @@ NodeInspectorRemoteWidget::NodeInspectorRemoteWidget(QWidget* parent)
 
 void NodeInspectorRemoteWidget::setValues(const QVariantMap& props, const QVariantMap& exec)
 {
-    innerTypeEdit_->setText(exec.value("inner.exec_type").toString());
-    innerCmdEdit_->setText(exec.value("inner.exec_command").toString());
-
     QString q = props.value("queue").toString();
     if (q.isEmpty()) q = "default";
     queueCombo_->setCurrentText(q);
+
+    QString fp = exec.value("remote.fail_policy").toString().trimmed();
+    int idx = failPolicyCombo_->findData(fp);
+    if (idx >= 0) failPolicyCombo_->setCurrentIndex(idx);
+    else failPolicyCombo_->setCurrentIndex(0);
+
+    int mp = exec.value("remote.max_parallel", 4).toInt();
+    maxParallelSpin_->setValue(mp);
 }
 
-QString NodeInspectorRemoteWidget::innerTypeValue() const { return innerTypeEdit_->text(); }
-QString NodeInspectorRemoteWidget::innerCmdValue() const { return innerCmdEdit_->text(); }
 QString NodeInspectorRemoteWidget::queueValue() const { return queueCombo_->currentText(); }
+QString NodeInspectorRemoteWidget::failPolicyValue() const { return failPolicyCombo_->currentData().toString(); }
+int NodeInspectorRemoteWidget::maxParallelValue() const { return maxParallelSpin_->value(); }
 
 void NodeInspectorRemoteWidget::setReadOnlyMode(bool ro)
 {
-    innerTypeEdit_->setReadOnly(ro);
-    innerCmdEdit_->setReadOnly(ro);
     queueCombo_->setEnabled(!ro);
     moreBtn_->setEnabled(!ro);
+    failPolicyCombo_->setEnabled(!ro);
+    maxParallelSpin_->setEnabled(!ro);
 }

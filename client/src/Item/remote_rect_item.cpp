@@ -22,7 +22,8 @@ RemoteRectItem::RemoteRectItem(const QRectF& rect, QGraphicsItem* parent)
     props_["queue"] = "default";
     props_["capture_output"] = true;
     props_["metadata"] = QVariantMap{};
-    setPropByKeyPath("exec_params.payloadType", "dag");
+    setPropByKeyPath("exec_params.remote.fail_policy", "SkipDownstream");
+    setPropByKeyPath("exec_params.remote.max_parallel", 4);
 }
 
 QString RemoteRectItem::typeLabel() const {

@@ -684,9 +684,10 @@ Same payload shape as `/api/workers`, but only includes `alive=true` workers.
 转发到指定 Worker 的日志查询（等同 `/api/tasks/logs`）。
 
 Query:
-- `worker_id` (required)
 - `task_id` (required)
-- `run_id` (optional)
+- `run_id` (required when using `remote_path`)
+- `remote_path` (optional, multi-hop 路径，例如 `R_1/R_2`；为空表示本机查询)
+- `worker_id` (optional, legacy: 直连转发到指定 worker；未提供 `remote_path` 时生效)
 - `from` (optional, default 1)
 - `limit` (optional, default 200)
 
@@ -694,18 +695,20 @@ Response: 同 `/api/tasks/logs`。
 
 Errors:
 ```json
-{ "code": 400, "message": "missing worker_id/task_id", "data": null }
-{ "code": 404, "message": "worker not found", "data": null }
-{ "code": 503, "message": "worker not alive", "data": null }
-{ "code": 502, "message": "worker log query failed: no response", "data": null }
+{ "code": 400, "message": "missing task_id", "data": null }
+{ "code": 404, "message": "remote logical node not found: ...", "data": null }
+{ "code": 404, "message": "worker_id not found for node: ...", "data": null }
+{ "code": 404, "message": "worker not found or offline: ...", "data": null }
+{ "code": 404, "message": "worker not alive: ...", "data": null }
+{ "code": 502, "message": "proxy forward failed: no response", "data": null }
 ```
 
 #### GET /api/workers/proxy/dag/task_runs
-转发到指定 Worker 的 `/api/dag/task_runs`。
+按 `remote_path` 逐跳转发 `/api/dag/task_runs`（用于 Remote 嵌套 DAG 的跨 worker 查询）。
 
 Query:
-- `worker_id` (required)
-- `run_id` (optional)
+- `run_id` (required when using `remote_path`)
+- `remote_path` (optional, multi-hop 路径；为空表示本机查询)
 - `name` (optional)
 - `limit` (optional, default 200)
 
@@ -713,18 +716,19 @@ Response: 同 `/api/dag/task_runs`。
 
 Errors:
 ```json
-{ "code": 400, "message": "missing worker_id", "data": null }
-{ "code": 404, "message": "worker not found", "data": null }
-{ "code": 503, "message": "worker not alive", "data": null }
-{ "code": 502, "message": "worker task_runs query failed: no response", "data": null }
+{ "code": 404, "message": "remote logical node not found: ...", "data": null }
+{ "code": 404, "message": "worker_id not found for node: ...", "data": null }
+{ "code": 404, "message": "worker not found or offline: ...", "data": null }
+{ "code": 404, "message": "worker not alive: ...", "data": null }
+{ "code": 502, "message": "proxy forward failed: no response", "data": null }
 ```
 
 #### GET /api/workers/proxy/dag/events
-转发到指定 Worker 的 `/api/dag/events`。
+按 `remote_path` 逐跳转发 `/api/dag/events`（用于 Remote 嵌套 DAG 的跨 worker 查询）。
 
 Query:
-- `worker_id` (required)
-- `run_id` (optional)
+- `run_id` (required when using `remote_path`)
+- `remote_path` (optional, multi-hop 路径；为空表示本机查询)
 - `task_id` (optional)
 - `type` (optional)
 - `event` (optional)
@@ -736,31 +740,15 @@ Response: 同 `/api/dag/events`。
 
 Errors:
 ```json
-{ "code": 400, "message": "missing worker_id", "data": null }
-{ "code": 404, "message": "worker not found", "data": null }
-{ "code": 503, "message": "worker not alive", "data": null }
-{ "code": 502, "message": "worker events query failed: no response", "data": null }
+{ "code": 404, "message": "remote logical node not found: ...", "data": null }
+{ "code": 404, "message": "worker_id not found for node: ...", "data": null }
+{ "code": 404, "message": "worker not found or offline: ...", "data": null }
+{ "code": 404, "message": "worker not alive: ...", "data": null }
+{ "code": 502, "message": "proxy forward failed: no response", "data": null }
 ```
 
 #### POST /api/worker/execute
-Request body:
-- 兼容旧格式：TaskConfig（exec_type 不能为 `Remote`）
-- 新格式：`type + payload`
-  - `dag/template` 会在 Worker 侧异步执行，并返回 `run_id`
-
-示例：Task（兼容）
-```json
-{
-  "task": {
-    "id": "t1",
-    "name": "hello",
-    "exec_type": "Shell",
-    "exec_command": "echo hi"
-  }
-}
-```
-
-示例：DAG（异步派发）
+Request body（当前用于 Remote 节点的 DAG 异步派发）：
 ```json
 {
   "type": "dag",
@@ -774,38 +762,7 @@ Request body:
   }
 }
 ```
-
-示例：Template（异步派发）
-```json
-{
-  "type": "template",
-  "payload": {
-    "template_id": "tpl-1",
-    "params": { "name": "demo" }
-  }
-}
-```
-
-Response (success):
-```json
-{
-  "code": 0,
-  "message": "ok",
-  "data": {
-    "status": 2,
-    "message": "",
-    "exit_code": 0,
-    "duration_ms": 15,
-    "stdout": "hello\n",
-    "stderr": "",
-    "attempt": 1,
-    "max_attempts": 1,
-    "metadata": {}
-  }
-}
-```
-
-Response (dag/template dispatch ack):
+Response (dispatch ack):
 ```json
 {
   "code": 0,
@@ -825,25 +782,12 @@ Response (dag/template dispatch ack):
 Errors:
 ```json
 { "code": 400, "message": "invalid json", "data": null }
-{ "code": 400, "message": "worker cannot execute Remote task", "data": null }
+{ "code": 400, "message": "worker only supports dag payload for Remote nodes", "data": null }
 ```
 
-Remote 任务扩展（Master -> Worker）：
-- 在 TaskConfig 的 `exec_params` 中使用：
-  - `remote.payload_type`: `task|dag|template`
-  - `remote.payload_json`: JSON 字符串（对应 payload）
-
-示例（Remote DAG）：
-```json
-{
-  "id": "remote-dag-1",
-  "exec_type": "Remote",
-  "exec_params": {
-    "remote.payload_type": "dag",
-    "remote.payload_json": "{\"tasks\":[{\"id\":\"a\",\"exec_type\":\"Shell\",\"exec_command\":\"echo a\"}]}"
-  }
-}
-```
+Remote 任务（Master -> Worker）：
+- `exec_type: "Remote"` 需要提供 `exec_params.dag_json`（DAG JSON 字符串）
+- Master 会读取 `dag_json` 并调用 Worker 的 `/api/worker/execute`（见上面的 `type=dag` 请求示例）
 
 本地同步 DAG / Template 任务（exec_type）：
 - `exec_type: "Dag"`，`exec_params.dag_json` = DAG JSON 字符串

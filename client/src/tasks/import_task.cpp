@@ -70,12 +70,31 @@ void ImportTask::execute() {
         return;
     }
 
-    // 创建缺失节点（宏包裹）
     undo_->beginMacro("Import DAG");
+
+    loadLevel(tasks, nullptr, idToNode);
+
+    undo_->endMacro();
+    if (auto* mgr = manager()) {
+        auto* layoutTask = new LayoutTask(scene_, mgr);
+        mgr->push(layoutTask);
+        layoutTask->execute();
+    }
+    removeSelf();
+}
+
+void ImportTask::loadLevel(const QJsonArray& tasks, QGraphicsItem* parentNode, const QHash<QString, RectItem*>& preCreated) {
+    QHash<QString, RectItem*> levelNodes = preCreated;
+
+    // 1. 创建本层所有节点（如果还不存在的话）
     for (const auto& jt : tasks) {
         const QJsonObject obj = jt.toObject();
         const QString id = obj.value("id").toString();
-        if (idToNode.contains(id)) continue; // 已有或复用
+        
+        if (levelNodes.contains(id)) {
+            // 已有节点可能来自冲突处理
+            continue;
+        }
 
         const QString execType = obj.value("exec_type").toString();
         NodeType nt = typeFromExec(execType);
@@ -87,7 +106,7 @@ void ImportTask::execute() {
         static const char* keys[] = {
             "id", "name", "exec_type", "exec_command", "exec_params",
             "timeout_ms", "retry_count", "retry_delay_ms", "retry_exp_backoff",
-            "priority", "queue", "capture_output", "metadata"
+            "priority", "queue", "capture_output", "metadata", "description"
         };
         for (auto key : keys) {
             const QString sk(key);
@@ -105,41 +124,65 @@ void ImportTask::execute() {
             }
         }
         node->setTaskConfig(cfg);
-
         node->attachContext(scene_, nullptr, undo_);
+        
+        if (parentNode) {
+            node->setParentItem(parentNode);
+        }
+        
         node->execCreateCmd(true);
-        idToNode[id] = node;
+        levelNodes[id] = node;
     }
 
-    // 创建连线
+    // 2. 解析递归容器内容
     for (const auto& jt : tasks) {
         const QJsonObject obj = jt.toObject();
         const QString id = obj.value("id").toString();
-        auto* target = idToNode.value(id, nullptr);
+        RectItem* node = levelNodes.value(id);
+        if (!node) continue;
+
+        QJsonObject execParams = obj.value("exec_params").toObject();
+        if (execParams.contains("dag_json")) {
+            inflateDagJson(node, execParams.value("dag_json").toString());
+        }
+    }
+
+    // 3. 创建本层连线
+    for (const auto& jt : tasks) {
+        const QJsonObject obj = jt.toObject();
+        const QString id = obj.value("id").toString();
+        auto* target = levelNodes.value(id, nullptr);
         if (!target) continue;
         const QJsonArray deps = obj.value("deps").toArray();
         for (const auto& depVal : deps) {
             const QString depId = depVal.toString();
-            auto* src = idToNode.value(depId, nullptr);
+            auto* src = levelNodes.value(depId, nullptr);
             if (!src || src == target) continue;
-            QGraphicsItem* parent = nullptr;
-            if (!LineItemFactory::canConnect(src, target, parent)) {
+            
+            QGraphicsItem* lineParent = parentNode; // 连线与节点同级
+            if (!LineItemFactory::canConnect(src, target, lineParent)) {
                 continue;
             }
-            auto* line = LineItemFactory::createLine(src, target, parent);
+            auto* line = LineItemFactory::createLine(src, target, lineParent);
             if (!line) continue;
             line->attachContext(scene_, nullptr, undo_);
             line->execCreateCmd(true);
         }
     }
+}
 
-    undo_->endMacro();
-    if (auto* mgr = manager()) {
-        auto* layoutTask = new LayoutTask(scene_, mgr);
-        mgr->push(layoutTask);
-        layoutTask->execute();
-    }
-    removeSelf();
+bool ImportTask::inflateDagJson(RectItem* node, const QString& dagJson) {
+    if (dagJson.isEmpty()) return false;
+    
+    QJsonDocument doc = QJsonDocument::fromJson(dagJson.toUtf8());
+    if (!doc.isObject()) return false;
+    
+    QJsonObject root = doc.object();
+    if (!root.contains("tasks") || !root.value("tasks").isArray()) return false;
+    
+    QJsonArray tasks = root.value("tasks").toArray();
+    loadLevel(tasks, node);
+    return true;
 }
 
 bool ImportTask::parseJson(const QString& path, QJsonObject& rootOut) {
@@ -161,7 +204,6 @@ bool ImportTask::validateTasks(const QJsonObject& root, QJsonArray& tasksOut) {
         if (!jt.isObject()) return false;
         QJsonObject obj = jt.toObject();
         if (!obj.contains("id") || !obj.value("id").isString()) return false;
-        if (!obj.contains("exec_command")) return false;
     }
     return true;
 }

@@ -103,44 +103,22 @@ inline std::string normalize_payload_type(std::string type) {
 }
 
 struct RemotePayloadSpec {
-    bool useTypedRequest{false};
-    std::string type;
     json payload;
     std::string error;
 };
 
 inline RemotePayloadSpec parse_remote_payload_spec(const taskhub::core::TaskConfig& cfg) {
     RemotePayloadSpec spec;
-    auto itType = cfg.execParams.find("remote.payload_type");
-    auto itPayload = cfg.execParams.find("remote.payload_json");
+    auto itDagJson = cfg.execParams.find("dag_json");
 
-    if (itType == cfg.execParams.end() && itPayload == cfg.execParams.end()) {
-        return spec;
-    }
-
-    spec.useTypedRequest = true;
-    if (itType == cfg.execParams.end()) {
-        spec.error = "remote.payload_type is required when remote.payload_json is provided";
-        return spec;
-    }
-    spec.type = normalize_payload_type(itType->second);
-    if (spec.type.empty()) {
-        spec.type = "task";
-    }
-    if (spec.type != "task" && spec.type != "dag" && spec.type != "template") {
-        spec.error = "unsupported remote.payload_type: " + spec.type;
+    if (itDagJson == cfg.execParams.end() || itDagJson->second.empty()) {
+        spec.error = "dag_json is required for Remote task";
         return spec;
     }
 
-    if (itPayload != cfg.execParams.end() && !itPayload->second.empty()) {
-        spec.payload = json::parse(itPayload->second, nullptr, false);
-        if (spec.payload.is_discarded() || !spec.payload.is_object()) {
-            spec.error = "remote.payload_json must be valid JSON object";
-            return spec;
-        }
-    } else if (spec.type != "task") {
-        spec.error = "remote.payload_json is required for payload_type=" + spec.type;
-        return spec;
+    spec.payload = json::parse(itDagJson->second, nullptr, false);
+    if (spec.payload.is_discarded() || !spec.payload.is_object()) {
+        spec.error = "dag_json must be valid JSON object";
     }
 
     return spec;
@@ -207,8 +185,6 @@ namespace taskhub::runner {
             Logger::error(result.message);
             return result;
         }
-        const bool useTypedRequest = payloadSpec.useTypedRequest;
-        const std::string payloadType = payloadSpec.type;
         const json payloadJson = payloadSpec.payload;
 
         const int maxRetries = read_dispatch_max_retries();
@@ -250,7 +226,7 @@ namespace taskhub::runner {
                 core::emitEvent(cfg, LogLevel::Info, "RemoteExecution: picked worker",result.durationMs,result.attempt,f);
             }
 
-            DispatchAttemptResult attemptResult = dispatch_once(worker,ctx,queue,useTypedRequest,payloadType,payloadJson);
+            DispatchAttemptResult attemptResult = dispatch_once(worker,ctx,queue,payloadJson);
             result = attemptResult.result;
             if (attemptResult.retryable) {
                 worker::ServerWorkerRegistry::instance().markDispatchFailure(worker.id, cooldown);
@@ -264,7 +240,7 @@ namespace taskhub::runner {
 
         return result;
     }
-    RemoteExecutionStrategy::DispatchAttemptResult RemoteExecutionStrategy::dispatch_once(const worker::WorkerInfo &workerInfo, const core::ExecutionContext& ctx, const std::string& queue,bool useTypedRequest,const std::string& payloadType,const json& payloadJson)
+    RemoteExecutionStrategy::DispatchAttemptResult RemoteExecutionStrategy::dispatch_once(const worker::WorkerInfo &workerInfo, const core::ExecutionContext& ctx, const std::string& queue,const json& payloadJson)
     {
             DispatchAttemptResult out;
             const auto& cfg = ctx.config;
@@ -275,18 +251,21 @@ namespace taskhub::runner {
             attempt.workerHost = workerInfo.host;
             attempt.workerPort = workerInfo.port;
 
-            auto innerCfg = core::makeInnerTask(cfg);
             json jReq;
-            if (useTypedRequest) {
-                json payloadToSend = payloadJson;
-                if (payloadToSend.is_null() || payloadToSend.empty()) {
-                    payloadToSend = buildRequestJson(innerCfg);
-                }
-                jReq["type"] = payloadType.empty() ? "task" : payloadType;
-                jReq["payload"] = payloadToSend;
-            } else {
-                jReq = buildRequestJson(innerCfg);
-            }
+            json payloadToSend = payloadJson;
+	            // 注入 run_id（用于分布式 DAG 跨 worker 统一查询/透传）
+	            if (!cfg.id.runId.empty()) {
+	                const bool missing =
+	                    !payloadToSend.contains("run_id") ||
+	                    !payloadToSend["run_id"].is_string() ||
+	                    payloadToSend["run_id"].get<std::string>().empty();
+	                if (missing) {
+	                    payloadToSend["run_id"] = cfg.id.runId;
+	                }
+	            }
+            jReq["type"] = "dag";
+            jReq["payload"] = payloadToSend;
+
             const std::string body = jReq.dump();
             // 3. 构造 HTTP 客户端
             httplib::Client cli(workerInfo.host, workerInfo.port);

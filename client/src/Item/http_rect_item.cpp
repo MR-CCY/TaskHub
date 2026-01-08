@@ -12,6 +12,7 @@ HttpRectItem::HttpRectItem(const QRectF& rect, QGraphicsItem* parent)
     props_["id"] = QString("H_%1").arg(gHttpIdCounter++);
     props_["name"] = "HTTP";
     props_["exec_type"] = "HttpCall";
+    props_["exec_command"] = "";
     props_["timeout_ms"] = static_cast<qint64>(0);
     props_["retry_count"] = 0;
     props_["retry_delay_ms"] = static_cast<qint64>(1000);

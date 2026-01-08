@@ -44,12 +44,12 @@ public:
     QString shellENVValue() const;
     QString shellCmdValue() const;
 
-    QString innerExecTypeValue() const;
-    QString innerExecCommandValue() const;
     QString dagJsonValue() const;
     QString templateIdValue() const;
     QString templateParamsJsonValue() const;
     QString cronSpecValue() const;
+    QString remoteFailPolicyValue() const;
+    int remoteMaxParallelValue() const;
     void setRuntimeValues(const QJsonObject& obj);
     void setReadOnlyMode(bool ro);
 
