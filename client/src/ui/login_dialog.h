@@ -1,7 +1,6 @@
 #include <QDialog>
 #include <QLineEdit>
 #include <QLabel>
-#include "http_client.h"
 #include <QPushButton>
 #include "net/api_client.h"
 class LoginDialog : public QDialog {

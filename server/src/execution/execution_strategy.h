@@ -23,9 +23,7 @@ public:
     /// @param cfg        任务配置（包含 execType、命令、参数等）
     /// @param cancelFlag 取消标记，可为 nullptr
     /// @param deadline   超时时间点；如果没有超时限制，可以传 time_point::max()
-    virtual core::TaskResult execute(const core::TaskConfig& cfg,
-                                     std::atomic_bool* cancelFlag,
-                                     Deadline deadline) = 0;
+    virtual core::TaskResult execute(core::ExecutionContext& ctx) = 0;
 };
 
 } // namespace taskhub::runner

@@ -9,6 +9,7 @@
 #include "node_inspector_common_widget.h"
 #include "node_inspector_dag_widget.h"
 #include "node_inspector_http_widget.h"
+#include "node_inspector_local_widget.h"
 #include "node_inspector_remote_widget.h"
 #include "node_inspector_runtime_widget.h"
 #include "node_inspector_shell_widget.h"
@@ -51,6 +52,7 @@ void NodeInspectorWidget::buildUi()
     execStack_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
 
     emptyExec_ = new QWidget(execStack_);
+    local_ = new NodeInspectorLocalWidget(execStack_);
     http_ = new NodeInspectorHttpWidget(execStack_);
     shell_ = new NodeInspectorShellWidget(execStack_);
     remote_ = new NodeInspectorRemoteWidget(execStack_);
@@ -58,6 +60,7 @@ void NodeInspectorWidget::buildUi()
     template_ = new NodeInspectorTemplateWidget(execStack_);
 
     execStack_->addWidget(emptyExec_);
+    execStack_->addWidget(local_);
     execStack_->addWidget(http_);
     execStack_->addWidget(shell_);
     execStack_->addWidget(remote_);
@@ -83,9 +86,10 @@ void NodeInspectorWidget::buildUi()
 void NodeInspectorWidget::setValues(const QVariantMap& props, const QVariantMap& exec)
 {
     if (common_) common_->setValues(props);
+    if (local_) local_->setValues(exec);
     if (http_) http_->setValues(exec);
     if (shell_) shell_->setValues(exec);
-    if (remote_) remote_->setValues(exec);
+    if (remote_) remote_->setValues(props, exec);
     if (dag_) dag_->setValues(exec);
     if (template_) template_->setValues(exec);
     updateExecSection(props.value("exec_type").toString());
@@ -95,20 +99,31 @@ QString NodeInspectorWidget::nameValue() const {
     return common_ ? common_->nameValue() : QString();
 }
 
-QString NodeInspectorWidget::commandValue() const {
-    return common_ ? common_->commandValue() : QString();
-}
+// QString NodeInspectorWidget::commandValue() const {
+//     return common_ ? common_->commandValue() : QString();
+// }
 
 qint64 NodeInspectorWidget::timeoutMsValue() const {
     return common_ ? common_->timeoutMsValue() : 0;
+}
+
+QString NodeInspectorWidget::descriptionValue() const {
+    return common_ ? common_->descriptionValue() : QString();
 }
 
 int NodeInspectorWidget::retryCountValue() const {
     return common_ ? common_->retryCountValue() : 0;
 }
 
+int NodeInspectorWidget::priorityValue() const {
+    return common_ ? common_->priorityValue() : 0;
+}
+
 QString NodeInspectorWidget::queueValue() const {
-    return common_ ? common_->queueValue() : QString();
+    if (remote_ && execStack_ && execStack_->currentWidget() == remote_) {
+        return remote_->queueValue();
+    }
+    return QString(); // 只有 Remote 节点目前有 queue 选择
 }
 
 bool NodeInspectorWidget::captureOutputValue() const {
@@ -119,8 +134,32 @@ QString NodeInspectorWidget::httpMethodValue() const {
     return http_ ? http_->methodValue() : QString();
 }
 
+QString NodeInspectorWidget::httpUrlValue() const {
+    return http_ ? http_->urlValue() : QString();
+}
+
+QString NodeInspectorWidget::httpHeadersValue() const {
+    return http_ ? http_->headersValue() : QString();
+}
+
 QString NodeInspectorWidget::httpBodyValue() const {
     return http_ ? http_->bodyValue() : QString();
+}
+
+QString NodeInspectorWidget::httpAuthUserValue() const {
+    return http_ ? http_->authUserValue() : QString();
+}
+
+QString NodeInspectorWidget::httpAuthPassValue() const {
+    return http_ ? http_->authPassValue() : QString();
+}
+
+bool NodeInspectorWidget::httpFollowRedirectsValue() const {
+    return http_ ? http_->followRedirectsValue() : true;
+}
+
+QString NodeInspectorWidget::localHandlerValue() const {
+    return local_ ? local_->handlerValue() : QString();
 }
 
 QString NodeInspectorWidget::shellCwdValue() const {
@@ -129,6 +168,16 @@ QString NodeInspectorWidget::shellCwdValue() const {
 
 QString NodeInspectorWidget::shellShellValue() const {
     return shell_ ? shell_->shellValue() : QString();
+}
+
+QString NodeInspectorWidget::shellENVValue() const
+{
+    return shell_ ? shell_->envValue() : QString();
+}
+
+QString NodeInspectorWidget::shellCmdValue() const
+{
+    return shell_ ? shell_->cmdValue() : QString();
 }
 
 QString NodeInspectorWidget::innerExecTypeValue() const {
@@ -183,6 +232,7 @@ void NodeInspectorWidget::setReadOnlyMode(bool ro)
     readOnly_ = ro;
     if (common_) common_->setReadOnlyMode(ro);
     if (actions_) actions_->setReadOnlyMode(ro);
+    if (local_) local_->setReadOnlyMode(ro);
     if (http_) http_->setReadOnlyMode(ro);
     if (shell_) shell_->setReadOnlyMode(ro);
     if (remote_) remote_->setReadOnlyMode(ro);
@@ -199,31 +249,32 @@ void NodeInspectorWidget::updateExecSection(const QString& execType)
 
     switch (kind) {
     case ExecKind::Http:
-        common_->setCommandLabel(tr("请求 URL"));
+        // common_->setCommandLabel(tr("请求 URL"));
         target = http_;
         break;
     case ExecKind::Shell:
-        common_->setCommandLabel(tr("Shell 命令"));
+        // common_->setCommandLabel(tr("Shell 命令"));
         target = shell_;
         break;
     case ExecKind::Remote:
-        common_->setCommandLabel(tr("远程命令/URL"));
+        // common_->setCommandLabel(tr("远程命令/URL"));
         target = remote_;
         break;
     case ExecKind::Dag:
-        common_->setCommandLabel(tr("DAG JSON (可选)"));
+        // common_->setCommandLabel(tr("DAG JSON (可选)"));
         target = dag_;
         break;
     case ExecKind::Template:
-        common_->setCommandLabel(tr("模板命令/URL (可选)"));
+        // common_->setCommandLabel(tr("模板命令/URL (可选)"));
         target = template_;
         break;
     case ExecKind::Script:
-        common_->setCommandLabel(tr("脚本/命令"));
+        // common_->setCommandLabel(tr("脚本/命令"));
         break;
     case ExecKind::Local:
+        target = local_;
+        break;
     default:
-        common_->setCommandLabel(tr("处理函数/Handler"));
         break;
     }
 

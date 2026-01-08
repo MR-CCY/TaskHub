@@ -200,7 +200,7 @@ void InspectorPanel::createNodeCron(const QString& spec)
     QJsonObject task;
     static const char* keys[] = {
         "id", "name", "exec_type", "exec_command", "timeout_ms", "retry_count",
-        "retry_delay_ms", "retry_exp_backoff", "priority", "queue", "capture_output","description"
+        "retry_delay_ms", "retry_exp_backoff", "priority", "capture_output","description"
     };
     for (auto* key : keys) {
         if (!props.contains(key)) continue;
@@ -244,17 +244,68 @@ void InspectorPanel::saveNodeEdits() {
         undo_->push(cmd);
     };
     pushChange("name", props.value("name"), nodeWidget_->nameValue());
-    pushChange("exec_command", props.value("exec_command"), nodeWidget_->commandValue());
+    pushChange("description", props.value("description"), nodeWidget_->descriptionValue());
     pushChange("timeout_ms", props.value("timeout_ms"), nodeWidget_->timeoutMsValue());
     pushChange("retry_count", props.value("retry_count"), nodeWidget_->retryCountValue());
-    pushChange("queue", props.value("queue"), nodeWidget_->queueValue());
+    pushChange("priority", props.value("priority"), nodeWidget_->priorityValue());
+    pushChange("queue", props.value("queue", "default"), nodeWidget_->queueValue());
     pushChange("capture_output", props.value("capture_output"), nodeWidget_->captureOutputValue());
+
     pushChange("exec_params.method", exec.value("method"), nodeWidget_->httpMethodValue());
+    pushChange("exec_params.url", exec.value("url"), nodeWidget_->httpUrlValue());
     pushChange("exec_params.body", exec.value("body"), nodeWidget_->httpBodyValue());
+    pushChange("exec_params.auth.user", exec.value("auth.user"), nodeWidget_->httpAuthUserValue());
+    pushChange("exec_params.auth.pass", exec.value("auth.pass"), nodeWidget_->httpAuthPassValue());
+    pushChange("exec_params.follow_redirects", exec.value("follow_redirects", "true"), nodeWidget_->httpFollowRedirectsValue() ? "true" : "false");
+
+    // 处理 Headers (解析多行文本为多个 exec_params.header.XXX 项)
+    {
+        QString oldHeadersText;
+        QStringList oldLines;
+        for (auto it = exec.begin(); it != exec.end(); ++it) {
+            if (it.key().startsWith("header.")) {
+                oldLines << QString("%1: %2").arg(it.key().mid(7)).arg(it.value().toString());
+            }
+        }
+        oldHeadersText = oldLines.join("\n");
+        QString newHeadersText = nodeWidget_->httpHeadersValue();
+
+        if (oldHeadersText != newHeadersText) {
+            // 简单处理：先移除旧的 header.*，再添加新的
+            // 注意：这里需要 undo 系统支持批量或特殊处理
+            // 为简化演示，我们对比后再分别 push
+            
+            // 1) 找出所有旧键名并清空（防止残留）
+            for (auto it = exec.begin(); it != exec.end(); ++it) {
+                if (it.key().startsWith("header.")) {
+                    pushChange("exec_params." + it.key(), it.value(), QVariant()); 
+                }
+            }
+
+            // 2) 写入新键名
+            QStringList newLines = newHeadersText.split('\n', Qt::SkipEmptyParts);
+            for (const QString& line : newLines) {
+                int colon = line.indexOf(':');
+                if (colon > 0) {
+                    QString k = line.left(colon).trimmed();
+                    QString v = line.mid(colon + 1).trimmed();
+                    if (!k.isEmpty()) {
+                        pushChange("exec_params.header." + k, QVariant(), v);
+                    }
+                }
+            }
+        }
+    }
+
+    //Shell参数包中的参数
     pushChange("exec_params.cwd", exec.value("cwd"), nodeWidget_->shellCwdValue());
     pushChange("exec_params.shell", exec.value("shell"), nodeWidget_->shellShellValue());
-    // pushChange("exec_params.inner.exec_type", exec.value("inner.exec_type"), nodeWidget_->innerExecTypeValue());
-    // pushChange("exec_params.inner.exec_command", exec.value("inner.exec_command"), nodeWidget_->innerExecCommandValue());
+    pushChange("exec_params.env", exec.value("env"), nodeWidget_->shellENVValue());
+    pushChange("exec_params.cmd", exec.value("cmd"), nodeWidget_->shellCmdValue());
+
+    // Local 处理器
+    pushChange("exec_params.handler", exec.value("handler"), nodeWidget_->localHandlerValue());
+
     const QString execType = props.value("exec_type").toString().trimmed().toLower();
     if (execType == "dag") {
         pushChange("exec_params.dag_json", exec.value("dag_json"), nodeWidget_->dagJsonValue());

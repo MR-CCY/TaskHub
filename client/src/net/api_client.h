@@ -35,6 +35,7 @@ public:
     void listCronJobs();
     void deleteCronJob(const QString& id);
     void createCronJob(const QJsonObject& body);
+    void getWorkers();
 
 signals:
     void unauthorized();
@@ -54,6 +55,7 @@ signals:
     void cronJobsOk(const QJsonArray& jobs);
     void cronJobDeleted(const QString& id);
     void cronJobCreated(const QString& id);
+    void workersOk(const QJsonArray& workers);
 
     // generic
     void requestFailed(const QString& apiName, int httpStatus, const QString& message);

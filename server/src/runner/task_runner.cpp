@@ -268,8 +268,8 @@ TaskResult TaskRunner::dispatchExec(const TaskConfig &cfg, std::atomic_bool *can
         return r;
     }
 
-    // 真正执行一次（不含重试）
-    return strategy->execute(cfg, cancelFlag, deadline);
+    core::ExecutionContext ctx(cfg, cancelFlag, deadline);
+    return strategy->execute(ctx);
 }
 
 } // namespace taskhub::runner

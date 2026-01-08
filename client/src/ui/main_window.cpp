@@ -127,14 +127,17 @@ void MainWindow::setupClients() {
     ws_  =  WsClient::instance();
     ws_->setToken( AppContext::instance().token());
     api_->setToken( AppContext::instance().token());
-    // 你自己的 baseUrl 放这里（或从 Settings 读）
-    api_->setBaseUrl("http://127.0.0.1:8082");
+    const QString baseUrl = AppContext::instance().baseUrl().isEmpty()
+        ? QStringLiteral("http://127.0.0.1:8082")
+        : AppContext::instance().baseUrl();
+    api_->setBaseUrl(baseUrl);
     wsUrl_ = QUrl("ws://127.0.0.1:8090/ws"); 
     ws_->connectTo(wsUrl_)
 ;
 
     api_->getHealth();
     api_->getInfo();
+    api_->getWorkers();
    
 }
 void MainWindow::wireSignals() {
@@ -156,6 +159,11 @@ void MainWindow::wireSignals() {
     connect(api_, &ApiClient::infoOk, this, [this](const QJsonObject& data) {
         console_->appendInfo(QString("info ok: %1")
                              .arg(QString::fromUtf8(QJsonDocument(data).toJson(QJsonDocument::Compact))));
+    });
+
+    connect(api_, &ApiClient::workersOk, this, [this](const QJsonArray& workers) {
+        AppContext::instance().setWorkers(workers);
+        console_->appendInfo(QString("workers ok: %1").arg(workers.size()));
     });
 
     connect(api_, &ApiClient::loginOk, this, [this](const QString& token, const QString& username) {

@@ -2,6 +2,7 @@
 #pragma once
 #include <QString>
 #include <QDateTime>
+#include <QJsonArray>
 class AppContext {
 public:
     static AppContext& instance();
@@ -17,6 +18,8 @@ public:
     void setUsername(const QString& username);
     QString loginTime() const;
     void setLoginTime();
+    void setWorkers(const QJsonArray& workers);
+    QJsonArray workers() const;
 
 private:
     AppContext() = default;
@@ -24,4 +27,5 @@ private:
     QString m_token;     // Bearer 后面的那串
     QString m_username;
     QDateTime m_loginTime;
+    QJsonArray m_workers;
 };

@@ -7,7 +7,7 @@
 
 namespace taskhub::runner {
 
-using LocalTaskFn = std::function<core::TaskResult(const core::TaskConfig&, std::atomic_bool*)>;
+using LocalTaskFn = std::function<core::TaskResult(const core::ExecutionContext&)>;
 
 class LocalTaskRegistry {
 public:

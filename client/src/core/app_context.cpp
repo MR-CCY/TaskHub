@@ -50,3 +50,13 @@ void AppContext::setLoginTime()
 {
     m_loginTime = QDateTime::currentDateTime();
 }
+
+void AppContext::setWorkers(const QJsonArray& workers)
+{
+    m_workers = workers;
+}
+
+QJsonArray AppContext::workers() const
+{
+    return m_workers;
+}

@@ -1,14 +1,28 @@
 #pragma once
 #include "execution_strategy.h"
-
+namespace taskhub::worker{
+    class WorkerInfo;
+}
 namespace taskhub::runner {
 /// 本地执行策略：
 /// - 对应 cfg.execType == Remote
+
 class RemoteExecutionStrategy : public IExecutionStrategy {
 public:
-    core::TaskResult execute(const core::TaskConfig& cfg,
-                             std::atomic_bool* cancelFlag,
-                             Deadline deadline) override;
+struct DispatchAttemptResult  {
+    taskhub::core::TaskResult result;
+    bool retryable{false};
+    std::string retryReason;
+};
+
+    core::TaskResult execute(core::ExecutionContext& ctx) override;
+private:
+    DispatchAttemptResult dispatch_once(const worker::WorkerInfo& workerInfo,
+                                        const core::ExecutionContext& ctx,
+                                        const std::string& queue,
+                                        bool useTypedRequest,
+                                        const std::string& payloadType,
+                                        const json& payloadJson);
 };
 
 } // namespace taskhub::runner

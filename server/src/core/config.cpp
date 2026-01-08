@@ -111,6 +111,9 @@ void Config::load_from_env() {
     if (const char* p = std::getenv("TASKHUB_LOG")) {
         m_log_path = p;
     }
+    if (const char* p = std::getenv("TASKHUB_WS_PORT")) {
+        m_config["server.ws_port"] = std::atoi(p);
+    }
 }
 
 

@@ -34,17 +34,17 @@ namespace {
     }
 }
 
-core::TaskResult DagExecutionStrategy::execute(const core::TaskConfig& cfg,
-                                               std::atomic_bool* cancelFlag,
-                                               Deadline deadline)
+core::TaskResult DagExecutionStrategy::execute(core::ExecutionContext& ctx)
 {
     core::TaskResult result;
-    if (cancelFlag && cancelFlag->load(std::memory_order_acquire)) {
+    const auto& cfg = ctx.config;
+
+    if (ctx.isCanceled()) {
         result.status = core::TaskStatus::Canceled;
         result.message = "DagExecution: canceled before start";
         return result;
     }
-    if (deadline != Deadline::max() && SteadyClock::now() >= deadline) {
+    if (ctx.isTimeout()) {
         result.status = core::TaskStatus::Timeout;
         result.message = "DagExecution: timeout before start";
         return result;
@@ -53,9 +53,7 @@ core::TaskResult DagExecutionStrategy::execute(const core::TaskConfig& cfg,
     json dagBody;
     std::string err;
     if (!parse_dag_body(cfg, dagBody, err)) {
-        result.status = core::TaskStatus::Failed;
-        result.message = err;
-        return result;
+        return ctx.fail(err);
     }
 
     if (!dagBody.contains("config") || !dagBody["config"].is_object()) {

@@ -15,8 +15,8 @@ const struct ItemDef { QString text; NodeType type; QString icon; } kTypeDefs[] 
     { QObject::tr("HTTP 节点"),   NodeType::Http,   QStringLiteral(":/icons/image/http.png")   },
     { QObject::tr("Local 节点"),  NodeType::Local,  QStringLiteral(":/icons/image/local.png")  },
     { QObject::tr("Remote 节点"), NodeType::Remote, QStringLiteral(":/icons/image/remote.png") },
-    { QObject::tr("DAG 节点"),    NodeType::Dag,    QStringLiteral(":/icons/image/layout.png") },
-    { QObject::tr("模版 节点"),   NodeType::Template, QStringLiteral(":/icons/image/layout.png") },
+    { QObject::tr("DAG 节点"),    NodeType::Dag,    QStringLiteral(":/icons/image/dag.png") },
+    { QObject::tr("模版 节点"),   NodeType::Template, QStringLiteral(":/icons/image/template.png") },
 };
 }
 

@@ -50,10 +50,11 @@ namespace taskhub {
         // 5. 初始化数据库并完成迁移
         init_db();
         
-        // 7. 监听 8090 端口启动 ws 服务（如果你希望任务日志通过 ws 实时推送，建议在 TaskRunner 之前启动）
-        m_wsServer = std::make_unique<WsServer>("0.0.0.0", 8090);
+        // 7. 监听 WS 端口启动 ws 服务
+        int wsPort = Config::instance().get<int>("server.ws_port", 8090);
+        m_wsServer = std::make_unique<WsServer>("0.0.0.0", wsPort);
         m_wsServer->start();
-        Logger::info("WsServer started at 0.0.0.0:8090");
+        Logger::info("WsServer started at 0.0.0.0:" + std::to_string(wsPort));
 
         // 8. 启动后台任务执行线程
         TaskRunner::instance().start();

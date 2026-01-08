@@ -110,15 +110,20 @@ namespace taskhub {
     
         broadcast_task_event("task_updated", *task);
         m_current_running++;
+        std::string cmd;
+        if (task->params.contains("cmd") && task->params["cmd"].is_string()) {
+            cmd = task->params["cmd"].get<std::string>();
+        }
+
         Logger::info("Worker " + std::to_string(worker_id)
                      + " start task " + std::to_string(task->id)
-                     + ": " + task->params["cmd"].get<std::string>());
+                     + ": " + cmd);
                      
         // 2) 执行命令
         std::string output;
         std::string error;
         int exit_code = 0;
-        const std::string cmd = task->params["cmd"].get<std::string>();
+        // cmd already defined above
 
         int max_retries = task->max_retries;
         int attempt     = 0;

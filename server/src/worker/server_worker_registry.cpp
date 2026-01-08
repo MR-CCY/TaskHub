@@ -49,8 +49,7 @@ namespace {
      */
     void ServerWorkerRegistry::initSelector()
     {
-        const std::string configured = taskhub::Config::instance().get<std::string>(
-            "worker.select_strategy", "least-load");
+        const std::string configured = taskhub::Config::instance().get<std::string>("worker.select_strategy", "least-load");
         const std::string strategy = normalize_strategy_name(configured);
         if (strategy == "rr" || strategy == "round-robin" || strategy == "round_robin") {
             _selector = std::make_unique<RoundRobinSelector>();

@@ -1,6 +1,7 @@
 #include "login_dialog.h"
 #include <QGridLayout>
 #include <QJsonObject>
+#include <QJsonArray>
 #include "app_context.h"
 #include <QSettings>
 #include <QMessageBox>
@@ -43,13 +44,26 @@ LoginDialog::LoginDialog(QWidget *parent)
         QMessageBox::warning(this, "登录失败", "登录失败："+message);
     });
     connect(m_appApiClient, &ApiClient::loginOk, [this](const QString& token, const QString& username) {
-        // m_appApiClient->setToken(token);
+        AppContext::instance().setBaseUrl(m_appApiClient->baseUrl());
         AppContext::instance().setToken(token);
-        // m_appApiClient->setUsername(username);
-        // m_appApiClient->getHealth();
-        // m_appApiClient->getInfo();
+        AppContext::instance().setUsername(username);
+        AppContext::instance().setLoginTime();
+
+        m_appApiClient->setToken(token);
+        m_appApiClient->getWorkers();
+    });
+
+    connect(m_appApiClient, &ApiClient::workersOk, [this](const QJsonArray& workers) {
+        AppContext::instance().setWorkers(workers);
         this->accept();
-        return;
+    });
+
+    connect(m_appApiClient, &ApiClient::requestFailed, [this](const QString& apiName, int httpStatus, const QString& message) {
+        if (apiName != "workers") return;
+        AppContext::instance().setWorkers(QJsonArray());
+        QMessageBox::warning(this, "获取Workers失败",
+                             QString("HTTP %1: %2").arg(httpStatus).arg(message));
+        this->accept();
     });
 
 }

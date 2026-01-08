@@ -312,7 +312,7 @@ namespace taskhub
             json j;
             j["ok"] = true;
             j["workers"] = arr;
-
+            Logger::info("Worker List: id="+ arr.dump());
             resp::ok(res, j);
         } catch (const std::exception& e) {
             resp::error(res, 500, std::string("internal error: ") + e.what(), 500);

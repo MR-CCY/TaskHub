@@ -9,17 +9,11 @@ int gRemoteIdCounter = 1;
 RemoteRectItem::RemoteRectItem(const QRectF& rect, QGraphicsItem* parent)
     : ContainerRectItem(rect, parent)
 {
-    QVariantMap execParams;
-    execParams["inner.exec_type"] = QString("Shell");
-    execParams["inner.exec_command"] = QString("echo remote");
-    execParams["inner.exec_params.cwd"] = QString("");
-    execParams["inner.exec_params.shell"] = QString("/bin/bash");
-
     props_["id"] = QString("R_%1").arg(gRemoteIdCounter++);
     props_["name"] = "Remote";
     props_["exec_type"] = "Remote";
     props_["exec_command"] = QString("");
-    props_["exec_params"] = execParams;
+    props_["exec_params"] = QVariantMap{};
     props_["timeout_ms"] = static_cast<qint64>(0);
     props_["retry_count"] = 0;
     props_["retry_delay_ms"] = static_cast<qint64>(1000);
@@ -28,15 +22,13 @@ RemoteRectItem::RemoteRectItem(const QRectF& rect, QGraphicsItem* parent)
     props_["queue"] = "default";
     props_["capture_output"] = true;
     props_["metadata"] = QVariantMap{};
+    setPropByKeyPath("exec_params.payloadType", "dag");
 }
 
 QString RemoteRectItem::typeLabel() const {
-    return "SSH"; 
+    return "Remote"; 
 }
 QColor  RemoteRectItem::headerColor() const { return QColor(120, 60, 170); }
 QString RemoteRectItem::summaryText() const {
-    const QVariantMap execParams = props_.value("exec_params").toMap();
-    const QString innerType = execParams.value("inner.exec_type", "").toString();
-    const QString innerCmd  = execParams.value("inner.exec_command", "").toString();
-    return QString("%1 %2").arg(innerType, innerCmd);
+    return "";
 }

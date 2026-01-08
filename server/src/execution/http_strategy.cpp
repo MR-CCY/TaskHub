@@ -30,23 +30,25 @@ inline void push_text_as_stdout(const taskhub::core::TaskConfig& cfg, const std:
     /// @param cancelFlag 取消标志，用于检查任务是否被取消
     /// @param deadline 任务截止时间点，用于超时控制
     /// @return 返回任务执行结果，包括执行状态、消息和执行时长
-    core::TaskResult HttpExecutionStrategy::execute(const core::TaskConfig &cfg, std::atomic_bool *cancelFlag, Deadline deadline)
+    core::TaskResult HttpExecutionStrategy::execute(core::ExecutionContext &ctx)
     {
         core::TaskResult r;
+        const auto& cfg = ctx.config;
+        auto deadline = ctx.getDeadline();
+
         const auto start = SteadyClock::now();
         core::emitEvent(cfg, LogLevel::Info, "http dispatch start", 0);
-        if (cfg.execCommand.empty()) {
-            r.status  = core::TaskStatus::Failed;
-            r.message = "TaskRunner：空的http url";
-            core::emitEvent(cfg, LogLevel::Error, "http invalid: empty url", 0);
-            return r;
+        // 1) 确定 URL：优先取 execParams["url"]
+        std::string actualUrl = ctx.get("url", cfg.execCommand);
+
+        if (actualUrl.empty()) {
+             core::emitEvent(cfg, LogLevel::Error, "http invalid: empty url", 0);
+             return ctx.fail("TaskRunner: 空的http url");
         }
     
-        if (cancelFlag && cancelFlag->load(std::memory_order_acquire)) {
-            r.status  = core::TaskStatus::Canceled;
-            r.message = "TaskRunner：在http调用之前取消";
+        if (ctx.isCanceled()) {
             core::emitEvent(cfg, LogLevel::Warn, "http canceled before call", 0);
-            return r;
+            return ctx.canceled("TaskRunner: 在http调用之前取消");
         }
 
         // 粗略解析 URL，支持 http://host[:port]/path 形式
@@ -55,11 +57,11 @@ inline void push_text_as_stdout(const taskhub::core::TaskConfig& cfg, const std:
         std::string path = "/";
         int port         = 80;
 
-        const auto schemePos = cfg.execCommand.find("://");
-        std::string rest     = cfg.execCommand;
+        const auto schemePos = actualUrl.find("://");
+        std::string rest     = actualUrl;
         if (schemePos != std::string::npos) {
-            scheme = cfg.execCommand.substr(0, schemePos);
-            rest   = cfg.execCommand.substr(schemePos + 3);
+            scheme = actualUrl.substr(0, schemePos);
+            rest   = actualUrl.substr(schemePos + 3);
         }
 
         const auto pathPos = rest.find('/');
@@ -77,11 +79,9 @@ inline void push_text_as_stdout(const taskhub::core::TaskConfig& cfg, const std:
             port = scheme == "https" ? 443 : 80;
         }
     
-        if (scheme != "http" || host.empty()) {
-            r.status  = core::TaskStatus::Failed;
-            r.message = "TaskRunner：不受支持或无效的URL";
+        if (scheme != "http" && scheme != "https") {
             core::emitEvent(cfg, LogLevel::Error, "http invalid: unsupported url", 0);
-            return r;
+            return ctx.fail("TaskRunner：不受支持或无效的URL");
         }
 
         core::emitEvent(cfg, LogLevel::Debug, "http parsed url", 0, 1, {
@@ -96,16 +96,12 @@ inline void push_text_as_stdout(const taskhub::core::TaskConfig& cfg, const std:
 
         if (deadline != Deadline::max()) {
             const auto now = SteadyClock::now();
-            if (deadline <= now) {
-                r.status  = core::TaskStatus::Timeout;
-                r.message = "TaskRunner: timeout before http call";
+            if (ctx.isTimeout()) {
                 core::emitEvent(cfg, LogLevel::Warn, "http timeout before call", 0);
-                return r;
+                return ctx.timeout("TaskRunner: timeout before http call");
             }
 
             // 剩余时间：用于设置 httplib 的连接/读写超时
-            // 说明：cpp-httplib 的 timeout 只能在调用前设置，无法真正中断正在阻塞的请求。
-            //      因此这里将 deadline 映射为网络层 timeout，作为“硬超时”。
             auto remain = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now);
             if (remain.count() <= 0) {
                 remain = std::chrono::milliseconds(1);
@@ -119,16 +115,73 @@ inline void push_text_as_stdout(const taskhub::core::TaskConfig& cfg, const std:
             cli.set_write_timeout(sec, usec);
         }
 
-        httplib::Params params;
-        for (const auto &kv : cfg.execParams) {
-            params.emplace(kv.first, kv.second);
+        // 2) 准备认证 (Basic Auth)
+        std::string authUser = ctx.get("auth.user");
+        std::string authPass = ctx.get("auth.pass");
+        if (!authUser.empty()) {
+            cli.set_basic_auth(authUser.c_str(), authPass.c_str());
         }
 
+        // 3) 跟随重定向
+        if (ctx.getBool("follow_redirects", true)) {
+            cli.set_follow_location(true);
+        } else {
+            cli.set_follow_location(false);
+        }
+
+        // 4) 准备 Headers (从 execParams 中提取以 header. 开头的项)
+        httplib::Headers headers;
+        for (const auto& kv : cfg.execParams) {
+            if (kv.first.size() > 7 && kv.first.substr(0, 7) == "header.") {
+                headers.emplace(kv.first.substr(7), kv.second);
+            }
+        }
+
+        // 5) 确定 Method 和 Body
+        std::string method = ctx.get("method", "GET");
+        // 转换为大写
+        std::transform(method.begin(), method.end(), method.begin(), ::toupper);
+        std::string body = ctx.get("body", "");
+
         core::emitEvent(cfg, LogLevel::Info, "http request start", 0, 1, {
-            {"method", params.empty() ? "GET" : "POST"}
+            {"method", method},
+            {"header_count", std::to_string(headers.size())}
         });
 
-        auto res = params.empty() ? cli.Get(path) : cli.Post(path, params);
+        // 6) 执行请求
+        httplib::Result res;
+        if (method == "GET") {
+            res = cli.Get(path, headers);
+        } else if (method == "POST") {
+            if (!body.empty()) {
+                // 如果提供了 body，优先发送 body
+                std::string contentType = "text/plain";
+                auto itType = headers.find("Content-Type");
+                if (itType != headers.end()) contentType = itType->second;
+                res = cli.Post(path, headers, body, contentType);
+            } else {
+                // 回滚兼容：如果没 body，尝试将 execParams (排除 header./method/url 等) 作为 form 参数
+                httplib::Params params;
+                for (const auto &kv : cfg.execParams) {
+                    if (kv.first != "method" && kv.first != "url" && 
+                        kv.first != "body" && kv.first.substr(0, 7) != "header.") {
+                        params.emplace(kv.first, kv.second);
+                    }
+                }
+                if (!params.empty()) {
+                    res = cli.Post(path, headers, params);
+                } else {
+                    res = cli.Post(path, headers, "", "text/plain");
+                }
+            }
+        } else if (method == "PUT") {
+            res = cli.Put(path, headers, body, "text/plain");
+        } else if (method == "DELETE") {
+            res = cli.Delete(path, headers);
+        } else {
+            // 不支持的方法
+            return ctx.fail("TaskRunner: 不支持的 HTTP 方法 " + method);
+        }
 
         const auto end = SteadyClock::now();
         r.durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
@@ -142,31 +195,24 @@ inline void push_text_as_stdout(const taskhub::core::TaskConfig& cfg, const std:
             core::emitEvent(cfg, LogLevel::Warn, "http no response", r.durationMs);
         }
 
-        if (cancelFlag && cancelFlag->load(std::memory_order_acquire)) {
-            r.status  = core::TaskStatus::Canceled;
-            r.message = "TaskRunner：在http调用期间取消";
+        if (ctx.isCanceled()) {
+            r = ctx.canceled("TaskRunner：在http调用期间取消");
         } else if (!res) {
-            r.status  = core::TaskStatus::Failed;
-            r.message = "TaskRunner: http 错误 " + httplib::to_string(res.error());
+            r = ctx.fail("TaskRunner: http 错误 " + httplib::to_string(res.error()));
             r.stderrData = httplib::to_string(res.error());
             if (cfg.captureOutput) {
                 taskhub::core::LogManager::instance().stderrLine(cfg.id, r.stderrData);
             }
         } else if (res->status >= 200 && res->status < 300) {
-            r.status = core::TaskStatus::Success;
-            // Capture response body as stdout for now
-            if (res) {
-                r.stdoutData = res->body;
-                push_text_as_stdout(cfg, r.stdoutData);
-            }
+            r = ctx.success();
+            r.stdoutData = res->body;
+            push_text_as_stdout(cfg, r.stdoutData);
         } else {
-            r.status  = core::TaskStatus::Failed;
-            r.message = "TaskRunner: http 状态 " + std::to_string(res->status);
-            if (res) {
-                r.stdoutData = res->body;
-                push_text_as_stdout(cfg, r.stdoutData);
-            }
+            r = ctx.fail("TaskRunner: http 状态 " + std::to_string(res->status));
+            r.stdoutData = res->body;
+            push_text_as_stdout(cfg, r.stdoutData);
         }
+        r.durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
         core::emitEvent(cfg,
                         (r.status == core::TaskStatus::Success) ? LogLevel::Info

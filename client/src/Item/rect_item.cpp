@@ -191,7 +191,7 @@ void RectItem::setTaskConfig(const QVariantMap& cfg) {
     static const char* keys[] = {
         "id", "name", "exec_type", "exec_command", "exec_params",
         "timeout_ms", "retry_count", "retry_delay_ms", "retry_exp_backoff",
-        "priority", "queue", "capture_output", "metadata"
+        "priority", "queue", "capture_output", "metadata","description"
     };
     for (const auto key : keys) {
         if (cfg.contains(key)) {

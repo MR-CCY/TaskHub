@@ -9,16 +9,9 @@ int gHttpIdCounter = 1;
 HttpRectItem::HttpRectItem(const QRectF& rect, QGraphicsItem* parent)
     : RectItem(rect, parent)
 {
-    QVariantMap execParams;
-    execParams["method"] = QString("GET");
-    execParams["header.Authorization"] = QString("");
-    execParams["body"] = QString("");
-
     props_["id"] = QString("H_%1").arg(gHttpIdCounter++);
     props_["name"] = "HTTP";
     props_["exec_type"] = "HttpCall";
-    props_["exec_command"] = "https://example.com";
-    props_["exec_params"] = execParams;
     props_["timeout_ms"] = static_cast<qint64>(0);
     props_["retry_count"] = 0;
     props_["retry_delay_ms"] = static_cast<qint64>(1000);
@@ -27,6 +20,15 @@ HttpRectItem::HttpRectItem(const QRectF& rect, QGraphicsItem* parent)
     props_["queue"] = "default";
     props_["capture_output"] = true;
     props_["metadata"] = QVariantMap{};
+    props_["description"] = "";
+
+    setPropByKeyPath("exec_params.method", QString("GET"));
+    setPropByKeyPath("exec_params.url", QString(""));
+    setPropByKeyPath("exec_params.body", QString(""));
+    setPropByKeyPath("exec_params.header.Content-Type", QString("application/json"));
+    setPropByKeyPath("exec_params.follow_redirects", QString("true"));
+
+    
 }
 
 QString HttpRectItem::typeLabel() const { 

@@ -18,7 +18,12 @@ FileLogSink::FileLogSink(Options opt) : _opt(std::move(opt)) {
 
 void FileLogSink::ensureOpen_() {
     if (_ofs.is_open()) return;
-    fs::create_directories(fs::path(_opt.path).parent_path());
+    if (_opt.path.empty()) return;
+
+    auto parent = fs::path(_opt.path).parent_path();
+    if (!parent.empty() && !fs::exists(parent)) {
+        fs::create_directories(parent);
+    }
     _ofs.open(_opt.path, std::ios::app);
 }
 

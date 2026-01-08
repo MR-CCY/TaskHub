@@ -10,60 +10,45 @@ using namespace taskhub::runner;
 namespace {
 
 // A 节点对应的本地处理函数
-core::TaskResult taskAHandler(const core::TaskConfig& cfg, std::atomic_bool* cancelFlag)
+core::TaskResult taskAHandler(const core::ExecutionContext& ctx)
 {
     Logger::info("[taskA] start="+utils::now_string());
-    core::TaskResult r;
     // TODO: 填你真实的逻辑，这里先 mock 一下
     Logger::info("taskAHandler running...");
 
-    // 可以根据 cfg.execParams 做点事情
-    r.status  = core::TaskStatus::Success;
-    r.message = "taskA done";
+    // 可以根据 ctx.config.execParams 做点事情
     Logger::info("[taskA] end="+utils::now_string());
-    return r;
+    return ctx.success("taskA done");
 }
 
 // B 节点对应的本地处理函数
-core::TaskResult taskBHandler(const core::TaskConfig& cfg, std::atomic_bool* cancelFlag)
+core::TaskResult taskBHandler(const core::ExecutionContext& ctx)
 {
     Logger::info("[taskB] start="+utils::now_string());
-    core::TaskResult r;
     Logger::info("taskBHandler running...");
-    r.status  = core::TaskStatus::Success;
-    r.message = "taskB done";
     Logger::info("[taskB] end="+utils::now_string());
-    return r;   
+    return ctx.success("taskB done");
 }
-core::TaskResult taskCHandler(const core::TaskConfig& cfg, std::atomic_bool* cancelFlag)
+core::TaskResult taskCHandler(const core::ExecutionContext& ctx)
 {
-    Logger::info("[taskB] start="+utils::now_string());
-    core::TaskResult r;
+    Logger::info("[taskC] start="+utils::now_string());
     Logger::info("taskCHandler running...");
-    r.status  = core::TaskStatus::Success;
-    r.message = "taskC done";
-    Logger::info("[taskB] end="+utils::now_string());
-    return r;
+    Logger::info("[taskC] end="+utils::now_string());
+    return ctx.success("taskC done");
 }
-core::TaskResult taskDHandler(const core::TaskConfig& cfg, std::atomic_bool* cancelFlag)
+core::TaskResult taskDHandler(const core::ExecutionContext& ctx)
 {
     Logger::info("[taskD] start="+utils::now_string());
-    core::TaskResult r;
     Logger::info("taskDHandler running...");
-    r.status  = core::TaskStatus::Success;
-    r.message = "taskD done";
     Logger::info("[taskD] end="+utils::now_string());
-    return r;
+    return ctx.success("taskD done");
 }
-core::TaskResult taskBFailHandler(const core::TaskConfig& cfg, std::atomic_bool* cancelFlag)
+core::TaskResult taskBFailHandler(const core::ExecutionContext& ctx)
 {
     Logger::info("[taskBFailHandler] start="+utils::now_string());
-    core::TaskResult r;
     Logger::info("taskBFailHandler running...");
-    r.status  = core::TaskStatus::Failed;
-    r.message = "taskBFailHandler done";
     Logger::info("[taskBFailHandler] end="+utils::now_string());
-    return r;
+    return ctx.fail("taskBFailHandler failed");
 }
 //     // ★ 显式暴露一个函数，由 ServerApp 在 init_dag() 调用
 // void register_builtin_local_tasks()
@@ -83,6 +68,42 @@ struct AutoRegisterLocalTasks {
         lfr.registerTask("taskC_handler", taskCHandler);
         lfr.registerTask("taskD_handler", taskDHandler);
         lfr.registerTask("taskB_fail_handler", taskBFailHandler);
+
+        // 数学函数
+        lfr.registerTask("math_add", [](const core::ExecutionContext& ctx) {
+            double a = std::stod(ctx.get("a", "0"));
+            double b = std::stod(ctx.get("b", "0"));
+            return ctx.success(std::to_string(a + b));
+        });
+        lfr.registerTask("math_sub", [](const core::ExecutionContext& ctx) {
+            double a = std::stod(ctx.get("a", "0"));
+            double b = std::stod(ctx.get("b", "0"));
+            return ctx.success(std::to_string(a - b));
+        });
+        lfr.registerTask("math_mul", [](const core::ExecutionContext& ctx) {
+            double a = std::stod(ctx.get("a", "0"));
+            double b = std::stod(ctx.get("b", "0"));
+            return ctx.success(std::to_string(a * b));
+        });
+        lfr.registerTask("math_div", [](const core::ExecutionContext& ctx) {
+            double a = std::stod(ctx.get("a", "0"));
+            double b = std::stod(ctx.get("b", "1"));
+            if (b == 0) return ctx.fail("Division by zero");
+            return ctx.success(std::to_string(a / b));
+        });
+        lfr.registerTask("math_mod", [](const core::ExecutionContext& ctx) {
+            long long a = std::stoll(ctx.get("a", "0"));
+            long long b = std::stoll(ctx.get("b", "1"));
+            if (b == 0) return ctx.fail("Modulo by zero");
+            return ctx.success(std::to_string(a % b));
+        });
+        lfr.registerTask("math_cmp", [](const core::ExecutionContext& ctx) {
+            double a = std::stod(ctx.get("a", "0"));
+            double b = std::stod(ctx.get("b", "0"));
+            if (a > b) return ctx.success("gt");
+            if (a < b) return ctx.success("lt");
+            return ctx.success("eq");
+        });
     }
 };
 

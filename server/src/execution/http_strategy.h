@@ -6,9 +6,7 @@ namespace taskhub::runner {
 /// - 对应 cfg.execType == HttpCall
 class HttpExecutionStrategy : public IExecutionStrategy {
 public:
-    core::TaskResult execute(const core::TaskConfig& cfg,
-                             std::atomic_bool* cancelFlag,
-                             Deadline deadline) override;
+    core::TaskResult execute(core::ExecutionContext& ctx) override;
 };
 
 } // namespace taskhub::runner

@@ -12,5 +12,7 @@
     <file>image/local.png</file>
     <file>image/remote.png</file>
     <file>image/layout.png</file>
+    <file>image/template.png</file>
+    <file>image/dag.png</file>
   </qresource>
 </RCC>

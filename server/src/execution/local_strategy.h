@@ -9,9 +9,7 @@ namespace taskhub::runner {
 /// - 原来 TaskRunner::execLocal(...) 的逻辑剪切到这里
 class LocalExecutionStrategy : public IExecutionStrategy {
 public:
-    core::TaskResult execute(const core::TaskConfig& cfg,
-                             std::atomic_bool* cancelFlag,
-                             Deadline deadline) override;
+    core::TaskResult execute(core::ExecutionContext& ctx) override;
 };
 
 } // namespace taskhub::runner

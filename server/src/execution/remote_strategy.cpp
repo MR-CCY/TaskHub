@@ -15,7 +15,6 @@
 using json = nlohmann::json;
 
 namespace {
-
 inline void push_lines_to_buffer(const taskhub::core::TaskId& taskId,
                                  bool isStdout,
                                  const std::string& text)
@@ -49,11 +48,7 @@ inline void push_lines_to_buffer(const taskhub::core::TaskId& taskId,
 }
 
 inline std::unordered_map<std::string, std::string>
-base_remote_fields(const taskhub::core::TaskConfig& cfg,
-                   const std::string& queue,
-                   const std::string& workerId,
-                   const std::string& workerHost,
-                   int workerPort)
+base_remote_fields(const taskhub::core::TaskConfig& cfg, const std::string& queue,const std::string& workerId,const std::string& workerHost,int workerPort)
 {
     std::unordered_map<std::string, std::string> f;
     f["exec_type"] = taskhub::core::TaskExecTypetoString(cfg.execType);
@@ -64,11 +59,6 @@ base_remote_fields(const taskhub::core::TaskConfig& cfg,
     return f;
 }
 
-struct DispatchAttemptResult {
-    taskhub::core::TaskResult result;
-    bool retryable{false};
-    std::string retryReason;
-};
 
 inline int read_dispatch_max_retries() {
     int v = taskhub::Config::instance().get("dispatch.max_retries", 2);
@@ -186,17 +176,20 @@ inline taskhub::core::TaskResult build_dispatch_ack_result(const json& payload) 
 } // namespace
 
 namespace taskhub::runner {
-    core::TaskResult RemoteExecutionStrategy::execute(const core::TaskConfig &cfg, std::atomic_bool *cancelFlag, Deadline deadline)
+    core::TaskResult RemoteExecutionStrategy::execute(core::ExecutionContext& ctx)
     {
         core::TaskResult result;
+        const auto& cfg = ctx.config;
+        auto cancelFlag = ctx.getCancelFlag();
+        auto deadline = ctx.getDeadline();
 
         // 0) 取消/超时前置检查
-        if (cancelFlag && cancelFlag->load(std::memory_order_acquire)) {
+        if (ctx.isCanceled()) {
             result.status  = core::TaskStatus::Canceled;
             result.message = "RemoteExecution: canceled before dispatch";
             return result;
         }
-        if (deadline != Deadline::max() && SteadyClock::now() >= deadline) {
+        if (ctx.isTimeout()) {
             result.status  = core::TaskStatus::Timeout;
             result.message = "RemoteExecution: timeout before dispatch";
             return result;
@@ -222,14 +215,67 @@ namespace taskhub::runner {
         const int maxAttempts = 1 + maxRetries;
         const auto cooldown = std::chrono::seconds(5);
 
-        auto dispatch_once = [&](const worker::WorkerInfo& workerInfo) -> DispatchAttemptResult {
+        for (int attempt = 1; attempt <= maxAttempts; ++attempt) {
+            if (cancelFlag && cancelFlag->load(std::memory_order_acquire)) {
+                result.status  = core::TaskStatus::Canceled;
+                result.message = "RemoteExecution: canceled before dispatch";
+                return result;
+            }
+            if (deadline != Deadline::max() && SteadyClock::now() >= deadline) {
+                result.status  = core::TaskStatus::Timeout;
+                result.message = "RemoteExecution: timeout before dispatch";
+                return result;
+            }
+
+            auto optWorker = worker::ServerWorkerRegistry::instance().pickWorkerForQueue(queue);
+            if (!optWorker.has_value()) {
+                result.status  = core::TaskStatus::Failed;
+                result.message = "RemoteExecution: no available worker for queue=" + queue;
+                Logger::error(result.message);
+
+                // M12: end event (failed)
+                auto f = base_remote_fields(cfg, queue, "", "", 0);
+                f["status"] = std::to_string(static_cast<int>(result.status));
+                core::emitEvent(cfg,LogLevel::Error,"RemoteExecution: dispatch end (no worker)",result.durationMs,result.attempt,f);
+                core::emitEvent(cfg,LogLevel::Error,result.message,result.durationMs,result.attempt,f);
+                return result;
+            }
+
+            worker::WorkerInfo worker = *optWorker; // 拷贝一份，避免锁问题
+            result.workerId   = worker.id;
+            result.workerHost = worker.host;
+            result.workerPort = worker.port;
+            {
+                auto f = base_remote_fields(cfg, queue, worker.id, worker.host, worker.port);
+                core::emitEvent(cfg, LogLevel::Info, "RemoteExecution: picked worker",result.durationMs,result.attempt,f);
+            }
+
+            DispatchAttemptResult attemptResult = dispatch_once(worker,ctx,queue,useTypedRequest,payloadType,payloadJson);
+            result = attemptResult.result;
+            if (attemptResult.retryable) {
+                worker::ServerWorkerRegistry::instance().markDispatchFailure(worker.id, cooldown);
+            }
+            if (!attemptResult.retryable || attempt == maxAttempts) {
+                return result;
+            }
+
+            Logger::warn("RemoteExecution: dispatch retry attempt=" +std::to_string(attempt + 1) + "/" + std::to_string(maxAttempts) +", worker_id=" + worker.id +", reason=" + (attemptResult.retryReason.empty() ? "unknown" : attemptResult.retryReason));
+        }
+
+        return result;
+    }
+    RemoteExecutionStrategy::DispatchAttemptResult RemoteExecutionStrategy::dispatch_once(const worker::WorkerInfo &workerInfo, const core::ExecutionContext& ctx, const std::string& queue,bool useTypedRequest,const std::string& payloadType,const json& payloadJson)
+    {
             DispatchAttemptResult out;
+            const auto& cfg = ctx.config;
+            auto cancelFlag = ctx.getCancelFlag();
+            auto deadline = ctx.getDeadline();
             core::TaskResult attempt;
             attempt.workerId   = workerInfo.id;
             attempt.workerHost = workerInfo.host;
             attempt.workerPort = workerInfo.port;
 
-            auto innerCfg = makeInnerTask(cfg);
+            auto innerCfg = core::makeInnerTask(cfg);
             json jReq;
             if (useTypedRequest) {
                 json payloadToSend = payloadJson;
@@ -286,8 +332,7 @@ namespace taskhub::runner {
                 auto f = base_remote_fields(cfg, queue, workerInfo.id, workerInfo.host, workerInfo.port);
                 f["duration_ms"] = std::to_string(attempt.durationMs);
                 core::emitEvent(cfg,LogLevel::Debug,"RemoteExecution: http call finished",attempt.durationMs,attempt.attempt,f);
-                ws::WsLogStreamer::instance().pushTaskEvent(cfg.id.value,
-                            "remote_dispatch",
+                ws::WsLogStreamer::instance().pushTaskEvent(cfg.id.value,"remote_dispatch",
                             {
                                 {"worker_id", workerInfo.id},
                                 {"worker_host", workerInfo.host},
@@ -327,9 +372,7 @@ namespace taskhub::runner {
                 } else {
                     reason = "no_response";
                 }
-                ws::WsLogStreamer::instance().pushTaskEvent(
-                    cfg.id.value,
-                    "remote_failed",
+                ws::WsLogStreamer::instance().pushTaskEvent(cfg.id.value,"remote_failed",
                     {
                         {"reason", reason},
                         {"worker_id", workerInfo.id},
@@ -354,21 +397,9 @@ namespace taskhub::runner {
                 f["http_status"] = std::to_string(resp->status);
                 f["status"] = TaskStatusTypetoString(attempt.status);
                 f["duration_ms"] = std::to_string(attempt.durationMs);
-                core::emitEvent(cfg,
-                          LogLevel::Error,
-                          "RemoteExecution: dispatch end (http non-200)",
-                          attempt.durationMs,
-                          attempt.attempt,
-                          f);
-                core::emitEvent(cfg,
-                          LogLevel::Error,
-                          attempt.message,
-                          attempt.durationMs,
-                          attempt.attempt,
-                          f);
-                ws::WsLogStreamer::instance().pushTaskEvent(
-                    cfg.id.value,
-                    "remote_failed",
+                core::emitEvent(cfg,LogLevel::Error,"RemoteExecution: dispatch end (http non-200)",attempt.durationMs,attempt.attempt,f);
+                core::emitEvent(cfg,LogLevel::Error,attempt.message,attempt.durationMs,attempt.attempt,f);
+                ws::WsLogStreamer::instance().pushTaskEvent(cfg.id.value,"remote_failed",
                     {
                         {"reason", "http_status"},
                         {"http_status", std::to_string(resp->status)},
@@ -398,21 +429,9 @@ namespace taskhub::runner {
                 auto f = base_remote_fields(cfg, queue, workerInfo.id, workerInfo.host, workerInfo.port);
                 f["status"] = std::to_string(static_cast<int>(attempt.status));
                 f["duration_ms"] = std::to_string(attempt.durationMs);
-                core::emitEvent(cfg,
-                          LogLevel::Error,
-                          "RemoteExecution: dispatch end (invalid json)",
-                          attempt.durationMs,
-                          attempt.attempt,
-                          f);
-                core::emitEvent(cfg,
-                          LogLevel::Error,
-                          attempt.message,
-                          attempt.durationMs,
-                          attempt.attempt,
-                          f);
-                ws::WsLogStreamer::instance().pushTaskEvent(
-                    cfg.id.value,
-                    "remote_failed",
+                core::emitEvent(cfg,LogLevel::Error,"RemoteExecution: dispatch end (invalid json)",attempt.durationMs,attempt.attempt,f);
+                core::emitEvent(cfg,LogLevel::Error,attempt.message,attempt.durationMs,attempt.attempt,f);
+                ws::WsLogStreamer::instance().pushTaskEvent(cfg.id.value,"remote_failed",
                     {
                         {"reason", "invalid_json"},
                         {"worker_id", workerInfo.id},
@@ -465,83 +484,10 @@ namespace taskhub::runner {
                 if (!parsed.message.empty()) {
                     f["message"] = parsed.message;
                 }
-                core::emitEvent(cfg,
-                          parsed.ok() ? LogLevel::Info : LogLevel::Warn,
-                          "RemoteExecution: dispatch end",
-                          parsed.durationMs,
-                          parsed.attempt,
-                          f);
+                core::emitEvent(cfg,parsed.ok() ? LogLevel::Info : LogLevel::Warn,"RemoteExecution: dispatch end",parsed.durationMs,parsed.attempt,f);
             }
 
             out.result = parsed;
             return out;
-        };
-
-        for (int attempt = 1; attempt <= maxAttempts; ++attempt) {
-            if (cancelFlag && cancelFlag->load(std::memory_order_acquire)) {
-                result.status  = core::TaskStatus::Canceled;
-                result.message = "RemoteExecution: canceled before dispatch";
-                return result;
-            }
-            if (deadline != Deadline::max() && SteadyClock::now() >= deadline) {
-                result.status  = core::TaskStatus::Timeout;
-                result.message = "RemoteExecution: timeout before dispatch";
-                return result;
-            }
-
-            auto optWorker = worker::ServerWorkerRegistry::instance().pickWorkerForQueue(queue);
-            if (!optWorker.has_value()) {
-                result.status  = core::TaskStatus::Failed;
-                result.message = "RemoteExecution: no available worker for queue=" + queue;
-                Logger::error(result.message);
-
-                // M12: end event (failed)
-                auto f = base_remote_fields(cfg, queue, "", "", 0);
-                f["status"] = std::to_string(static_cast<int>(result.status));
-                core::emitEvent(cfg,
-                          LogLevel::Error,
-                          "RemoteExecution: dispatch end (no worker)",
-                          result.durationMs,
-                          result.attempt,
-                          f);
-                core::emitEvent(cfg,
-                          LogLevel::Error,
-                          result.message,
-                          result.durationMs,
-                          result.attempt,
-                          f);
-                return result;
-            }
-
-            worker::WorkerInfo worker = *optWorker; // 拷贝一份，避免锁问题
-            result.workerId   = worker.id;
-            result.workerHost = worker.host;
-            result.workerPort = worker.port;
-            {
-                auto f = base_remote_fields(cfg, queue, worker.id, worker.host, worker.port);
-                core::emitEvent(cfg,
-                          LogLevel::Info,
-                          "RemoteExecution: picked worker",
-                          result.durationMs,
-                          result.attempt,
-                          f);
-            }
-
-            DispatchAttemptResult attemptResult = dispatch_once(worker);
-            result = attemptResult.result;
-            if (attemptResult.retryable) {
-                worker::ServerWorkerRegistry::instance().markDispatchFailure(worker.id, cooldown);
-            }
-            if (!attemptResult.retryable || attempt == maxAttempts) {
-                return result;
-            }
-
-            Logger::warn("RemoteExecution: dispatch retry attempt=" +
-                        std::to_string(attempt + 1) + "/" + std::to_string(maxAttempts) +
-                        ", worker_id=" + worker.id +
-                        ", reason=" + (attemptResult.retryReason.empty() ? "unknown" : attemptResult.retryReason));
-        }
-
-        return result;
     }
 }

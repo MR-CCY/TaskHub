@@ -2,11 +2,16 @@
 #include <string>
 #include <chrono>
 #include <unordered_map>
+#include <atomic>
 #include "json.hpp"
 using json = nlohmann::json;
 #include "task_common.h"
+#include "task_result.h"
 
 namespace taskhub::core {
+    
+using SteadyClock = std::chrono::steady_clock;
+using Deadline    = SteadyClock::time_point;
 
 /// 任务优先级（用于 M9）
 enum class TaskPriority : int {
@@ -40,7 +45,8 @@ struct TaskConfig {
     //Shell
     // { "cwd": "/tmp", "env.PATH": "...", "shell": "/bin/bash" }
     // HttpCall
-    // { "method": "POST", "header.Authorization": "...", "body": "..." }
+    // {"url": "http://api.example.com/v1/tasks","method": "POST","header.Content-Type": "application/json","header.Authorization": "Bearer your_token_here","body": "{\"name\": \"test_task\", \"priority\": \"high\"}"}
+    //{"url": "http://internal-service.local/data","method": "GET","auth.user": "admin","auth.pass": "secret123","follow_redirects": "true"}
     // Script
     // { "interpreter": "python3", "args": "-u main.py" }
     // Local
@@ -214,6 +220,13 @@ inline TaskConfig parseTaskConfigFromReq(const json& jReq) {
 
     return cfg;
 }
+inline std::string getParam(const std::unordered_map<std::string, std::string>& params, 
+                       const std::string& key, 
+                       const std::string& defaultVal = "") {
+    auto it = params.find(key);
+    return (it != params.end()) ? it->second : defaultVal;
+}
+
 inline bool startsWith(const std::string& s, const std::string& prefix){
     return s.size() >= prefix.size() && s.compare(0, prefix.size(), prefix) == 0;
 }
@@ -249,4 +262,81 @@ inline TaskConfig makeInnerTask(const TaskConfig& cfg) {
 
     return inner;
 }
+
+/**
+ * @brief 任务执行上下文，用于在执行策略或本地函数中获取参数及上报状态
+ */
+class ExecutionContext {
+public:
+    ExecutionContext(const TaskConfig& cfg, std::atomic_bool* cancelFlag, Deadline deadline = SteadyClock::time_point::max())
+        : config(cfg), cancelFlag_(cancelFlag), deadline_(deadline) {}
+
+    // 获取原始参数
+    std::string get(const std::string& key, const std::string& defaultVal = "") const {
+        return getParam(config.execParams, key, defaultVal);
+    }
+
+    // 获取整数参数
+    int getInt(const std::string& key, int defaultVal = 0) const {
+        std::string s = get(key);
+        if (s.empty()) return defaultVal;
+        try { return std::stoi(s); } catch (...) { return defaultVal; }
+    }
+
+    // 获取布尔参数
+    bool getBool(const std::string& key, bool defaultVal = false) const {
+        std::string s = get(key);
+        if (s.empty()) return defaultVal;
+        return (s == "true" || s == "1" || s == "yes");
+    }
+
+    // 检查是否已取消
+    bool isCanceled() const {
+        return cancelFlag_ && cancelFlag_->load(std::memory_order_acquire);
+    }
+
+    // 检查是否已超时
+    bool isTimeout() const {
+        if (deadline_ == SteadyClock::time_point::max()) return false;
+        return SteadyClock::now() >= deadline_;
+    }
+
+    std::atomic_bool* getCancelFlag() const { return cancelFlag_; }
+    Deadline getDeadline() const { return deadline_; }
+
+    // 结果生成辅助
+    TaskResult success(const std::string& msg = "") const {
+        TaskResult r;
+        r.status = TaskStatus::Success;
+        r.message = msg;
+        return r;
+    }
+
+    TaskResult fail(const std::string& msg) const {
+        TaskResult r;
+        r.status = TaskStatus::Failed;
+        r.message = msg;
+        return r;
+    }
+
+    TaskResult canceled(const std::string& msg = "Task canceled") const {
+        TaskResult r;
+        r.status = TaskStatus::Canceled;
+        r.message = msg;
+        return r;
+    }
+
+    TaskResult timeout(const std::string& msg = "Task timeout") const {
+        TaskResult r;
+        r.status = TaskStatus::Timeout;
+        r.message = msg;
+        return r;
+    }
+
+    const TaskConfig& config;
+private:
+    std::atomic_bool* cancelFlag_;
+    Deadline deadline_;
+};
+
 } // namespace taskhub::core

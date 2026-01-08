@@ -27,43 +27,37 @@ namespace {
     }
 }
 
-core::TaskResult TemplateExecutionStrategy::execute(const core::TaskConfig& cfg,
-                                                    std::atomic_bool* cancelFlag,
-                                                    Deadline deadline)
+core::TaskResult TemplateExecutionStrategy::execute(core::ExecutionContext& ctx)
 {
     core::TaskResult result;
-    if (cancelFlag && cancelFlag->load(std::memory_order_acquire)) {
+    const auto& cfg = ctx.config;
+
+    if (ctx.isCanceled()) {
         result.status = core::TaskStatus::Canceled;
         result.message = "TemplateExecution: canceled before start";
         return result;
     }
-    if (deadline != Deadline::max() && SteadyClock::now() >= deadline) {
+    if (ctx.isTimeout()) {
         result.status = core::TaskStatus::Timeout;
         result.message = "TemplateExecution: timeout before start";
         return result;
     }
 
-    auto itId = cfg.execParams.find("template_id");
-    if (itId == cfg.execParams.end() || itId->second.empty()) {
-        result.status = core::TaskStatus::Failed;
-        result.message = "TemplateExecution: missing template_id";
-        return result;
+    std::string templateId = ctx.get("template_id");
+    if (templateId.empty()) {
+        return ctx.fail("TemplateExecution: missing template_id");
     }
 
     json params;
     std::string err;
-    auto itParams = cfg.execParams.find("template_params_json");
-    if (!parse_template_params(itParams == cfg.execParams.end() ? "" : itParams->second, params, err)) {
-        result.status = core::TaskStatus::Failed;
-        result.message = err;
-        return result;
+    std::string paramsJson = ctx.get("template_params_json");
+    if (!parse_template_params(paramsJson, params, err)) {
+        return ctx.fail(err);
     }
 
-    auto tplOpt = tpl::TemplateStore::instance().get(itId->second);
+    auto tplOpt = tpl::TemplateStore::instance().get(templateId);
     if (!tplOpt) {
-        result.status = core::TaskStatus::Failed;
-        result.message = "TemplateExecution: template not found";
-        return result;
+        return ctx.fail("TemplateExecution: template not found");
     }
 
     tpl::ParamMap p;
@@ -72,16 +66,14 @@ core::TaskResult TemplateExecutionStrategy::execute(const core::TaskConfig& cfg,
     }
     auto render = tpl::TemplateRenderer::render(*tplOpt, p);
     if (!render.ok) {
-        result.status = core::TaskStatus::Failed;
-        result.message = render.error;
-        return result;
+        return ctx.fail(render.error);
     }
 
     json rendered = std::move(render.rendered);
     if (!rendered.contains("config") || !rendered["config"].is_object()) {
         rendered["config"] = json::object();
     }
-    rendered["config"]["template_id"] = itId->second;
+    rendered["config"]["template_id"] = templateId;
     if (!cfg.id.runId.empty()) {
         rendered["config"]["parent_run_id"] = cfg.id.runId;
     }
@@ -99,7 +91,7 @@ core::TaskResult TemplateExecutionStrategy::execute(const core::TaskConfig& cfg,
     dagrun::injectRunId(rendered, runId);
     dagrun::persistRunAndTasks(runId, rendered, "task_template");
     result.metadata["run_id"] = runId;
-    result.metadata["template_id"] = itId->second;
+    result.metadata["template_id"] = templateId;
 
     const auto start = SteadyClock::now();
     auto dagResult = dag::DagService::instance().runDag(rendered, runId);

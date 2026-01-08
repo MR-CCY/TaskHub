@@ -114,6 +114,10 @@ void ApiClient::createCronJob(const QJsonObject& body) {
     postJson("cronCreate", "/api/cron/jobs", body);
 }
 
+void ApiClient::getWorkers() {
+    getJson("workers", "/api/workers");
+}
+
 void ApiClient::getJson(const QString& apiName, const QString& path) {
     if (baseUrl_.isEmpty()) {
         emit requestFailed(apiName, 0, "baseUrl is empty");
@@ -176,6 +180,13 @@ void ApiClient::getJson(const QString& apiName, const QString& path) {
                 jobs = env.data.toArray();
             }
             emit cronJobsOk(jobs);
+        } else if (apiName == "workers") {
+            if (!env.data.isObject()) {
+                emit requestFailed(apiName, httpStatus, "workers data is not an object");
+                return;
+            }
+            const QJsonArray workers = env.data.toObject().value("workers").toArray();
+            emit workersOk(workers);
         }
     });
 

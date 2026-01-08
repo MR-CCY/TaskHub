@@ -4,6 +4,7 @@
 #include <signal.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <stdlib.h>
 #include <errno.h>
 
 namespace taskhub::runner {
@@ -104,39 +105,35 @@ static void emit_lines_to_log_buffer(const taskhub::core::TaskId& taskId, bool i
  * @param deadline 表示任务允许运行到的时间点，超过该时间则认为是超时。
  * @return core::TaskResult 返回任务执行的结果，包括状态、消息、退出码、输出及耗时等信息。
  */
-core::TaskResult ShellExecutionStrategy::execute(const core::TaskConfig &cfg,
-                                                std::atomic_bool *cancelFlag,
-                                                Deadline deadline)
+core::TaskResult ShellExecutionStrategy::execute(core::ExecutionContext &ctx)
 {
     core::TaskResult r;
+    const auto& cfg = ctx.config;
+    auto deadline = ctx.getDeadline();
     const auto start = SteadyClock::now();
 
-    // 1) 基本校验：检查命令是否为空以及任务是否已被取消
-    if (cfg.execCommand.empty()) {
-        r.status  = core::TaskStatus::Failed;
-        r.message = "TaskRunner：空Shell命令";
-        // 失败也发一条事件（便于定位）
-        core::emitEvent(cfg, LogLevel::Error, "Shell rejected: empty exec_command", 0);
-        return r;
+    // 1) 确定最终执行命令：优先从 execParams["cmd"] 取，若无则使用 cfg.execCommand
+    std::string actualCmd = ctx.get("cmd", cfg.execCommand);
+
+    // 基本校验：检查命令是否为空以及任务是否已被取消
+    if (actualCmd.empty()) {
+        core::emitEvent(cfg, LogLevel::Error, "Shell rejected: empty command", 0);
+        return ctx.fail("TaskRunner：空Shell命令");
     }
 
-    if (cancelFlag && cancelFlag->load(std::memory_order_acquire)) {
-        r.status  = core::TaskStatus::Canceled;
-        r.message = "TaskRunner：在Shell执行前取消";
+    if (ctx.isCanceled()) {
         core::emitEvent(cfg, LogLevel::Warn, "Shell canceled before start", 0);
-        return r;
+        return ctx.canceled("TaskRunner：在Shell执行前取消");
     }
 
     // start event
-    core::emitEvent(cfg, LogLevel::Info, std::string("Shell start: ") + cfg.execCommand, 0);
+    core::emitEvent(cfg, LogLevel::Info, std::string("Shell start: ") + actualCmd, 0);
 
     // 2) 创建 stdout / stderr 管道以捕获子进程输出
     int outPipe[2]{-1, -1};
     int errPipe[2]{-1, -1};
     if (::pipe(outPipe) != 0 || ::pipe(errPipe) != 0) {
-        r.status  = core::TaskStatus::Failed;
-        r.message = "TaskRunner：pipe() 创建失败";
-        return r;
+        return ctx.fail("TaskRunner：pipe() 创建失败");
     }
 
     // 3) 使用 fork 启动子进程执行命令
@@ -144,9 +141,7 @@ core::TaskResult ShellExecutionStrategy::execute(const core::TaskConfig &cfg,
     if (pid < 0) {
         ::close(outPipe[0]); ::close(outPipe[1]);
         ::close(errPipe[0]); ::close(errPipe[1]);
-        r.status  = core::TaskStatus::Failed;
-        r.message = "TaskRunner：fork() 失败";
-        return r;
+        return ctx.fail("TaskRunner：fork() 失败");
     }
 
     if (pid == 0) {
@@ -162,9 +157,27 @@ core::TaskResult ShellExecutionStrategy::execute(const core::TaskConfig &cfg,
         ::close(outPipe[0]); ::close(outPipe[1]);
         ::close(errPipe[0]); ::close(errPipe[1]);
 
-        // 调用 /bin/sh 执行用户提供的命令字符串
-        const char* sh = "/bin/sh";
-        ::execl(sh, sh, "-c", cfg.execCommand.c_str(), (char*)nullptr);
+        // 1) 处理工作目录 (cwd)
+        std::string cwd = core::getParam(cfg.execParams, "cwd");
+        if (!cwd.empty()) {
+            if (::chdir(cwd.c_str()) != 0) {
+                // 如果 chdir 失败，虽然子进程会继续，但建议记录或处理。
+            }
+        }
+
+        // 2) 处理环境变量 (env.XXX)
+        for (const auto& kv : cfg.execParams) {
+            if (kv.first.size() > 4 && kv.first.substr(0, 4) == "env.") {
+                std::string envName = kv.first.substr(4);
+                ::setenv(envName.c_str(), kv.second.c_str(), 1);
+            }
+        }
+
+        // 3) 处理 Shell 路径 (默认 /bin/sh)
+        std::string shellPath = core::getParam(cfg.execParams, "shell", "/bin/sh");
+
+        // 调用 Shell 执行用户提供的命令字符串
+        ::execl(shellPath.c_str(), shellPath.c_str(), "-c", actualCmd.c_str(), (char*)nullptr);
 
         // 如果 exec 失败，则直接退出并返回错误码 127
         _exit(127);
@@ -188,33 +201,16 @@ core::TaskResult ShellExecutionStrategy::execute(const core::TaskConfig &cfg,
     std::string stdoutBuf;
     std::string stderrBuf;
 
-    bool timedOut = false;
-    bool canceled = false;
-
     // 定义 lambda 函数用于向整个进程组发送信号
     auto kill_group = [&](int sig) {
         ::killpg(pid, sig);
     };
 
-    // 检查当前是否已经超时
-    auto check_deadline = [&]() {
-        if (!timedOut && deadline != Deadline::max()) {
-            if (SteadyClock::now() >= deadline) {
-                timedOut = true;
-            }
-        }
-    };
-
     // 4) 主循环持续读取管道数据直到子进程结束且所有输出都被消费完毕
     while (outOpen || errOpen || !childExited) {
         // 4.1 检查是否有外部请求取消任务或发生超时
-        if (!canceled && cancelFlag && cancelFlag->load(std::memory_order_acquire)) {
-            canceled = true;
-        }
-        check_deadline();
-
         // 4.2 当需要终止时，首先尝试优雅地关闭（SIGTERM），若无效再强制杀死（SIGKILL）
-        if ((timedOut || canceled) && !childExited) {
+        if ((ctx.isTimeout() || ctx.isCanceled()) && !childExited) {
             kill_group(SIGTERM);
             for (int i = 0; i < 20; ++i) {
                 const int w = ::waitpid(pid, &childStatus, WNOHANG);
@@ -272,22 +268,17 @@ core::TaskResult ShellExecutionStrategy::execute(const core::TaskConfig &cfg,
     }
 
     // 7) 根据最终状态确定任务的整体执行结果
-    if (timedOut) {
-        r.status  = core::TaskStatus::Timeout;
-        r.message = "TaskRunner：Shell执行超时";
-    } else if (canceled) {
-        r.status  = core::TaskStatus::Canceled;
-        r.message = "TaskRunner：在Shell执行期间取消";
+    if (ctx.isTimeout()) {
+        r = ctx.timeout("TaskRunner：Shell执行超时");
+    } else if (ctx.isCanceled()) {
+        r = ctx.canceled("TaskRunner：在Shell执行期间取消");
     } else if (exitCode == 0) {
-        r.status = core::TaskStatus::Success;
+        r = ctx.success();
     } else {
-        r.status  = core::TaskStatus::Failed;
-        r.message = "TaskRunner：Shell退出代码 " + std::to_string(exitCode);
+        r = ctx.fail("TaskRunner：Shell退出代码 " + std::to_string(exitCode));
     }
-
-    // 记录本次执行所花费的时间
-    const auto end = SteadyClock::now();
-    r.durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    r.durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(SteadyClock::now() - start).count();
+    r.exitCode = exitCode;
 
     // ✅ 将 stdout/stderr 按行写入 LogManager buffer（用于 WS 实时订阅/分页拉取）
     if (cfg.captureOutput) {
@@ -330,5 +321,4 @@ core::TaskResult ShellExecutionStrategy::execute(const core::TaskConfig &cfg,
 
     return r;
 }
-
 } // namespace taskhub::runner
