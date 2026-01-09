@@ -328,8 +328,10 @@ inline bool startsWith(const std::string& s, const std::string& prefix){
  */
 class ExecutionContext {
 public:
-    ExecutionContext(const TaskConfig& cfg, std::atomic_bool* cancelFlag, Deadline deadline = SteadyClock::time_point::max())
-        : config(cfg), cancelFlag_(cancelFlag), deadline_(deadline) {}
+    static constexpr int MAX_NESTING_DEPTH = 10;
+
+    ExecutionContext(const TaskConfig& cfg, std::atomic_bool* cancelFlag, Deadline deadline = SteadyClock::time_point::max(), int nestingDepth = 0)
+        : config(cfg), cancelFlag_(cancelFlag), deadline_(deadline), nestingDepth_(nestingDepth) {}
 
     // 获取原始参数
     std::string get(const std::string& key, const std::string& defaultVal = "") const {
@@ -364,6 +366,13 @@ public:
     std::atomic_bool* getCancelFlag() const { return cancelFlag_; }
     Deadline getDeadline() const { return deadline_; }
 
+    // 嵌套深度管理
+    int nestingDepth() const { return nestingDepth_; }
+    
+    ExecutionContext withIncrementedDepth() const {
+        return ExecutionContext(config, cancelFlag_, deadline_, nestingDepth_ + 1);
+    }
+
     // 结果生成辅助
     TaskResult success(const std::string& msg = "") const {
         TaskResult r;
@@ -397,6 +406,7 @@ public:
 private:
     std::atomic_bool* cancelFlag_;
     Deadline deadline_;
+    int nestingDepth_;
 };
 
 } // namespace taskhub::core

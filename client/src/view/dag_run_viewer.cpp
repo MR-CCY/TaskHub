@@ -16,6 +16,7 @@
 #include "view/canvasscene.h"
 #include "commands/undostack.h"
 #include "view/canvasview.h"
+#include <QDebug>
 
 DagRunViewerBench::DagRunViewerBench(QWidget* parent)
     : CanvasBench(parent)
@@ -31,6 +32,7 @@ DagRunViewerBench::DagRunViewerBench(QWidget* parent)
 bool DagRunViewerBench::loadDagJson(const QJsonObject& obj)
 {
     if (!scene() || !undoStack()) return false;
+    qDebug() << obj;
 
     QJsonArray tasks;
     if (obj.contains("tasks") && obj.value("tasks").isArray()) {
@@ -42,7 +44,7 @@ bool DagRunViewerBench::loadDagJson(const QJsonObject& obj)
     } else {
         return false;
     }
-
+    qDebug() << tasks;
     scene()->clear();
     idMap_.clear();
 

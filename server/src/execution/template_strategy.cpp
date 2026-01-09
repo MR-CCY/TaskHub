@@ -87,7 +87,10 @@ core::TaskResult TemplateExecutionStrategy::execute(core::ExecutionContext& ctx)
         rendered["config"]["name"] = rendered.value("name", tplOpt->name);
     }
 
-    const std::string runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
+    std::string runId = ctx.get("manual_run_id");
+    if (runId.empty()) {
+        runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
+    }
     dagrun::injectRunId(rendered, runId);
     dagrun::persistRunAndTasks(runId, rendered, "task_template");
     result.metadata["run_id"] = runId;

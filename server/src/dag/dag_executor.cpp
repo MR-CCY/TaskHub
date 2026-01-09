@@ -101,10 +101,11 @@ namespace taskhub::dag {
             });
         }
     
-        // 4. 根据 ctx.isFailed() 设置最终结果
-        // if (ctx.isFailed()) {
-        //     finalResult.status = core::TaskStatus::Failed;
-        // }
+        // 4. 根据 ctx.isFailed() 设置最终结果，避免 DAG 失败被吞掉
+        if (ctx.isFailed()) {
+            finalResult.status = core::TaskStatus::Failed;
+            finalResult.message = "dag failed";
+        }
     
         // 5. 通知 DAG 完成
         ctx.finish(finalResult.ok());
@@ -178,10 +179,33 @@ namespace taskhub::dag {
 
         const auto priority = node->runnerConfig().priority;
 
+        // 在 DAG worker 线程中嵌套执行 DAG 时，可直接同步执行节点，避免再次排队导致的竞态
+        if (dag::DagThreadPool::instance().isDagWorkerThread()) {
+            auto nodeInner = ctx.graph().getNode(id);
+            core::TaskResult result;
+            if (nodeInner) {
+                const auto& cfg = nodeInner->runnerConfig();
+                result = _runner.run(cfg, nullptr);
+            } else {
+                result.status  = core::TaskStatus::Failed;
+                result.message = "Node not found in graph";
+            }
+            onNodeFinished(ctx, id, result);
+            return;
+        }
+
+        // 如果是嵌套 DAG 节点，主动确保有足够的 worker
+        // 因为嵌套 DAG 会同步执行，长时间占用 worker
+        if (node->runnerConfig().execType == core::TaskExecType::Dag ||
+            node->runnerConfig().execType == core::TaskExecType::Template) {
+            // 主动扩容，确保有空闲 worker 可用
+            dag::DagThreadPool::instance().maybeSpawnWorker(1);
+        }
+
         dag::DagThreadPool::instance().post([this, &ctx, id]() {
             auto nodeInner = ctx.graph().getNode(id);
             core::TaskResult result;
-    
+
             if (nodeInner) {
                 const auto& cfg = nodeInner->runnerConfig();
                 result = _runner.run(cfg, nullptr);
@@ -265,9 +289,10 @@ namespace taskhub::dag {
             // 2）在“策略”上统一当成“失败类”
             const bool isFailureLike =(st == core::TaskStatus::Failed|| st == core::TaskStatus::Timeout || st == core::TaskStatus::Canceled);
             if (isFailureLike) {
+                // 记录 DAG 已进入失败态，供最终结果和外层嵌套 DAG 感知
+                ctx.markFailed();
                 if (ctx.config().failPolicy == FailPolicy::FailFast) {
                     // FailFast：标记失败，主循环会尽快退出，不再消费队列
-                    ctx.markFailed();
                     ctx.decrementRunning();   // ✅ 记得仍然要减一次 runningCount
                     _cv.notify_one();    // 必须唤醒一次，否则可能卡在 wait 上
                     return;

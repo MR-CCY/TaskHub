@@ -20,7 +20,7 @@ public:
     DagResult runDag(const core::TaskConfig& cfg, const std::string& runId = "");
 
 private:
-    dag::DagExecutor _executor;
+    runner::TaskRunner& _runner;
 };
 
 } // namespace taskhub::api

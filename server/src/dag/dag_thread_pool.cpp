@@ -7,6 +7,8 @@
 #include "log/logger.h"
 
 namespace taskhub::dag {
+    thread_local bool DagThreadPool::_isDagWorker = false;
+
     /**
      * @brief 获取DagThreadPool单例实例
      * @return 返回线程池的唯一实例
@@ -27,11 +29,13 @@ namespace taskhub::dag {
     {
         if (!_workers.empty()) return;
         _stopping = false;
+        _maxWorkers = num_workers * 4;  // 硬上限为初始值的 4 倍，防止无限扩容
         {
             std::lock_guard<std::mutex> lk(_mtx);
             for (auto& q : _queues) {
                 q.clear();
             }
+            _workers.reserve(num_workers);
         }
         for (std::size_t i = 0; i < num_workers; ++i) {
             _workers.emplace_back([this, i] { worker_loop(i); });
@@ -58,6 +62,9 @@ namespace taskhub::dag {
             if (th.joinable()) th.join();
         }
         _workers.clear();
+        _activeWorkers.store(0, std::memory_order_relaxed);
+        _busyWorkers.store(0, std::memory_order_relaxed);
+        _maxWorkers = 0;
         Logger::info("DagThreadPool stopped");
     }
 
@@ -77,6 +84,8 @@ namespace taskhub::dag {
             if (_stopping) return;
             _queues[idx].push_back(std::move(job));
         }
+        // 尝试动态扩容，缓解嵌套 DAG 复用同池造成的饥饿/死锁
+        maybeSpawnWorker(1);
         _cv.notify_one();
     }
 
@@ -96,14 +105,20 @@ namespace taskhub::dag {
      */
     void DagThreadPool::worker_loop(std::size_t worker_id)
     {
+        _isDagWorker = true;
+        _activeWorkers.fetch_add(1, std::memory_order_relaxed);
         Logger::info("Dag worker " + std::to_string(worker_id) + " started");
         while (true) {
             auto optJob = take_job();
             if (!optJob) break; // 队列关闭/停止
             Job job = std::move(*optJob);
             if (!job) continue;
+            _busyWorkers.fetch_add(1, std::memory_order_relaxed);
             job(); 
+            _busyWorkers.fetch_sub(1, std::memory_order_relaxed);
         }
+        _activeWorkers.fetch_sub(1, std::memory_order_relaxed);
+        _isDagWorker = false;
         Logger::info("Dag worker " + std::to_string(worker_id) + " exiting");
     }
 
@@ -172,6 +187,48 @@ namespace taskhub::dag {
         case core::TaskPriority::Normal:   return 2;
         case core::TaskPriority::Low:      return 3;
         default:                           return 2;
+        }
+    }
+
+    bool DagThreadPool::isDagWorkerThread() const
+    {
+        return _isDagWorker;
+    }
+
+    void DagThreadPool::maybeSpawnWorker(std::size_t minSpare)
+    {
+        if (_stopping.load(std::memory_order_relaxed)) return;
+
+        std::unique_lock<std::mutex> lk(_mtx);
+
+        // spare = 可用线程（总线程数 - 忙碌线程数）
+        auto busy   = _busyWorkers.load(std::memory_order_relaxed);
+        std::size_t total = _workers.size();
+        std::size_t spare = (total > busy) ? (total - busy) : 0;
+
+        // 检查是否已达上限
+        if (total >= _maxWorkers) {
+            return;
+        }
+
+        // 计算队列中的任务数
+        std::size_t queuedJobs = 0;
+        for (const auto& q : _queues) {
+            queuedJobs += q.size();
+        }
+
+        // 策略：如果有排队的任务，且空闲线程不足，则扩容
+        // 这对于并行嵌套 DAG 很重要：即使当前有空闲线程，
+        // 但如果有多个任务排队，这些线程可能会被长时间占用（同步执行嵌套 DAG）
+        if (queuedJobs > 0 && spare < queuedJobs) {
+            const std::size_t newId = _workers.size();
+            _workers.emplace_back([this, newId] { worker_loop(newId); });
+            Logger::info("DagThreadPool dynamic spawn worker " + std::to_string(newId) +
+                         ", total=" + std::to_string(_workers.size()) +
+                         ", busy=" + std::to_string(busy) +
+                         ", queued=" + std::to_string(queuedJobs) +
+                         ", maxWorkers=" + std::to_string(_maxWorkers));
+            _cv.notify_one();
         }
     }
 }

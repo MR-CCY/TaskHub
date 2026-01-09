@@ -1,5 +1,8 @@
 #include "inspector_panel.h"
 
+#include <QDateTime> 
+#include <QUuid>
+#include <functional>
 #include <QStackedWidget>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -165,7 +168,48 @@ void InspectorPanel::runDag() {
         qWarning("ApiClient is null, cannot run DAG");
         return;
     }
-    api_->runDagAsync(dagJson);
+
+
+    // Generate top-level run_id
+    auto generateRunId = []() -> QString {
+        // ... (as before)
+        return QString::number(QDateTime::currentMSecsSinceEpoch()) + "_" + 
+               QUuid::createUuid().toString().remove('{').remove('}').remove('-').mid(0, 6);
+    };
+
+    QString topRunId = generateRunId();
+    QJsonObject mutableDag = dagJson;
+    mutableDag["run_id"] = topRunId;
+
+    // Recursive helper to inject IDs
+    std::function<void(QJsonObject&, const QString&)> processIds;
+    processIds = [&processIds, &generateRunId](QJsonObject& container, const QString& currentRunId) 
+    {
+        if (!container.contains("tasks") || !container["tasks"].isArray()) return;
+        
+        QJsonArray tasks = container["tasks"].toArray();
+        for (int i = 0; i < tasks.size(); ++i) {
+            QJsonObject task = tasks[i].toObject();
+            QString type = task.value("exec_type").toString();
+            QJsonObject params = task.value("exec_params").toObject();
+
+            if (type == "Dag" || type == "Template") {
+                QString newId = generateRunId();
+                params["manual_run_id"] = newId;
+                processIds(params, newId);
+            } else if (type == "Remote") {
+                processIds(params, currentRunId);
+            }
+            
+            task["exec_params"] = params;
+            tasks[i] = task;
+        }
+        container["tasks"] = tasks;
+    };
+
+    processIds(mutableDag, topRunId);
+
+    api_->runDagAsync(mutableDag);
 }
 
 void InspectorPanel::createDagCron(const QString& spec)

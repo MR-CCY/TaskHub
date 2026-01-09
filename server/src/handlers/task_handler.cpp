@@ -257,7 +257,13 @@ namespace taskhub {
         }
 
         // 统一由 DagService 生成 ID 和处理持久化
-        const std::string runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
+        std::string runId;
+        if (body.contains("run_id") && body["run_id"].is_string()) {
+            runId = body["run_id"].get<std::string>();
+        }
+        if (runId.empty()) {
+            runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
+        }
         
         dag::DagThreadPool::instance().post([body = std::move(body), runId]() mutable {
             try {

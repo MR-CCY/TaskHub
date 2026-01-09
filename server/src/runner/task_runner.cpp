@@ -268,7 +268,18 @@ TaskResult TaskRunner::dispatchExec(const TaskConfig &cfg, std::atomic_bool *can
         return r;
     }
 
-    core::ExecutionContext ctx(cfg, cancelFlag, deadline);
+    // 从 execParams 中提取嵌套深度（如果有）
+    int nestingDepth = 0;
+    auto it = cfg.execParams.find("_nesting_depth");
+    if (it != cfg.execParams.end()) {
+        try {
+            nestingDepth = std::stoi(it->second);
+        } catch (...) {
+            nestingDepth = 0;
+        }
+    }
+
+    core::ExecutionContext ctx(cfg, cancelFlag, deadline, nestingDepth);
     return strategy->execute(ctx);
 }
 

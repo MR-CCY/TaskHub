@@ -8,7 +8,7 @@
 
 namespace taskhub::dag {
     DagService::DagService(runner::TaskRunner &runner):
-    _executor(runner)
+    _runner(runner)
     {
     }
     DagService &DagService::instance()
@@ -46,7 +46,11 @@ core::TaskResult DagService::runDag(const std::vector<dag::DagTaskSpec> &specs, 
         // 构建最终的DAG图并执行
         auto graph = builder.build();
     dag::DagRunContext ctx(config, std::move(graph), callbacks);
-    return _executor.execute(ctx);
+    
+    // ★ 关键修复：每次执行都创建新的 DagExecutor 实例
+    // 避免嵌套 DAG 共享状态（_readyQueue 等）
+    dag::DagExecutor executor(_runner);
+    return executor.execute(ctx);
 }
 
 DagResult DagService::runDag(const json &body, const std::string& runId)
@@ -64,6 +68,18 @@ DagResult DagService::runDag(const core::TaskConfig& cfg, const std::string& run
         dr.message = "extractDagBody failed: " + err;
         return dr;
     }
+    
+    // 从 cfg.execParams 中提取嵌套深度并注入到 body 中
+    auto it = cfg.execParams.find("_nesting_depth");
+    if (it != cfg.execParams.end()) {
+        try {
+            int depth = std::stoi(it->second);
+            body["_nesting_depth"] = depth;
+        } catch (...) {
+            // 忽略解析错误
+        }
+    }
+    
     return runDag(body, "execution", runId);
 }
 
@@ -105,6 +121,17 @@ DagResult DagService::runDag(const json &inputBody, const std::string& source, c
     }
     const int totalTasks = static_cast<int>(jTasks.size());
 
+    // 从输入配置中提取父级嵌套深度（如果有）
+    int parentNestingDepth = 0;
+    // 注意：这里的 inputBody 是从 cfg.execParams 解析出来的
+    // 我们需要另一种方式获取嵌套深度
+    // 最简单的方法是通过 source 参数传递，但这会破坏接口
+    // 所以我们在 body 中查找 _nesting_depth
+    if (inputBody.contains("_nesting_depth") && inputBody["_nesting_depth"].is_number()) {
+        parentNestingDepth = inputBody["_nesting_depth"].get<int>();
+    }
+    int childNestingDepth = parentNestingDepth + 1;
+
     // 5. 构造 DagTaskSpec
     std::vector<dag::DagTaskSpec> specs;
     try {
@@ -112,6 +139,10 @@ DagResult DagService::runDag(const json &inputBody, const std::string& source, c
             dag::DagTaskSpec spec;
             core::TaskConfig cfgTask = core::parseTaskConfigFromReq(jtask);
             cfgTask.id.runId = runId;
+            
+            // 为所有子任务注入嵌套深度
+            cfgTask.execParams["_nesting_depth"] = std::to_string(childNestingDepth);
+            
             spec.id        = cfgTask.id;
             spec.runnerCfg = cfgTask;
 
