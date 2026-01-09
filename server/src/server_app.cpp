@@ -72,11 +72,22 @@ namespace taskhub {
         
         //11. 初始化工作节点心跳客户端或启动工作节点注册清理器
         if(Config::instance().get("work.is_work", false)){
-            m_host= Config::instance().get<std::string>("work.worker_host", "0.0.0.0");
-            m_port= Config::instance().get("work.worker_port", 8083);
-            std::string masterHost= Config::instance().get<std::string>("work.master_host", "127.0.0.1");
-            int masterPort= Config::instance().get("work.master_port", 8082);
-            std::string workerId= Config::instance().get<std::string>("work.worker_id", "worker-1");
+            // For worker mode, separate bind vs advertise host:
+            // - bind_host: the local address to listen on (e.g. 0.0.0.0 in Docker)
+            // - advertise_host: the address reachable by master/other workers (e.g. docker service name)
+            const std::string legacyWorkerHost = Config::instance().get<std::string>("work.worker_host", "0.0.0.0");
+            const std::string bindHost = Config::instance().get<std::string>("work.bind_host", legacyWorkerHost);
+            const std::string advertiseHost = Config::instance().get<std::string>("work.advertise_host", bindHost);
+
+            m_host = bindHost;
+            m_port = Config::instance().get("work.worker_port", 8083);
+
+            // master_host is the address the worker uses to connect to master.
+            // NOTE: "0.0.0.0" is only meaningful for binding/listening; it is not a connectable destination.
+            std::string masterHost = Config::instance().get<std::string>("work.master_host", "127.0.0.1");
+
+            int masterPort = Config::instance().get("work.master_port", 8082);
+            std::string workerId = Config::instance().get<std::string>("work.worker_id", "worker-1");
             int intervalMs= Config::instance().get("work.heartbeat_interval_ms", 2000);
             std::vector<std::string> queues= Config::instance().get<std::vector<std::string>>("work.queues");
             std::vector<std::string> labels= Config::instance().get<std::vector<std::string>>("work.labels");
@@ -85,16 +96,12 @@ namespace taskhub {
             };
 
             g_heartbeat = std::make_unique<worker::WorkerHeartbeatClient>();
-            g_heartbeat->start(masterHost,masterPort,workerId,m_host,m_port,queues,labels,test,std::chrono::milliseconds(intervalMs));
+            g_heartbeat->start(masterHost, masterPort, workerId, advertiseHost, m_port, queues, labels, test,std::chrono::milliseconds(intervalMs));
         
-            Logger::info("WorkerHeartbeatClient started, interval=" +
-                            std::to_string(intervalMs) + "ms");
+            Logger::info("WorkerHeartbeatClient started, interval=" +std::to_string(intervalMs) + "ms");
 
-        }else{
-            worker::ServerWorkerRegistry::instance().startSweeper(std::chrono::seconds(5),
-                                                        std::chrono::seconds(60));
         }
-        
+        worker::ServerWorkerRegistry::instance().startSweeper(std::chrono::seconds(5),std::chrono::seconds(60));
         // 12. 启动监听（阻塞）
         Logger::info("Listening at " + m_host + ":" + std::to_string(m_port));
         m_server->listen(m_host.c_str(), m_port);

@@ -114,6 +114,26 @@ void Config::load_from_env() {
     if (const char* p = std::getenv("TASKHUB_WS_PORT")) {
         m_config["server.ws_port"] = std::atoi(p);
     }
+
+    // Worker-mode overrides (useful for switching between docker master and host master without editing json)
+    if (const char* p = std::getenv("TASKHUB_WORK_MASTER_HOST")) {
+        m_config["work.master_host"] = std::string(p);
+    }
+    if (const char* p = std::getenv("TASKHUB_WORK_MASTER_PORT")) {
+        m_config["work.master_port"] = std::atoi(p);
+    }
+    if (const char* p = std::getenv("TASKHUB_WORK_BIND_HOST")) {
+        m_config["work.bind_host"] = std::string(p);
+    }
+    if (const char* p = std::getenv("TASKHUB_WORK_ADVERTISE_HOST")) {
+        m_config["work.advertise_host"] = std::string(p);
+    }
+    if (const char* p = std::getenv("TASKHUB_WORKER_ID")) {
+        m_config["work.worker_id"] = std::string(p);
+    }
+    if (const char* p = std::getenv("TASKHUB_WORKER_PORT")) {
+        m_config["work.worker_port"] = std::atoi(p);
+    }
 }
 
 

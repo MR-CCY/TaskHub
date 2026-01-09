@@ -15,6 +15,9 @@ public:
     void setNodeStatusLabel(const QString& nodeId, const QString& label);
     void selectNode(const QString& nodeId);
 
+    // 获取所有 Remote 类型的节点 ID（用于监控轮询）
+    QStringList getRemoteNodes() const;
+
     // 只读访问底层指针供监控面板使用
     CanvasScene* canvasScene() const { return scene(); }
     UndoStack* benchUndo() const { return undoStack(); }

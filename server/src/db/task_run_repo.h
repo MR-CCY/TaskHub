@@ -40,9 +40,7 @@ public:
         int workerPort{0};
     };
 
-    std::vector<TaskRunRow> query(const std::string& runId,
-                                  const std::string& name,
-                                  int limit);
+    std::vector<TaskRunRow> query(const std::string& runId,const std::string& name,int limit);
     
     // 获取指定 run_id 下某个逻辑节点的运行记录
     std::optional<TaskRunRow> get(const std::string& runId, const std::string& logicalId);

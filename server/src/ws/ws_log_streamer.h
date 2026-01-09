@@ -12,9 +12,7 @@ public:
     void pushLog(const core::LogRecord& record);
 
     // 预留：推送任务级事件（后面用）
-    void pushTaskEvent(const std::string& taskId,
-                       const std::string& event,
-                       const json& extra = {});
+    void pushTaskEvent(const std::string& taskId,const std::string& event,const json& extra = {});
 private:
     WsLogStreamer() = default;
 };

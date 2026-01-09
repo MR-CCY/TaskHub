@@ -22,6 +22,13 @@
 #include "view/inspector_panel.h"
 #include "ui/console_dock.h"
 #include "net/ws_client.h"
+#include <QDebug>
+/**
+ * @brief 解析JSON字节数组为QJsonObject
+ * 
+ * @param bytes 包含JSON数据的字节数组
+ * @return QJsonObject 解析后的JSON对象，如果解析失败则返回空对象
+ */
 namespace {
 QJsonObject parseJson(const QByteArray& bytes) {
     QJsonParseError err;
@@ -31,26 +38,32 @@ QJsonObject parseJson(const QByteArray& bytes) {
 }
 }
 
-DagRunMonitorDialog::DagRunMonitorDialog(const QString& runId,
-                                         const QString& dagJson,
-                                         ApiClient* api,
-                                         QWidget* parent)
-    : QDialog(parent),
-      runId_(runId),
-      dagJson_(dagJson),
-      api_(api)
+/**
+ * @brief 构造函数，初始化DAG运行监控对话框
+ * 
+ * @param runId DAG运行的唯一标识符
+ * @param dagJson DAG的JSON描述字符串
+ * @param api API客户端指针，用于网络请求
+ * @param parent 父窗口部件
+ */
+DagRunMonitorDialog::DagRunMonitorDialog(const QString& runId,const QString& dagJson, ApiClient* api,QWidget* parent)
+    : QDialog(parent),runId_(runId),dagJson_(dagJson),api_(api)
 {
     setModal(true);
     setWindowTitle(tr("DAG 监控 - %1").arg(runId_));
     resize(1200, 800);
     buildUi();
 
+    // 设置定时器，用于定期获取时间线更新
     pollTimer_.setInterval(500);
     connect(&pollTimer_, &QTimer::timeout, this, &DagRunMonitorDialog::onTimelineTick);
     pollTimer_.start();
 
+    // 初始获取任务运行信息和事件
     fetchTaskRuns();
     fetchEvents();
+    
+    // 订阅任务日志和事件的WebSocket消息
     WsClient::instance()->subscribeTaskLogs("", runId);
     WsClient::instance()->subscribeTaskEvents("", runId);
     connect(WsClient::instance(), &WsClient::messageReceived, this, [this](const QJsonObject& obj){
@@ -67,13 +80,31 @@ DagRunMonitorDialog::DagRunMonitorDialog(const QString& runId,
             consoleDock_->appendInfo(QJsonDocument(obj).toJson(QJsonDocument::Compact));
         }
     });
+
+    // Connect ApiClient signals
+    if (api_) {
+        // connect(api_, &ApiClient::taskRunsOk, this, &DagRunMonitorDialog::onTaskRuns);
+        // Using unique connection to avoid duplicates if re-binding
+        connect(api_, &ApiClient::taskRunsOk, this, &DagRunMonitorDialog::onTaskRuns, Qt::UniqueConnection);
+        connect(api_, &ApiClient::remoteTaskRunsOk, this, &DagRunMonitorDialog::onRemoteTaskRuns, Qt::UniqueConnection);
+        connect(api_, &ApiClient::dagEventsOk, this, &DagRunMonitorDialog::onDagEvents, Qt::UniqueConnection);
+        connect(api_, &ApiClient::remoteDagEventsOk, this, &DagRunMonitorDialog::onRemoteDagEvents, Qt::UniqueConnection);
+    }
 }
 
+/**
+ * @brief 析构函数，清理WebSocket订阅
+ */
 DagRunMonitorDialog::~DagRunMonitorDialog(){
     WsClient::instance()->unsubscribeTaskLogs("", runId_);
     WsClient::instance()->unsubscribeTaskEvents("", runId_);
 };
 
+/**
+ * @brief 构建用户界面
+ * 
+ * 创建主布局、分割窗口、DAG运行查看器、检查器面板和控制台停靠窗口
+ */
 void DagRunMonitorDialog::buildUi()
 {
     auto* mainLay = new QVBoxLayout(this);
@@ -105,90 +136,177 @@ void DagRunMonitorDialog::buildUi()
     mainLay->addWidget(consoleDock_->widget(), 2);
 }
 
+/**
+ * @brief 从API获取任务运行信息
+ * 
+ * 发起网络请求获取与当前运行ID相关的任务运行信息
+ */
 void DagRunMonitorDialog::fetchTaskRuns()
 {
     if (!api_) return;
-    QUrl url(api_->baseUrl() + "/api/dag/task_runs");
-    QUrlQuery q;
-    q.addQueryItem("run_id", runId_);
-    q.addQueryItem("limit", "500");
-    url.setQuery(q);
-    QNetworkRequest req(url);
-    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    if (!api_->token().isEmpty()) {
-        req.setRawHeader("Authorization", "Bearer " + api_->token().toUtf8());
+    // 1. Fetch Local
+    api_->getTaskRuns(runId_, "", 500);
+
+    // 2. Fetch Remote
+    if (bench_) {
+        QStringList remotes = bench_->getRemoteNodes();
+        for (const auto& rPath : remotes) {
+            fetchRemoteTaskRuns(rPath);
+        }
     }
-    auto* nam = new QNetworkAccessManager(this);
-    auto* reply = nam->get(req);
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        const auto obj = parseJson(reply->readAll());
-        reply->deleteLater();
-        auto items = obj.value("data").toObject().value("items").toArray();
-        populateTaskRuns(items);
-    });
+}
+
+void DagRunMonitorDialog::fetchRemoteTaskRuns(const QString& remotePath)
+{
+    if (!api_) return;
+    api_->getRemoteTaskRuns(runId_, remotePath, 500);
+}
+
+void DagRunMonitorDialog::onTaskRuns(const QJsonArray& items)
+{
+    // Filter by runId if needed? Usually for current run.
+    // For now we assume items overlap is small risk or acceptable.
+    // Ideally api request context is needed but we rely on runId embedded in data if strict.
+    // But items are bare JSON. 
+    // Simply merge as local.
+    mergeRemoteTaskRuns("", items);
+}
+
+void DagRunMonitorDialog::onRemoteTaskRuns(const QString& remotePath, const QJsonArray& items)
+{
+    mergeRemoteTaskRuns(remotePath, items);
+}
+
+/**
+ * @brief 使用获取到的任务运行信息填充界面
+ * 
+ * @param items 任务运行信息的JSON数组
+ */
+void DagRunMonitorDialog::mergeRemoteTaskRuns(const QString& remotePrefix, const QJsonArray& items)
+{
+    for (const auto& v : items) {
+        auto o = v.toObject();
+        QString originalId = o.value("logical_id").toString();
+        
+        // Prefix ID
+        QString fullId = originalId;
+        if (!remotePrefix.isEmpty()) {
+            fullId = remotePrefix + "/" + originalId;
+        }
+        o["logical_id"] = fullId; // update in object
+
+        // Update cache
+        allTaskRuns_[fullId] = o;
+
+        // Update bench status immediately
+        const int status = o.value("status").toInt();
+        bench_->setNodeStatus(fullId, statusColor(status));
+        bench_->setNodeStatusLabel(fullId, statusText(status));
+    }
+
+    // Refresh inspector list from ALL cached runs
+    QJsonArray mergedItems;
+    for (auto it = allTaskRuns_.begin(); it != allTaskRuns_.end(); ++it) {
+        mergedItems.append(it.value());
+    }
+    if (!mergedItems.isEmpty()) {
+        inspector_->setTaskRuns(mergedItems);
+    }
 }
 
 void DagRunMonitorDialog::populateTaskRuns(const QJsonArray& items)
 {
-    int idx = 0;
-    for (const auto& v : items) {
-        const auto o = v.toObject();
-        const QString logical = o.value("logical_id").toString();
-        const int status = o.value("status").toInt();
-        bench_->setNodeStatus(logical, statusColor(status));
-        bench_->setNodeStatusLabel(logical, statusText(status));
-        if (idx == 0) {
-            bench_->selectNode(logical);
-        }
-        ++idx;
-    }
-    if (!items.isEmpty()) {
-        inspector_->setTaskRuns(items);
-    }
+    // Deprecated, redirected to merge
+    mergeRemoteTaskRuns("", items);
 }
 
+/**
+ * @brief 从API获取事件信息
+ * 
+ * 发起网络请求获取与当前运行ID相关的事件，支持时间戳过滤
+ */
 void DagRunMonitorDialog::fetchEvents()
 {
     if (!api_) return;
-    QUrl url(api_->baseUrl() + "/api/dag/events");
-    QUrlQuery q;
-    q.addQueryItem("run_id", runId_);
-    if (lastEventTs_ > 0) q.addQueryItem("start_ts_ms", QString::number(lastEventTs_ + 1));
-    q.addQueryItem("limit", "200");
-    url.setQuery(q);
-    QNetworkRequest req(url);
-    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    if (!api_->token().isEmpty()) {
-        req.setRawHeader("Authorization", "Bearer " + api_->token().toUtf8());
+    // 1. Local Events
+    api_->getDagEvents(runId_, "", "", "", lastEventTs_ > 0 ? (lastEventTs_ + 1) : 0, 0, 200);
+
+    // 2. Remote Events
+    if (bench_) {
+        QStringList remotes = bench_->getRemoteNodes();
+        for (const auto& rPath : remotes) {
+            fetchRemoteEvents(rPath);
+        }
     }
-    auto* nam = new QNetworkAccessManager(this);
-    auto* reply = nam->get(req);
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        const auto obj = parseJson(reply->readAll());
-        reply->deleteLater();
-        auto items = obj.value("data").toObject().value("items").toArray();
-        appendEvents(items);
-    });
+}
+
+void DagRunMonitorDialog::fetchRemoteEvents(const QString& remotePath) {
+    if (!api_) return;
+    qint64 lastTs = remoteLastEventTs_.value(remotePath, 0);
+    api_->getRemoteDagEvents(runId_, remotePath, lastTs > 0 ? (lastTs + 1) : 0, 200);
+}
+
+void DagRunMonitorDialog::onDagEvents(const QJsonArray& items)
+{
+    mergeRemoteEvents("", items);
+}
+
+void DagRunMonitorDialog::onRemoteDagEvents(const QString& remotePath, const QJsonArray& items)
+{
+    mergeRemoteEvents(remotePath, items);
+}
+
+/**
+ * @brief 将获取到的事件添加到控制台
+ * 
+ * @param items 事件信息的JSON数组
+ */
+void DagRunMonitorDialog::mergeRemoteEvents(const QString& remotePrefix, const QJsonArray& items)
+{
+     for (const auto& v : items) {
+        auto o = v.toObject();
+        QString originalId = o.value("task_id").toString();
+        // Prefix ID
+        QString fullId = originalId;
+         if (!remotePrefix.isEmpty()) {
+            fullId = remotePrefix + "/" + originalId;
+        }
+        o["task_id"] = fullId; // update for status update logic
+
+        const QString event = o.value("event").toString();
+        const qint64 ts = o.value("ts_ms").toVariant().toLongLong();
+        
+        // Console Log
+        const QString line = QString("[%1] %2 %3").arg(remotePrefix.isEmpty() ? "L" : remotePrefix, event, fullId);
+        consoleDock_->appendTimeline(line);
+
+        // Update Last TS
+        if (remotePrefix.isEmpty()) {
+             if (ts > lastEventTs_) lastEventTs_ = ts;
+        } else {
+             if (ts > remoteLastEventTs_.value(remotePrefix, 0)) {
+                 remoteLastEventTs_[remotePrefix] = ts;
+             }
+        }
+        
+        updateNodeStatusFromEvent(o);
+        if (event == "dag_node_end") {
+            // refresh runs? handled by poll timer anyway
+        }
+    }
 }
 
 void DagRunMonitorDialog::appendEvents(const QJsonArray& items)
 {
-    for (const auto& v : items) {
-        const auto o = v.toObject();
-        const QString event = o.value("event").toString();
-        const QString taskId = o.value("task_id").toString();
-        const qint64 ts = o.value("ts_ms").toVariant().toLongLong();
-        const QString line = QString("%1 %2").arg(event, taskId);
-        consoleDock_->appendTimeline(line);
-        if (ts > lastEventTs_) lastEventTs_ = ts;
-        updateNodeStatusFromEvent(o);
-        if (event == "dag_node_end") {
-            // refresh task runs on end event for more details
-            fetchTaskRuns();
-        }
-    }
+    mergeRemoteEvents("", items);
 }
 
+/**
+ * @brief 根据状态码获取对应的颜色
+ * 
+ * @param status 任务状态码
+ * @return QColor 表示状态的颜色
+ */
 QColor DagRunMonitorDialog::statusColor(int status) const
 {
     switch (status) {
@@ -202,6 +320,12 @@ QColor DagRunMonitorDialog::statusColor(int status) const
     }
 }
 
+/**
+ * @brief 根据状态码获取对应的状态文本
+ * 
+ * @param status 任务状态码
+ * @return QString 表示状态的文本
+ */
 QString DagRunMonitorDialog::statusText(int status) const
 {
     switch (status) {
@@ -216,6 +340,11 @@ QString DagRunMonitorDialog::statusText(int status) const
     }
 }
 
+/**
+ * @brief 根据事件更新节点状态
+ * 
+ * @param ev 包含事件信息的JSON对象
+ */
 void DagRunMonitorDialog::updateNodeStatusFromEvent(const QJsonObject& ev)
 {
     const QString event = ev.value("event").toString();
@@ -234,6 +363,11 @@ void DagRunMonitorDialog::updateNodeStatusFromEvent(const QJsonObject& ev)
     }
 }
 
+/**
+ * @brief 时间线定时器处理函数
+ * 
+ * 定期获取事件和任务运行信息以更新界面
+ */
 void DagRunMonitorDialog::onTimelineTick()
 {
     fetchEvents();

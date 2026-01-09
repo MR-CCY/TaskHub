@@ -142,10 +142,6 @@ void MainWindow::setupClients() {
 }
 void MainWindow::wireSignals() {
     connect(api_, &ApiClient::unauthorized, this, &MainWindow::onUnauthorized);
-    connect(api_, &ApiClient::rawJson, this, [this](const QString& name, const QJsonObject& obj) {
-        console_->appendInfo(QString("HTTP %1: %2")
-                             .arg(name, QString::fromUtf8(QJsonDocument(obj).toJson(QJsonDocument::Compact))));
-    });
 
     connect(api_, &ApiClient::requestFailed, this, [this](const QString& apiName, int st, const QString& msg) {
         console_->appendError(QString("HTTP %1 failed (%2): %3").arg(apiName).arg(st).arg(msg));

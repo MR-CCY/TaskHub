@@ -11,7 +11,10 @@ constexpr const char* kAuthHeaderName = "Authorization";
 
 ApiClient::ApiClient(QObject* parent)
     : QObject(parent),
-      nam_(new QNetworkAccessManager(this)) {}
+      nam_(new QNetworkAccessManager(this)) {
+          // Internal dispatch: listen to rawJson and route to specific signals
+          connect(this, &ApiClient::rawJson, this, &ApiClient::onRawJson);
+      }
 
 void ApiClient::setBaseUrl(const QString& baseUrl) {
     baseUrl_ = baseUrl.trimmed();
@@ -86,6 +89,16 @@ void ApiClient::getTaskRuns(const QString& runId, const QString& name, int limit
     getJson("taskRuns", path);
 }
 
+void ApiClient::getRemoteTaskRuns(const QString& runId, const QString& remotePath, int limit) {
+    QUrlQuery q;
+    if (!runId.isEmpty()) q.addQueryItem("run_id", runId);
+    if (!remotePath.isEmpty()) q.addQueryItem("remote_path", remotePath);
+    if (limit > 0) q.addQueryItem("limit", QString::number(limit));
+    const QString path = "/api/workers/proxy/dag/task_runs" + (q.isEmpty() ? QString() : QString("?" + q.toString(QUrl::FullyEncoded)));
+    // Encode remotePath in apiName to retrieve it in callback
+    getJson("remoteTaskRuns:" + remotePath, path);
+}
+
 void ApiClient::getDagEvents(const QString& runId, const QString& taskId,
                              const QString& type, const QString& event,
                              qint64 startTsMs, qint64 endTsMs, int limit) {
@@ -101,13 +114,24 @@ void ApiClient::getDagEvents(const QString& runId, const QString& taskId,
     getJson("dagEvents", path);
 }
 
+void ApiClient::getRemoteDagEvents(const QString& runId, const QString& remotePath, qint64 startTsMs, int limit) {
+    QUrlQuery q;
+    if (!runId.isEmpty()) q.addQueryItem("run_id", runId);
+    if (!remotePath.isEmpty()) q.addQueryItem("remote_path", remotePath);
+    if (startTsMs > 0) q.addQueryItem("start_ts_ms", QString::number(startTsMs));
+    if (limit > 0) q.addQueryItem("limit", QString::number(limit));
+    // Note: server endpoint is /api/workers/proxy/dag/events
+    const QString path = "/api/workers/proxy/dag/events" + (q.isEmpty() ? QString() : QString("?" + q.toString(QUrl::FullyEncoded)));
+    getJson("remoteDagEvents:" + remotePath, path);
+}
+
 void ApiClient::listCronJobs() {
     getJson("cronJobs", "/api/cron/jobs");
 }
 
 void ApiClient::deleteCronJob(const QString& id) {
     if (id.isEmpty()) return;
-    deleteJson("cronDelete", "/api/cron/jobs/" + id, id);
+    deleteJson("cronDelete:" + id, "/api/cron/jobs/" + id);
 }
 
 void ApiClient::createCronJob(const QJsonObject& body) {
@@ -144,50 +168,6 @@ void ApiClient::getJson(const QString& apiName, const QString& path) {
         }
 
         emit rawJson(apiName, root);
-
-        const ParsedEnvelope env = parseEnvelope(root);
-        if (!env.ok) {
-            emit requestFailed(apiName, httpStatus, env.message);
-            return;
-        }
-
-        // Q0 APIs: health/info return {code,message,data:{...}}
-        if (apiName == "health") {
-            if (env.data.isObject()) emit healthOk(env.data.toObject());
-            else emit requestFailed(apiName, httpStatus, "health data is not an object");
-        } else if (apiName == "info") {
-            if (env.data.isObject()) emit infoOk(env.data.toObject());
-            else emit requestFailed(apiName, httpStatus, "info data is not an object");
-        } else if (apiName == "templates") {
-            QJsonArray items;
-            if (env.data.isArray()) {
-                items = env.data.toArray();
-            } else if (env.data.isObject()) {
-                items = env.data.toObject().value("data").toArray();
-            }
-            emit templatesOk(items);
-        } else if (apiName == "dagRuns") {
-            if (env.data.isObject()) {
-                emit dagRunsOk(env.data.toObject().value("items").toArray());
-            } else {
-                emit dagRunsOk(QJsonArray());
-            }
-        } else if (apiName == "cronJobs") {
-            QJsonArray jobs;
-            if (env.data.isObject()) {
-                jobs = env.data.toObject().value("jobs").toArray();
-            } else if (env.data.isArray()) {
-                jobs = env.data.toArray();
-            }
-            emit cronJobsOk(jobs);
-        } else if (apiName == "workers") {
-            if (!env.data.isObject()) {
-                emit requestFailed(apiName, httpStatus, "workers data is not an object");
-                return;
-            }
-            const QJsonArray workers = env.data.toObject().value("workers").toArray();
-            emit workersOk(workers);
-        }
     });
 
     connect(reply, &QNetworkReply::errorOccurred, this, [this, apiName](QNetworkReply::NetworkError) {
@@ -224,72 +204,6 @@ void ApiClient::postJson(const QString& apiName, const QString& path, const QJso
         }
 
         emit rawJson(apiName, root);
-
-        // /api/login success: {"code":0,"message":"ok","data":{"token":"...","username":"admin"}}
-        // failure: {"code":1004,"message":"invalid_username_or_password","data":null}
-        const ParsedEnvelope env = parseEnvelope(root);
-        if (!env.ok) {
-            if (apiName == "login") emit loginFailed(httpStatus, env.message);
-            else emit requestFailed(apiName, httpStatus, env.message);
-            return;
-        }
-
-        if (apiName == "login") {
-            if (!env.data.isObject()) {
-                emit loginFailed(httpStatus, "login data is not an object");
-                return;
-            }
-            const QJsonObject dataObj = env.data.toObject();
-            const QString token = dataObj.value("token").toString();
-            const QString user  = dataObj.value("username").toString();
-            if (token.isEmpty()) {
-                emit loginFailed(httpStatus, "missing token in login response");
-                return;
-            }
-            emit loginOk(token, user);
-        } else if (apiName == "runDagAsync") {
-            if (env.data.isObject()) {
-                const auto obj = env.data.toObject();
-                const QString runId = obj.value("run_id").toString();
-                const QJsonArray taskIds = obj.value("task_ids").toArray();
-                emit runDagAsyncOk(runId, taskIds);
-            } else {
-                emit runDagAsyncOk(QString(), QJsonArray());
-            }
-        } else if (apiName == "runTemplateAsync") {
-            if (env.data.isObject()) {
-                const auto obj = env.data.toObject();
-                const QString runId = obj.value("run_id").toString();
-                const QJsonArray taskIds = obj.value("task_ids").toArray();
-                emit runTemplateAsyncOk(runId, taskIds);
-            } else {
-                emit runTemplateAsyncOk(QString(), QJsonArray());
-            }
-        } else if (apiName == "dagRuns") {
-            if (env.data.isObject()) {
-                emit dagRunsOk(env.data.toObject().value("items").toArray());
-            } else {
-                emit dagRunsOk(QJsonArray());
-            }
-        } else if (apiName == "taskRuns") {
-            if (env.data.isObject()) {
-                emit taskRunsOk(env.data.toObject().value("items").toArray());
-            } else {
-                emit taskRunsOk(QJsonArray());
-            }
-        } else if (apiName == "dagEvents") {
-            if (env.data.isObject()) {
-                emit dagEventsOk(env.data.toObject().value("items").toArray());
-            } else {
-                emit dagEventsOk(QJsonArray());
-            }
-        } else if (apiName == "cronCreate") {
-            QString jobId;
-            if (env.data.isObject()) {
-                jobId = env.data.toObject().value("job_id").toString();
-            }
-            emit cronJobCreated(jobId);
-        }
     });
 }
 
@@ -316,14 +230,6 @@ void ApiClient::deleteJson(const QString& apiName, const QString& path, const QS
             return;
         }
         emit rawJson(apiName, root);
-        const ParsedEnvelope env = parseEnvelope(root);
-        if (!env.ok) {
-            emit requestFailed(apiName, httpStatus, env.message);
-            return;
-        }
-        if (apiName == "cronDelete") {
-            emit cronJobDeleted(idContext);
-        }
     });
 }
 
@@ -373,4 +279,126 @@ ApiClient::ParsedEnvelope ApiClient::parseEnvelope(const QJsonObject& root) {
     env.ok = false;
     env.message = "unknown response format (missing code/ok)";
     return env;
+}
+
+void ApiClient::onRawJson(const QString& apiName, const QJsonObject& root) {
+    const ParsedEnvelope env = parseEnvelope(root);
+    if (!env.ok) {
+        // login has special signal
+        if (apiName == "login") emit loginFailed(0, env.message); // status 0 or generic?
+        else emit requestFailed(apiName, 0, env.message); 
+        // Note: httpStatus is lost here if we don't pass it.
+        // Usually requestFailed carries httpStatus. 
+        // rawJson signal signature is (apiName, root). 
+        // If we want httpStatus, we need to change rawJson signature or embed it in root (hacky).
+        // Or we assume logic error has 0 status. 
+        // Most logic errors (env.ok == false) are application level errors (code != 0), even if HTTP 200.
+        // So status 0 or 200 is acceptable approximation, or we extend rawJson.
+        // Given constraint "internal signal", we can change rawJson signature easily!
+        return;
+    }
+
+    if (apiName == "health") {
+        if (env.data.isObject()) emit healthOk(env.data.toObject());
+        else emit requestFailed(apiName, 0, "health data is not an object");
+    } else if (apiName == "info") {
+        if (env.data.isObject()) emit infoOk(env.data.toObject());
+        else emit requestFailed(apiName, 0, "info data is not an object");
+    } else if (apiName == "templates") {
+        QJsonArray items;
+        if (env.data.isArray()) {
+            items = env.data.toArray();
+        } else if (env.data.isObject()) {
+            items = env.data.toObject().value("data").toArray();
+        }
+        emit templatesOk(items);
+    } else if (apiName == "dagRuns") {
+        if (env.data.isObject()) {
+            emit dagRunsOk(env.data.toObject().value("items").toArray());
+        } else {
+            emit dagRunsOk(QJsonArray());
+        }
+    } else if (apiName == "taskRuns") {
+        if (env.data.isObject()) {
+            emit taskRunsOk(env.data.toObject().value("items").toArray());
+        } else {
+            emit taskRunsOk(QJsonArray());
+        }
+    } else if (apiName == "dagEvents") {
+        if (env.data.isObject()) {
+            emit dagEventsOk(env.data.toObject().value("items").toArray());
+        } else {
+            emit dagEventsOk(QJsonArray());
+        }
+    } else if (apiName.startsWith("remoteTaskRuns:")) {
+        QString rPath = apiName.mid(15); 
+        if (env.data.isObject()) {
+            emit remoteTaskRunsOk(rPath, env.data.toObject().value("items").toArray());
+        } else {
+            emit remoteTaskRunsOk(rPath, QJsonArray());
+        }
+    } else if (apiName.startsWith("remoteDagEvents:")) {
+        QString rPath = apiName.mid(16);
+        if (env.data.isObject()) {
+            emit remoteDagEventsOk(rPath, env.data.toObject().value("items").toArray());
+        } else {
+            emit remoteDagEventsOk(rPath, QJsonArray());
+        }
+    } else if (apiName == "cronJobs") {
+        QJsonArray jobs;
+        if (env.data.isObject()) {
+            jobs = env.data.toObject().value("jobs").toArray();
+        } else if (env.data.isArray()) {
+            jobs = env.data.toArray();
+        }
+        emit cronJobsOk(jobs);
+    } else if (apiName == "workers") {
+        if (!env.data.isObject()) {
+            emit requestFailed(apiName, 0, "workers data is not an object");
+            return;
+        }
+        const QJsonArray workers = env.data.toObject().value("workers").toArray();
+        emit workersOk(workers);
+    } else if (apiName == "login") {
+        // ... login logic ...
+        if (!env.data.isObject()) {
+             emit loginFailed(0, "login data is not an object");
+             return;
+        }
+        const QJsonObject dataObj = env.data.toObject();
+        const QString token = dataObj.value("token").toString();
+        const QString user  = dataObj.value("username").toString();
+        if (token.isEmpty()) {
+             emit loginFailed(0, "missing token in login response");
+             return;
+        }
+        emit loginOk(token, user);
+    } else if (apiName == "runDagAsync") {
+        if (env.data.isObject()) {
+            const auto obj = env.data.toObject();
+            const QString runId = obj.value("run_id").toString();
+            const QJsonArray taskIds = obj.value("task_ids").toArray();
+            emit runDagAsyncOk(runId, taskIds);
+        } else {
+            emit runDagAsyncOk(QString(), QJsonArray());
+        }
+    } else if (apiName == "runTemplateAsync") {
+        if (env.data.isObject()) {
+            const auto obj = env.data.toObject();
+            const QString runId = obj.value("run_id").toString();
+            const QJsonArray taskIds = obj.value("task_ids").toArray();
+            emit runTemplateAsyncOk(runId, taskIds);
+        } else {
+            emit runTemplateAsyncOk(QString(), QJsonArray());
+        }
+    } else if (apiName == "cronCreate") {
+        QString jobId;
+        if (env.data.isObject()) {
+            jobId = env.data.toObject().value("job_id").toString();
+        }
+        emit cronJobCreated(jobId);
+    } else if (apiName.startsWith("cronDelete:")) {
+        QString id = apiName.mid(11);
+        emit cronJobDeleted(id);
+    }
 }

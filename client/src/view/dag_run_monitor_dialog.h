@@ -24,6 +24,12 @@ private slots:
     void fetchEvents();
     void onTimelineTick();
 
+    // API Response Slots
+    void onTaskRuns(const QJsonArray& items);
+    void onRemoteTaskRuns(const QString& remotePath, const QJsonArray& items);
+    void onDagEvents(const QJsonArray& items);
+    void onRemoteDagEvents(const QString& remotePath, const QJsonArray& items);
+
 private:
     void buildUi();
     void populateTaskRuns(const QJsonArray& items);
@@ -31,6 +37,11 @@ private:
     QColor statusColor(int status) const;
     QString statusText(int status) const;
     void updateNodeStatusFromEvent(const QJsonObject& ev);
+
+    void fetchRemoteTaskRuns(const QString& remotePath);
+    void fetchRemoteEvents(const QString& remotePath);
+    void mergeRemoteTaskRuns(const QString& remotePrefix, const QJsonArray& items);
+    void mergeRemoteEvents(const QString& remotePrefix, const QJsonArray& items);
 
 private:
     QString runId_;
@@ -42,4 +53,7 @@ private:
     QTimer pollTimer_;
     qint64 lastEventTs_ = 0;
     int pollCounter_ = 0;
+    
+    QMap<QString, qint64> remoteLastEventTs_; 
+    QMap<QString, QJsonObject> allTaskRuns_; 
 };

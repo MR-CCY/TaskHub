@@ -27,6 +27,9 @@ services:
         BUILD_JOBS: ${BUILD_JOBS:-1}
     environment:
       TZ: ${TZ:-Asia/Shanghai}
+      TASKHUB_WORK_MASTER_HOST: ${TASKHUB_WORK_MASTER_HOST:-master}
+      TASKHUB_WORK_MASTER_PORT: ${TASKHUB_WORK_MASTER_PORT:-8082}
+      TASKHUB_WORK_ADVERTISE_HOST: ${TASKHUB_WORKER1_ADVERTISE_HOST:-worker1}
     container_name: taskhub-worker1
     depends_on:
       - master
@@ -48,6 +51,9 @@ services:
         BUILD_JOBS: ${BUILD_JOBS:-1}
     environment:
       TZ: ${TZ:-Asia/Shanghai}
+      TASKHUB_WORK_MASTER_HOST: ${TASKHUB_WORK_MASTER_HOST:-master}
+      TASKHUB_WORK_MASTER_PORT: ${TASKHUB_WORK_MASTER_PORT:-8082}
+      TASKHUB_WORK_ADVERTISE_HOST: ${TASKHUB_WORKER2_ADVERTISE_HOST:-worker2}
     container_name: taskhub-worker2
     depends_on:
       - master

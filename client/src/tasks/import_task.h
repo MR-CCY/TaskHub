@@ -18,12 +18,11 @@ public:
 private:
     bool parseJson(const QString& path, QJsonObject& rootOut);
     bool validateTasks(const QJsonObject& root, QJsonArray& tasksOut);
-    QVariantMap jsonObjectToStringMap(const QJsonObject& obj) const;
+     // jsonObjectToStringMap, typeFromExec removed if not used, wait. 
+     // jsonObjectToStringMap is local utility.
+     // typeFromExec is local utility.
+     // Let's remove them if we removed impl. I removed implementation.
     bool resolveConflicts(const QJsonArray& tasks, const QHash<QString, RectItem*>& existing, QHash<QString, RectItem*>& idToNode);
-    NodeType typeFromExec(const QString& execType) const;
-
-    void loadLevel(const QJsonArray& tasks, QGraphicsItem* parentNode, const QHash<QString, RectItem*>& preCreated = {});
-    bool inflateDagJson(RectItem* node, const QString& dagJson);
 
     CanvasScene* scene_;
     UndoStack* undo_;
