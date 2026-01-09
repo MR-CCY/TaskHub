@@ -10,6 +10,11 @@
 using json = nlohmann::json;
 
 namespace taskhub::worker {
+WorkerHeartbeatClient::~WorkerHeartbeatClient()
+{
+    stop();
+}
+
 void WorkerHeartbeatClient::start(std::string masterHost,
                                   int masterPort,
                                   std::string workerId,
@@ -40,6 +45,8 @@ void WorkerHeartbeatClient::start(std::string masterHost,
                  ", worker=" + _workerHost + ":" + std::to_string(_workerPort) +
                  ", interval=" + std::to_string(_interval.count()) + "ms" +
                  ", max_running_tasks=" + std::to_string(_maxRunningTasks));
+
+    stop();
 
     _stop.store(false, std::memory_order_release);
     _registered.store(false, std::memory_order_release);

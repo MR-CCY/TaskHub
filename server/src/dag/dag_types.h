@@ -19,6 +19,25 @@ struct DagConfig {
     std::string name;
     FailPolicy failPolicy{ FailPolicy::SkipDownstream };
     std::uint32_t maxParallel{ 4 }; // 最大并行度（可约束线程池并发）
+
+    static DagConfig from_json(const json& j, const std::string& fallbackName = "") {
+        DagConfig cfg;
+        if (j.contains("config") && j["config"].is_object()) {
+            const auto& jcfg = j["config"];
+            std::string policy = jcfg.value("fail_policy", "SkipDownstream");
+            if (policy == "FailFast") {
+                cfg.failPolicy = FailPolicy::FailFast;
+            } else {
+                cfg.failPolicy = FailPolicy::SkipDownstream;
+            }
+            cfg.maxParallel = jcfg.value("max_parallel", 4u);
+            cfg.name = jcfg.value("name", std::string{});
+        }
+        if (cfg.name.empty()) {
+            cfg.name = j.value("name", fallbackName);
+        }
+        return cfg;
+    }
 };
 struct DagResult
 {

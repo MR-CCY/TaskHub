@@ -180,8 +180,12 @@ QString NodeInspectorWidget::shellCmdValue() const
     return shell_ ? shell_->cmdValue() : QString();
 }
 
-QString NodeInspectorWidget::dagJsonValue() const {
-    return dag_ ? dag_->dagJsonValue() : QString();
+QString NodeInspectorWidget::dagFailPolicyValue() const {
+    return dag_ ? dag_->failPolicyValue() : QString();
+}
+
+int NodeInspectorWidget::dagMaxParallelValue() const {
+    return dag_ ? dag_->maxParallelValue() : 4;
 }
 
 QString NodeInspectorWidget::templateIdValue() const {

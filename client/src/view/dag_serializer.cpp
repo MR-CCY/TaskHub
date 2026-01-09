@@ -15,10 +15,17 @@
 #include "Item/dag_rect_item.h"
 
 namespace {
-QJsonObject variantMapToStringObject(const QVariantMap& m) {
+QJsonObject variantMapToJsonObject(const QVariantMap& m) {
     QJsonObject obj;
     for (auto it = m.constBegin(); it != m.constEnd(); ++it) {
-        obj[it.key()] = it.value().toString();
+        if (it.value().canConvert<QJsonObject>()) {
+            obj[it.key()] = it.value().toJsonObject();
+        } else if (it.value().canConvert<QJsonArray>()) {
+            obj[it.key()] = it.value().toJsonArray();
+        } else {
+            // Use QJsonValue::fromVariant to preserve types (int, bool, etc)
+            obj[it.key()] = QJsonValue::fromVariant(it.value());
+        }
     }
     return obj;
 }
@@ -68,18 +75,26 @@ QJsonObject serializeLevel(const QList<RectItem*>& nodes, const QJsonObject& con
                     }
                     if (!children.isEmpty()) {
                         QJsonObject subConfig;
-                        subConfig["fail_policy"] = execMap.value("remote.fail_policy", "SkipDownstream").toString();
-                        subConfig["max_parallel"] = execMap.value("remote.max_parallel", 4).toInt();
-                        subConfig["name"] = n->prop("name").toString() + "_sub";
+                        subConfig["fail_policy"] = execMap.value("config.fail_policy", "SkipDownstream").toString();
+                        subConfig["max_parallel"] = execMap.value("config.max_parallel", 4).toInt();
+                        subConfig["name"] = n->prop("name").toString();
                         
                         QJsonObject subDag = serializeLevel(children, subConfig);
                         if (!subDag.isEmpty()) {
-                            execMap["dag_json"] = QJsonDocument(subDag).toJson(QJsonDocument::Compact);
+                            execMap["config"] = subDag.value("config").toObject();
+                            execMap["tasks"] = subDag.value("tasks").toArray();
+                            
+                            // Remove flat redundant keys
+                            execMap.remove("config.fail_policy");
+                            execMap.remove("config.max_parallel");
+                            execMap.remove("remote.fail_policy");
+                            execMap.remove("remote.max_parallel");
+                            execMap.remove("dag_json"); // Cleanup legacy field
                         }
                     }
                 }
                 
-                t[skey] = variantMapToStringObject(execMap);
+                t[skey] = variantMapToJsonObject(execMap);
             } else if (skey == "metadata") {
                 // t[skey] = variantMapToStringObject(v.toMap());
             } else if (skey == "timeout_ms" || skey == "retry_delay_ms") {

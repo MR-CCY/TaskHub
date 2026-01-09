@@ -535,67 +535,31 @@ namespace taskhub
     void WorkHandler::worker_execute(const httplib::Request &req, httplib::Response &res)
     {
         Logger::info("Worker execute task request: " + req.body);
+
+        json body;
         try {
-            json jReq = json::parse(req.body, nullptr, false);
-            if (jReq.is_discarded()) {
-                resp::error(res, 400, "invalid json", 400);
-                return;
-            }
-            const std::string payloadType = normalize_payload_type(jReq);
-            const json& payload = extract_payload(jReq);
-
-            if (payloadType != "dag") {
-                resp::bad_request(res, "worker only supports dag payload for Remote nodes", 400);
-                return;
-            }
-
-            if (!payload.is_object()) {
-                resp::bad_request(res, "dag payload must be object", 400);
-                return;
-            }
-            json dagBody = payload;
-            if (!dagBody.contains("tasks") || !dagBody["tasks"].is_array()) {
-                resp::bad_request(res, R"({"error":"tasks must be array"})", 400);
-                return;
-            }
-
-            std::vector<json> taskList;
-            std::string err;
-            if (!build_task_list_from_tasks_array(dagBody["tasks"], taskList, err)) {
-                resp::bad_request(res, err, 400);
-                return;
-            }
-
-            std::string runId = dagBody.value("run_id", std::string{});
-            if (runId.empty()) {
-                runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
-            }
-
-            dagrun::injectRunId(dagBody, runId);
-            dagrun::persistRunAndTasks(runId, dagBody, "worker_execute");
-            Logger::info("Worker execute dag: run_id=" + runId +
-                            ", tasks=" + std::to_string(taskList.size()));
-
-            dag::DagThreadPool::instance().post(
-                [dagBody = std::move(dagBody), runId]() mutable {
-                    try {
-                        dag::DagService::instance().runDag(dagBody, runId);
-                    } catch (const std::exception& e) {
-                        Logger::error(std::string("worker_execute dag thread exception: ") + e.what());
-                    }
-                }, core::TaskPriority::Critical);
-
-            json data;
-            data["type"] = "dag";
-            data["ok"] = true;
-            data["run_id"] = runId;
-            data["task_ids"] = taskList;
-            resp::ok(res, data);
-    } catch (const std::exception& e) {
-        // 兜底：任何未预期异常返回 500，避免线程挂掉
-            resp::error(res, 500, std::string("internal error: ") + e.what(), 500);
-        } catch (...) {
-            resp::error(res, 500, "internal error: unknown", 500);
+            body = json::parse(req.body);
+        } catch (const std::exception& e) {
+            resp::bad_request(res, "Invalid JSON", 1002);
+            return;
         }
+
+        // 统一由 DagService 生成 ID 和处理持久化
+        std::string runId = body.value("run_id", std::string{});
+        if (runId.empty()) {
+            runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
+        }
+        
+        dag::DagThreadPool::instance().post([body = std::move(body), runId]() mutable {
+            try {
+                dag::DagService::instance().runDag(body, "worker", runId);
+            } catch (const std::exception& e) {
+                Logger::error(std::string("worker thread exception: ") + e.what());
+            }
+        },core::TaskPriority::Critical);
+
+        json data;
+        data["run_id"] = runId;
+        resp::ok(res, data);
     }
 }

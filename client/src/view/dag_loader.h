@@ -29,4 +29,5 @@ public:
 
 private:
    static bool inflateDagJson(RectItem* node, const QString& dagJson, CanvasScene* scene, UndoStack* undo, QHash<QString, RectItem*>& outCreatedNodes, const QString& pathPrefix);
+   static bool inflateDagObject(RectItem* node, const QJsonObject& dagObj, CanvasScene* scene, UndoStack* undo, QHash<QString, RectItem*>& outCreatedNodes, const QString& pathPrefix);
 };

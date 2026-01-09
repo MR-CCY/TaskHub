@@ -22,6 +22,7 @@ class ServerWorkerRegistry {
         ServerWorkerRegistry& operator=(const ServerWorkerRegistry&) = delete;
         ServerWorkerRegistry(ServerWorkerRegistry&&) = delete;
         ServerWorkerRegistry& operator=(ServerWorkerRegistry&&) = delete;
+        ~ServerWorkerRegistry();
         void upsertWorker(const WorkerInfo& info);    // 注册或更新
         void removeWorker(const std::string& id);
         std::vector<WorkerInfo> listWorkers() const;

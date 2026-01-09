@@ -16,6 +16,8 @@ public:
                             const std::string& runId = "");
                             
     DagResult runDag(const json& body, const std::string& runId = "");
+    DagResult runDag(const json& body, const std::string& source, const std::string& runId);
+    DagResult runDag(const core::TaskConfig& cfg, const std::string& runId = "");
 
 private:
     dag::DagExecutor _executor;

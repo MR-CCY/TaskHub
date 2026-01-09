@@ -73,12 +73,12 @@ void NodeInspectorRemoteWidget::setValues(const QVariantMap& props, const QVaria
     if (q.isEmpty()) q = "default";
     queueCombo_->setCurrentText(q);
 
-    QString fp = exec.value("remote.fail_policy").toString().trimmed();
+    QString fp = exec.value("config.fail_policy").toString().trimmed();
     int idx = failPolicyCombo_->findData(fp);
     if (idx >= 0) failPolicyCombo_->setCurrentIndex(idx);
     else failPolicyCombo_->setCurrentIndex(0);
 
-    int mp = exec.value("remote.max_parallel", 4).toInt();
+    int mp = exec.value("config.max_parallel", 4).toInt();
     maxParallelSpin_->setValue(mp);
 }
 

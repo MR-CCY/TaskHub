@@ -75,6 +75,10 @@ bool CreateTask::dispatch(QEvent* e) {
             if (container) {
                 container->adjustToChildren();
             }
+            
+            // 5. Select the newly created item
+            scene->clearSelection();
+            item->setSelected(true);
 
             // 5. 任务完成，退出自己（一次性任务）
             removeSelf();

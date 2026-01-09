@@ -308,13 +308,14 @@ void InspectorPanel::saveNodeEdits() {
 
     const QString execType = props.value("exec_type").toString().trimmed().toLower();
     if (execType == "dag") {
-        pushChange("exec_params.dag_json", exec.value("dag_json"), nodeWidget_->dagJsonValue());
+        pushChange("exec_params.config.fail_policy", exec.value("config.fail_policy"), nodeWidget_->dagFailPolicyValue());
+        pushChange("exec_params.config.max_parallel", exec.value("config.max_parallel"), nodeWidget_->dagMaxParallelValue());
     } else if (execType == "template") {
         pushChange("exec_params.template_id", exec.value("template_id"), nodeWidget_->templateIdValue());
         pushChange("exec_params.template_params_json", exec.value("template_params_json"), nodeWidget_->templateParamsJsonValue());
     } else if (execType == "remote") {
-        pushChange("exec_params.remote.fail_policy", exec.value("remote.fail_policy"), nodeWidget_->remoteFailPolicyValue());
-        pushChange("exec_params.remote.max_parallel", exec.value("remote.max_parallel"), nodeWidget_->remoteMaxParallelValue());
+        pushChange("exec_params.config.fail_policy", exec.value("config.fail_policy"), nodeWidget_->remoteFailPolicyValue());
+        pushChange("exec_params.config.max_parallel", exec.value("config.max_parallel"), nodeWidget_->remoteMaxParallelValue());
     }
     undo_->endMacro();
     onSelectionChanged();

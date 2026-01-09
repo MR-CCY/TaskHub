@@ -220,9 +220,69 @@ inline TaskConfig parseTaskConfigFromReq(const json& jReq) {
 
     return cfg;
 }
-inline std::string getParam(const std::unordered_map<std::string, std::string>& params, 
-                       const std::string& key, 
-                       const std::string& defaultVal = "") {
+
+/**
+ * @brief 从 TaskConfig 的 execParams 中提取 DAG 结构信息
+ * 支持新版结构化参数 (tasks + config) 以及旧版 dag_json 字符串
+ */
+inline bool extractDagBody(const TaskConfig& cfg, json& out, std::string& err) {
+    // 优先尝试新版结构化格式
+    auto itTasks = cfg.execParams.find("tasks");
+    if (itTasks != cfg.execParams.end()) {
+        out = json::object();
+        try {
+            out["tasks"] = json::parse(itTasks->second);
+            
+            auto itConfig = cfg.execParams.find("config");
+            if (itConfig != cfg.execParams.end()) {
+                out["config"] = json::parse(itConfig->second);
+            } else {
+                // 后向兼容：如果只有 tasks 没有 config 对象，则从平铺键中尝试恢复
+                json config = json::object();
+                auto itFail = cfg.execParams.find("config.fail_policy");
+                if (itFail != cfg.execParams.end()) config["fail_policy"] = itFail->second;
+                
+                auto itParallel = cfg.execParams.find("config.max_parallel");
+                if (itParallel != cfg.execParams.end()) {
+                    try {
+                        config["max_parallel"] = std::stoi(itParallel->second);
+                    } catch(...) {
+                        config["max_parallel"] = 4;
+                    }
+                }
+                config["name"] = cfg.name;
+                out["config"] = config;
+            }
+            return true;
+        } catch (const std::exception& e) {
+            err = std::string("extractDagBody: failed to parse structured exec_params: ") + e.what();
+            return false;
+        }
+    }
+
+    // 回退到旧版 dag_json 字符串逻辑
+    auto itJson = cfg.execParams.find("dag_json");
+    std::string raw;
+    if (itJson != cfg.execParams.end()) {
+        raw = itJson->second;
+    } else if (!cfg.execCommand.empty()) {
+        raw = cfg.execCommand;
+    }
+
+    if (raw.empty()) {
+        err = "extractDagBody: missing dag_json or tasks array";
+        return false;
+    }
+
+    out = json::parse(raw, nullptr, false);
+    if (out.is_discarded() || !out.is_object()) {
+        err = "extractDagBody: invalid dag_json or structured payload";
+        return false;
+    }
+    return true;
+}
+inline std::string getParam(const std::unordered_map<std::string, std::string>& params, const std::string& key,  const std::string& defaultVal = "")
+{
     auto it = params.find(key);
     return (it != params.end()) ? it->second : defaultVal;
 }
@@ -230,38 +290,38 @@ inline std::string getParam(const std::unordered_map<std::string, std::string>& 
 inline bool startsWith(const std::string& s, const std::string& prefix){
     return s.size() >= prefix.size() && s.compare(0, prefix.size(), prefix) == 0;
 }
-inline TaskConfig makeInnerTask(const TaskConfig& cfg) {
-    TaskConfig inner = cfg; // 继承 timeout/retry/priority/queue/captureOutput/metadata 等
+// inline TaskConfig makeInnerTask(const TaskConfig& cfg) {
+//     TaskConfig inner = cfg; // 继承 timeout/retry/priority/queue/captureOutput/metadata 等
 
-    // 1) inner.exec_type
-    auto itType = cfg.execParams.find("inner.exec_type");
-    if (itType != cfg.execParams.end()) {
-        inner.execType = StringToTaskExecType(itType->second); // 你这个函数已支持大小写/下划线
-    } else {
-        // 没传就给个默认（按你的产品策略）
-        inner.execType = TaskExecType::Shell;
-    }
+//     // 1) inner.exec_type
+//     auto itType = cfg.execParams.find("inner.exec_type");
+//     if (itType != cfg.execParams.end()) {
+//         inner.execType = StringToTaskExecType(itType->second); // 你这个函数已支持大小写/下划线
+//     } else {
+//         // 没传就给个默认（按你的产品策略）
+//         inner.execType = TaskExecType::Shell;
+//     }
 
-    // 2) inner.exec_command
-    auto itCmd = cfg.execParams.find("inner.exec_command");
-    if (itCmd != cfg.execParams.end()) {
-        inner.execCommand = itCmd->second;
-    } else {
-        // 兜底：如果用户把命令写在 cfg.execCommand，也能跑
-        inner.execCommand = cfg.execCommand;
-    }
+//     // 2) inner.exec_command
+//     auto itCmd = cfg.execParams.find("inner.exec_command");
+//     if (itCmd != cfg.execParams.end()) {
+//         inner.execCommand = itCmd->second;
+//     } else {
+//         // 兜底：如果用户把命令写在 cfg.execCommand，也能跑
+//         inner.execCommand = cfg.execCommand;
+//     }
 
-    // 3) inner.exec_params.*
-    inner.execParams.clear();
-    for (const auto& kv : cfg.execParams) {
-        const std::string prefix = "inner.exec_params.";
-        if (startsWith(kv.first, prefix)) {
-            inner.execParams.emplace(kv.first.substr(prefix.size()), kv.second);
-        }
-    }
+//     // 3) inner.exec_params.*
+//     inner.execParams.clear();
+//     for (const auto& kv : cfg.execParams) {
+//         const std::string prefix = "inner.exec_params.";
+//         if (startsWith(kv.first, prefix)) {
+//             inner.execParams.emplace(kv.first.substr(prefix.size()), kv.second);
+//         }
+//     }
 
-    return inner;
-}
+//     return inner;
+// }
 
 /**
  * @brief 任务执行上下文，用于在执行策略或本地函数中获取参数及上报状态

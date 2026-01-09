@@ -44,9 +44,10 @@ public:
     QString shellENVValue() const;
     QString shellCmdValue() const;
 
-    QString dagJsonValue() const;
     QString templateIdValue() const;
     QString templateParamsJsonValue() const;
+    QString dagFailPolicyValue() const;
+    int dagMaxParallelValue() const;
     QString cronSpecValue() const;
     QString remoteFailPolicyValue() const;
     int remoteMaxParallelValue() const;

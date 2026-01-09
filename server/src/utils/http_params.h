@@ -22,5 +22,30 @@ inline int get_int(const httplib::Request& req, const std::string& key, int def 
         return def;
     }
 }
+inline bool is_retryable_http_status(int status) {
+    return status >= 500 && status <= 599;
+}
 
+inline std::string http_error_to_string(httplib::Error err) {
+    switch (err) {
+        case httplib::Error::Connection:
+            return "connection";
+        case httplib::Error::Read:
+            return "read";
+        case httplib::Error::Write:
+            return "write";
+        case httplib::Error::ConnectionTimeout:
+            return "timeout";
+        case httplib::Error::Canceled:
+            return "canceled";
+        case httplib::Error::SSLConnection:
+            return "ssl_connection";
+        case httplib::Error::SSLServerVerification:
+            return "ssl_verify";
+        case httplib::Error::SSLServerHostnameVerification:
+            return "ssl_hostname_verify";
+        default:
+            return "error_" + std::to_string(static_cast<int>(err));
+    }
+}
 } // namespace taskhub::http_params

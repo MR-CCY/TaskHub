@@ -19,10 +19,7 @@ DagRunRepo& DagRunRepo::instance()
     return repo;
 }
 
-void DagRunRepo::insertRun(const std::string& runId,
-                           const json& body,
-                           const std::string& source,
-                           const std::string& workflowJson)
+void DagRunRepo::insertRun(const std::string& runId,const json& body,const std::string& source,const std::string& workflowJson)
 {
     std::lock_guard<std::mutex> lk(g_dag_run_mutex);
 

@@ -9,6 +9,7 @@ namespace taskhub::worker {
     // Worker-side heartbeat client running inside worker process.
     class WorkerHeartbeatClient {
     public:
+        ~WorkerHeartbeatClient();
         void start(std::string masterHost,
             int masterPort,
             std::string workerId,

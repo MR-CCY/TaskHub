@@ -41,6 +41,11 @@ namespace {
         initSelector();
     }
 
+    ServerWorkerRegistry::~ServerWorkerRegistry()
+    {
+        stopSweeper();
+    }
+
     /**
      * @brief 初始化工作进程选择策略
      * 

@@ -10,10 +10,15 @@ public:
     explicit NodeInspectorDagWidget(QWidget* parent = nullptr);
 
     void setValues(const QVariantMap& exec);
-    QString dagJsonValue() const;
+    QString failPolicyValue() const;
+    int maxParallelValue() const;
     void setReadOnlyMode(bool ro);
 
 private:
     QLabel* dagJsonLabel_ = nullptr;
     QLineEdit* dagJsonEdit_ = nullptr;
+    QLabel* failPolicyLabel_ = nullptr;
+    class QComboBox* failPolicyCombo_ = nullptr;
+    QLabel* maxParallelLabel_ = nullptr;
+    class QSpinBox* maxParallelSpin_ = nullptr;
 };

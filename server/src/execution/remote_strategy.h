@@ -17,10 +17,7 @@ struct DispatchAttemptResult  {
 
     core::TaskResult execute(core::ExecutionContext& ctx) override;
 private:
-    DispatchAttemptResult dispatch_once(const worker::WorkerInfo& workerInfo,
-                                        const core::ExecutionContext& ctx,
-                                        const std::string& queue,
-                                        const json& payloadJson);
+    DispatchAttemptResult dispatch_once(const worker::WorkerInfo& workerInfo,const core::ExecutionContext& ctx, const std::string& queue, const json& payloadJson);
 };
 
 } // namespace taskhub::runner

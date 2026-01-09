@@ -215,12 +215,8 @@ namespace taskhub {
     {
         Logger::info("POST /api/run_dag");
         try {
-            // 1. 解析请求 JSON
             json body = json::parse(req.body);
-            const std::string runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
-            dagrun::injectRunId(body, runId);
-            dagrun::persistRunAndTasks(runId, body, "manual");
-            auto dagResult= dag::DagService::instance().runDag(body, runId);
+            auto dagResult = dag::DagService::instance().runDag(body, "manual", "");
             if(!dagResult.success){
                 json out;
                 out["ok"] = false;
@@ -230,40 +226,10 @@ namespace taskhub {
                 return;
             }
 
-            std::vector<std::string> successIds;
-            std::vector<std::string> failedIds;
-            std::vector<std::string> skippedIds;
-            for (const auto& kv : dagResult.taskResults) {
-                const auto& id = kv.first;
-                auto status = kv.second.status;
-                const std::string idStr = id.value;
-                switch (status) {
-                case core::TaskStatus::Success:
-                    successIds.push_back(idStr);
-                    break;
-                case core::TaskStatus::Failed:
-                case core::TaskStatus::Timeout:
-                    failedIds.push_back(idStr);
-                    break;
-                case core::TaskStatus::Skipped:
-                    skippedIds.push_back(idStr);
-                    break;
-                default:
-                    break;
-                }
-            }
-
             json respJson;
             respJson["ok"]      = dagResult.success;
             respJson["message"] = dagResult.message;
-            respJson["nodes"]= dagResult.to_json();
-            respJson["run_id"] = runId;
-            json summary;
-            summary["total"]   = dagResult.taskResults.size();
-            summary["success"] = successIds;
-            summary["failed"]  = failedIds;
-            summary["skipped"] = skippedIds;
-            respJson["summary"] = summary;
+            respJson["nodes"]   = dagResult.to_json();
             resp::ok(res, respJson);
         }
         catch (const std::exception& ex) {
@@ -289,32 +255,14 @@ namespace taskhub {
             resp::bad_request(res, "Invalid JSON", 1002);
             return;
         }
-        if (!body.contains("tasks") || !body["tasks"].is_array()) {
-            resp::bad_request(res, R"({"error":"tasks must be array"})", 400);
-            return;
-        }
 
-        std::vector<json> taskList;
-        for (auto& jt : body["tasks"]) {
-            if (!jt.contains("id") || !jt["id"].is_string()) {
-                resp::bad_request(res, "task id is required", 400);
-                return;
-            }
-            taskList.push_back({{"logical", jt["id"]}, {"task_id", jt["id"]}});
-        }
-
+        // 统一由 DagService 生成 ID 和处理持久化
         const std::string runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
-        for (auto& jt : body["tasks"]) {
-            jt["run_id"] = runId;
-        }
-
-        // 持久化 dag_run 和初始 task_run
-        dagrun::persistRunAndTasks(runId, body, "manual");
-
-        // 用 DAG 线程池执行，避免为每个请求创建 detached 线程
+        
         dag::DagThreadPool::instance().post([body = std::move(body), runId]() mutable {
             try {
-                dag::DagService::instance().runDag(body, runId);
+                // 使用异步方式启动时，手动传入生成的 runId 以便立即返回给前端
+                dag::DagService::instance().runDag(body, "manual", runId);
             } catch (const std::exception& e) {
                 Logger::error(std::string("runDagAsync thread exception: ") + e.what());
             }
@@ -322,7 +270,6 @@ namespace taskhub {
 
         json data;
         data["run_id"] = runId;
-        data["task_ids"] = taskList;
         resp::ok(res, data);
     }
 

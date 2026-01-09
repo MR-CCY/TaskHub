@@ -138,13 +138,16 @@ void DagLoader::loadLevel(const QJsonArray& tasks,
         if (!node) continue;
 
         QJsonObject execParams = obj.value("exec_params").toObject();
-        if (execParams.contains("dag_json")) {
-            // dag_json string
-            // Recursive path generation: current node's full path becomes prefix for children
-            QString currentFullId = id;
-            if (!pathPrefix.isEmpty()) {
-                currentFullId = pathPrefix + "/" + id;
-            }
+        QString currentFullId = id;
+        if (!pathPrefix.isEmpty()) {
+            currentFullId = pathPrefix + "/" + id;
+        }
+
+        if (execParams.contains("tasks") && execParams.value("tasks").isArray()) {
+            // New structured format
+            inflateDagObject(node, execParams, scene, undo, outCreatedNodes, currentFullId);
+        } else if (execParams.contains("dag_json")) {
+            // Legacy dag_json string
             inflateDagJson(node, execParams.value("dag_json").toString(), scene, undo, outCreatedNodes, currentFullId);
         }
     }
@@ -179,16 +182,16 @@ bool DagLoader::inflateDagJson(RectItem* node, const QString& dagJson, CanvasSce
     QJsonDocument doc = QJsonDocument::fromJson(dagJson.toUtf8());
     if (!doc.isObject()) return false;
     
-    QJsonObject root = doc.object();
-    if (!root.contains("tasks") || !root.value("tasks").isArray()) return false;
+    return inflateDagObject(node, doc.object(), scene, undo, outCreatedNodes, pathPrefix);
+}
+
+bool DagLoader::inflateDagObject(RectItem* node, const QJsonObject& dagObj, CanvasScene* scene, UndoStack* undo, QHash<QString, RectItem*>& outCreatedNodes, const QString& pathPrefix) {
+    if (dagObj.isEmpty()) return false;
+    if (!dagObj.contains("tasks") || !dagObj.value("tasks").isArray()) return false;
     
-    QJsonArray tasks = root.value("tasks").toArray();
+    QJsonArray tasks = dagObj.value("tasks").toArray();
     
     // Recursive loading
-    // pass empty preExisting because inside a container specifically inflated, we expect new nodes usually?
-    // Actually ImportTask passes 'node' as parent.
-    // It calls loadLevel(tasks, node).
-    // Note: ImportTask's inflateDagJson calls loadLevel(tasks, node).
     QHash<QString, RectItem*> dummyPreExisting;
     loadLevel(tasks, scene, undo, node, dummyPreExisting, outCreatedNodes, pathPrefix);
     return true;
