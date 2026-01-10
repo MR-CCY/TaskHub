@@ -99,9 +99,6 @@ QString NodeInspectorWidget::nameValue() const {
     return common_ ? common_->nameValue() : QString();
 }
 
-// QString NodeInspectorWidget::commandValue() const {
-//     return common_ ? common_->commandValue() : QString();
-// }
 
 qint64 NodeInspectorWidget::timeoutMsValue() const {
     return common_ ? common_->timeoutMsValue() : 0;
@@ -208,18 +205,18 @@ int NodeInspectorWidget::remoteMaxParallelValue() const {
     return (remote_ && execStack_->currentWidget() == remote_) ? remote_->maxParallelValue() : 4;
 }
 
-void NodeInspectorWidget::setRuntimeValues(const QJsonObject& obj)
+void NodeInspectorWidget::setResultValues(const QVariantMap& result)
 {
-    if (runtime_) runtime_->setRuntimeValues(obj);
+    if (runtime_) runtime_->setRuntimeValues(result);
 
-    const QString status = obj.value("status").toString();
-    const qint64 duration = obj.value("duration_ms").toVariant().toLongLong();
-    const int exitCode = obj.value("exit_code").toInt();
-    const QString worker = obj.value("worker_id").toString();
-    const int attempt = obj.value("attempt").toInt();
-    const int maxAttempts = obj.value("max_attempts").toInt();
-    const qint64 startMs = obj.value("start_ts_ms").toVariant().toLongLong();
-    const qint64 endMs = obj.value("end_ts_ms").toVariant().toLongLong();
+    const QString status = result.value("status").toString();
+    const qint64 duration = result.value("duration_ms").toLongLong();
+    const int exitCode = result.value("exit_code").toInt();
+    const QString worker = result.value("worker_id").toString();
+    const int attempt = result.value("attempt").toInt();
+    const int maxAttempts = result.value("max_attempts").toInt();
+    const qint64 startMs = result.value("start_ts_ms").toLongLong();
+    const qint64 endMs = result.value("end_ts_ms").toLongLong();
 
     const QString runtimeTip = tr("状态: %1\n耗时(ms): %2\n退出码: %3\nworker: %4\nstart: %5\nend: %6")
                                    .arg(status)

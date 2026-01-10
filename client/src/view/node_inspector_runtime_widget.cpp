@@ -27,6 +27,12 @@ NodeInspectorRuntimeWidget::NodeInspectorRuntimeWidget(QWidget* parent)
     runtimeStderrLabel_ = new QLabel("-", this);
     runtimeStderrLabel_->setWordWrap(true);
 
+    runtimeStartTimeLabel_ = new QLabel("-", this);
+    runtimeStartTimeLabel_->setWordWrap(true);
+
+    runtimeEndTimeLabel_ = new QLabel("-", this);
+    runtimeEndTimeLabel_->setWordWrap(true);
+
     form->addRow(sep);
     form->addRow(tr("运行状态"), runtimeStatusLabel_);
     form->addRow(tr("耗时(ms)"), runtimeDurationLabel_);
@@ -36,12 +42,16 @@ NodeInspectorRuntimeWidget::NodeInspectorRuntimeWidget(QWidget* parent)
     form->addRow(tr("消息"), runtimeMessageLabel_);
     form->addRow(tr("Stdout"), runtimeStdoutLabel_);
     form->addRow(tr("Stderr"), runtimeStderrLabel_);
+    form->addRow(tr("开始时间"), runtimeStartTimeLabel_);
+    form->addRow(tr("结束时间"), runtimeEndTimeLabel_);
+
 }
 
-void NodeInspectorRuntimeWidget::setRuntimeValues(const QJsonObject& obj)
+
+void NodeInspectorRuntimeWidget::setRuntimeValues(const QVariantMap& obj)
 {
     const QString status = obj.value("status").toString();
-    const qint64 duration = obj.value("duration_ms").toVariant().toLongLong();
+    const qint64 duration = obj.value("duration_ms").toLongLong();
     const int exitCode = obj.value("exit_code").toInt();
     const QString worker = obj.value("worker_id").toString();
     const QString stdout = obj.value("stdout").toString();
@@ -49,6 +59,9 @@ void NodeInspectorRuntimeWidget::setRuntimeValues(const QJsonObject& obj)
     const QString msg = obj.value("message").toString();
     const int attempt = obj.value("attempt").toInt();
     const int maxAttempts = obj.value("max_attempts").toInt();
+    qint64 startTime = obj.value("start_ts_ms").toLongLong();
+    qint64 endTime = obj.value("end_ts_ms").toLongLong();
+
 
     runtimeStatusLabel_->setText(status);
     runtimeDurationLabel_->setText(QString::number(duration));
@@ -58,4 +71,17 @@ void NodeInspectorRuntimeWidget::setRuntimeValues(const QJsonObject& obj)
     runtimeMessageLabel_->setText(msg);
     runtimeStdoutLabel_->setText(stdout);
     runtimeStderrLabel_->setText(stderr);
+    if (startTime > 0) {
+        QDateTime startDateTime = QDateTime::fromMSecsSinceEpoch(startTime);
+        runtimeStartTimeLabel_->setText(startDateTime.toString("yyyy-MM-dd HH:mm:ss.zzz"));
+    } else {
+        runtimeStartTimeLabel_->setText("-");
+    }
+    
+    if (endTime > 0) {
+        QDateTime endDateTime = QDateTime::fromMSecsSinceEpoch(endTime);
+        runtimeEndTimeLabel_->setText(endDateTime.toString("yyyy-MM-dd HH:mm:ss.zzz"));
+    } else {
+        runtimeEndTimeLabel_->setText("-");
+    }
 }

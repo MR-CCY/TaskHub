@@ -8,7 +8,7 @@ class NodeInspectorRuntimeWidget : public QWidget {
 public:
     explicit NodeInspectorRuntimeWidget(QWidget* parent = nullptr);
 
-    void setRuntimeValues(const QJsonObject& obj);
+    void setRuntimeValues(const QVariantMap& obj);
 
 private:
     QLabel* runtimeStatusLabel_ = nullptr;
@@ -19,4 +19,6 @@ private:
     QLabel* runtimeMessageLabel_ = nullptr;
     QLabel* runtimeStdoutLabel_ = nullptr;
     QLabel* runtimeStderrLabel_ = nullptr;
+    QLabel* runtimeStartTimeLabel_ = nullptr;
+    QLabel* runtimeEndTimeLabel_ = nullptr;
 };

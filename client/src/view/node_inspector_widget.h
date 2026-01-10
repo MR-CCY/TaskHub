@@ -51,7 +51,7 @@ public:
     QString cronSpecValue() const;
     QString remoteFailPolicyValue() const;
     int remoteMaxParallelValue() const;
-    void setRuntimeValues(const QJsonObject& obj);
+    void setResultValues(const QVariantMap& result);
     void setReadOnlyMode(bool ro);
 
 signals:

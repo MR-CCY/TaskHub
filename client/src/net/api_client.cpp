@@ -143,6 +143,9 @@ void ApiClient::getWorkers() {
 }
 
 void ApiClient::getJson(const QString& apiName, const QString& path) {
+    if(unauthorized_){
+        return;
+    }
     if (baseUrl_.isEmpty()) {
         emit requestFailed(apiName, 0, "baseUrl is empty");
         return;
@@ -152,10 +155,12 @@ void ApiClient::getJson(const QString& apiName, const QString& path) {
     QNetworkReply* reply = nam_->get(req);
 
     connect(reply, &QNetworkReply::finished, this, [this, reply, apiName]() {
+        this->unauthorized_=false;
         const int httpStatus = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         const QByteArray bytes = reply->readAll();
         reply->deleteLater();
         if (httpStatus == 401) {
+            this->unauthorized_=true;
             emit unauthorized();
             return;
         }
@@ -178,6 +183,9 @@ void ApiClient::getJson(const QString& apiName, const QString& path) {
 }
 
 void ApiClient::postJson(const QString& apiName, const QString& path, const QJsonObject& body) {
+    if(unauthorized_){
+        return;
+    }
     if (baseUrl_.isEmpty()) {
         emit requestFailed(apiName, 0, "baseUrl is empty");
         return;
@@ -189,10 +197,12 @@ void ApiClient::postJson(const QString& apiName, const QString& path, const QJso
     QNetworkReply* reply = nam_->post(req, payload);
 
     connect(reply, &QNetworkReply::finished, this, [this, reply, apiName]() {
+        this->unauthorized_=false;
         const int httpStatus = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         const QByteArray bytes = reply->readAll();
         reply->deleteLater();
         if (httpStatus == 401) {
+            this->unauthorized_=true;
             emit unauthorized();
             return;
         }
@@ -208,6 +218,9 @@ void ApiClient::postJson(const QString& apiName, const QString& path, const QJso
 }
 
 void ApiClient::deleteJson(const QString& apiName, const QString& path, const QString& idContext) {
+    if(unauthorized_){
+        return;
+    }
     if (baseUrl_.isEmpty()) {
         emit requestFailed(apiName, 0, "baseUrl is empty");
         return;
@@ -216,10 +229,12 @@ void ApiClient::deleteJson(const QString& apiName, const QString& path, const QS
     QNetworkReply* reply = nam_->deleteResource(req);
 
     connect(reply, &QNetworkReply::finished, this, [this, reply, apiName, idContext]() {
+        this->unauthorized_=false;
         const int httpStatus = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         const QByteArray bytes = reply->readAll();
         reply->deleteLater();
         if (httpStatus == 401) {
+            this->unauthorized_=true;
             emit unauthorized();
             return;
         }

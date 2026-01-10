@@ -56,9 +56,9 @@ namespace taskhub {
         m_wsServer->start();
         Logger::info("WsServer started at 0.0.0.0:" + std::to_string(wsPort));
 
-        // 8. 启动后台任务执行线程
-        TaskRunner::instance().start();
-        Logger::info("TaskRunner started");
+        // // 8. 启动后台任务执行线程
+        // TaskRunner::instance().start();
+        // Logger::info("TaskRunner started");
 
         AuthManager::instance().init();
         Logger::info("AuthManager initialized");

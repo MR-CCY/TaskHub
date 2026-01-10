@@ -92,4 +92,5 @@ private:
     QNetworkAccessManager* nam_ = nullptr;
     QString baseUrl_;
     QString token_;
+    bool unauthorized_=  false;
 };

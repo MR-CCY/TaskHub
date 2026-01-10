@@ -6,6 +6,7 @@
 #include <QJsonDocument>
 #include <QMessageBox>
 #include <QGraphicsView>
+#include <QVBoxLayout>
 
 #include "view/dag_loader.h"
 #include "Item/rect_item.h"
@@ -21,6 +22,13 @@
 DagRunViewerBench::DagRunViewerBench(QWidget* parent)
     : CanvasBench(parent)
 {
+    // 添加简单布局让view充满空间
+    auto* layout = new QVBoxLayout(this);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
+    layout->addWidget(view());
+    setLayout(layout);
+    
     if (view()) {
         view()->setInteractive(false);           // 只读查看
         view()->setDragMode(QGraphicsView::ScrollHandDrag);
@@ -49,10 +57,6 @@ bool DagRunViewerBench::loadDagJson(const QJsonObject& obj)
     idMap_.clear();
 
     QHash<QString, RectItem*> dummyPreExisting;
-    // outCreatedNodes will be our idMap_ but we probably want to just use idMap_ directly if possible?
-    // idMap_ is member, check type. QHash<QString, RectItem*>.
-    // DagLoader outCreatedNodes is QHash<QString, RectItem*>&.
-    // So we can pass idMap_!
     DagLoader::loadLevel(tasks, scene(), undoStack(), nullptr, dummyPreExisting, idMap_);
 
     layoutDag();
@@ -91,6 +95,21 @@ QStringList DagRunViewerBench::getRemoteNodes() const
         // Check exec_type
         QString execType = node->prop("exec_type").toString();
         if (execType.compare("Remote", Qt::CaseInsensitive) == 0) {
+            list.append(it.key());
+        }
+    }
+    return list;
+}
+
+QStringList DagRunViewerBench::getDagNodes() const
+{
+    QStringList list;
+    for (auto it = idMap_.begin(); it != idMap_.end(); ++it) {
+        RectItem* node = it.value();
+        if (!node) continue;
+        // Check exec_type
+        QString execType = node->prop("exec_type").toString();
+        if (execType.compare("Dag", Qt::CaseInsensitive) == 0) {
             list.append(it.key());
         }
     }

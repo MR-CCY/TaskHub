@@ -21,7 +21,6 @@
 #include <utility>
 #include <optional>
 #include <cctype>
-
 using json = nlohmann::json;
 
 namespace taskhub
@@ -54,67 +53,6 @@ namespace taskhub
             return jw;
         }
 
-        std::string normalize_payload_type(const json& jReq)
-        {
-            if (jReq.contains("type") && jReq["type"].is_string()) {
-                std::string t = jReq["type"].get<std::string>();
-                for (auto& ch : t) {
-                    ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
-                }
-                return t;
-            }
-            return "task";
-        }
-
-        const json& extract_payload(const json& jReq)
-        {
-            if (jReq.contains("payload") && jReq["payload"].is_object()) {
-                return jReq["payload"];
-            }
-            return jReq;
-        }
-
-        json build_dag_response(const dag::DagResult& dagResult, const std::string& runId)
-        {
-            std::vector<std::string> successIds;
-            std::vector<std::string> failedIds;
-            std::vector<std::string> skippedIds;
-            for (const auto& kv : dagResult.taskResults) {
-                const auto& id = kv.first;
-                auto status = kv.second.status;
-                const std::string idStr = id.value;
-                switch (status) {
-                case core::TaskStatus::Success:
-                    successIds.push_back(idStr);
-                    break;
-                case core::TaskStatus::Failed:
-                case core::TaskStatus::Timeout:
-                    failedIds.push_back(idStr);
-                    break;
-                case core::TaskStatus::Skipped:
-                    skippedIds.push_back(idStr);
-                    break;
-                default:
-                    break;
-                }
-            }
-
-            json respJson;
-            respJson["ok"]      = dagResult.success;
-            respJson["message"] = dagResult.message;
-            respJson["nodes"]   = dagResult.to_json();
-            if (!runId.empty()) {
-                respJson["run_id"] = runId;
-            }
-            json summary;
-            summary["total"]   = dagResult.taskResults.size();
-            summary["success"] = successIds;
-            summary["failed"]  = failedIds;
-            summary["skipped"] = skippedIds;
-            respJson["summary"] = summary;
-            return respJson;
-        }
-
         bool build_task_list_from_tasks_array(const json& tasks, std::vector<json>& taskList, std::string& err)
         {
             if (!tasks.is_array()) {
@@ -129,28 +67,6 @@ namespace taskhub
                 taskList.push_back({{"logical", jt["id"]}, {"task_id", jt["id"]}});
             }
             return true;
-        }
-
-        bool build_task_list_from_payload(const json& body, std::vector<json>& taskList, std::string& err)
-        {
-            if (body.contains("tasks") && body["tasks"].is_array()) {
-                return build_task_list_from_tasks_array(body["tasks"], taskList, err);
-            }
-            if (body.contains("task") && body["task"].is_object()) {
-                const auto& t = body["task"];
-                if (!t.contains("id") || !t["id"].is_string()) {
-                    err = "task id is required";
-                    return false;
-                }
-                taskList.push_back({{"logical", t["id"]}, {"task_id", t["id"]}});
-                return true;
-            }
-            if (body.contains("id") && body["id"].is_string()) {
-                taskList.push_back({{"logical", body["id"]}, {"task_id", body["id"]}});
-                return true;
-            }
-            err = "task id is required";
-            return false;
         }
 
         std::optional<WorkerInfo> find_worker_by_id(const std::string& workerId)
@@ -186,6 +102,7 @@ namespace taskhub
             bool isLocal{false};
             WorkerInfo worker;
             std::string nextRemotePath;
+            std::string nextRunId;
         };
 
         // 递归/多跳解析逻辑
@@ -194,6 +111,7 @@ namespace taskhub
             ProxyTarget target;
             if (remotePath.empty()) {
                 target.isLocal = true;
+                target.nextRunId = runId;
                 return target;
             }
 
@@ -205,20 +123,39 @@ namespace taskhub
                 head = remotePath.substr(0, slashPos);
                 tail = remotePath.substr(slashPos + 1);
             }
-
-            // 2. 根据 head (logicalId) + runId 查库
+            
             auto taskRun = TaskRunRepo::instance().get(runId, head);
             if (!taskRun) {
                 error = "remote logical node not found: " + head + " in run: " + runId;
                 return std::nullopt;
             }
 
+            // 2. 根据 head (logicalId) + runId 查库
+            json jResp = json::parse(taskRun->metadataJson, nullptr, false);
+            if (jResp.is_discarded()) {
+                error = "invalid metadata json for node: " + head;
+                return std::nullopt;
+            }
+
+            if(!jResp.contains("run_id")){
+                error = "next_runid not found for node: " + head;
+                return std::nullopt;
+            }
+
+            std::string nextRunId = jResp["run_id"];
+
+            
             // 3. 拿到 workerId
             std::string workerId = taskRun->workerId;
             if (workerId.empty()) {
-                error = "worker_id not found for node: " + head;
-                return std::nullopt;
+                //如果是空意思是本地执行的
+                target.isLocal = true;
+                target.nextRunId= nextRunId;
+                target.nextRemotePath = tail;
+                return target;
             }
+
+        
 
             auto optWorker = find_worker_by_id(workerId);
             if (!optWorker) {
@@ -233,6 +170,7 @@ namespace taskhub
             target.isLocal = false;
             target.worker = *optWorker;
             target.nextRemotePath = tail;
+            target.nextRunId = nextRunId;
             return target;
         }
 
@@ -249,13 +187,14 @@ namespace taskhub
             // 保留大部分参数，除了 remote_path 需要替换
             std::string query;
             for (const auto& p : req.params) {
-                if (p.first == "remote_path" || p.first == "worker_id") continue;
+                if (p.first == "remote_path" || p.first == "worker_id" || p.first == "run_id") continue;
                 if (!query.empty()) query += "&";
                 query += p.first + "=" + p.second;
             }
-            // append next remote_path
+            // append next remote_path & run_id
              if (!query.empty()) query += "&";
              query += "remote_path=" + target.nextRemotePath;
+             query += "&run_id=" + target.nextRunId;
 
              // 如果 originalPath 不含 ?，加 ?
              if (path.find('?') == std::string::npos) {
@@ -274,6 +213,34 @@ namespace taskhub
             }
             res.status = workerResp->status;
             res.set_content(workerResp->body, "application/json; charset=utf-8");
+        }
+
+        // 构造一个修改过 run_id 参数的 Request 副本
+        // 用于本地查询时需要使用 nextRunId 的场景
+        httplib::Request make_request_with_modified_runid(const httplib::Request& original, const std::string& newRunId)
+        {
+            httplib::Request modifiedReq;
+            // 复制必要的字段
+            modifiedReq.method = original.method;
+            modifiedReq.path = original.path;
+            modifiedReq.headers = original.headers;
+            modifiedReq.body = original.body;
+            
+            // 复制参数，但替换 run_id
+            for (const auto& p : original.params) {
+                if (p.first == "run_id") {
+                    modifiedReq.params.emplace("run_id", newRunId);
+                } else {
+                    modifiedReq.params.emplace(p.first, p.second);
+                }
+            }
+            
+            // 如果原请求中没有 run_id，添加它
+            if (!original.has_param("run_id")) {
+                modifiedReq.params.emplace("run_id", newRunId);
+            }
+            
+            return modifiedReq;
         }
     }
     
@@ -451,6 +418,7 @@ namespace taskhub
     // Response: 转发 or 本地查询
     void WorkHandler::workers_proxy_logs(const httplib::Request &req, httplib::Response &res)
     {
+        Logger::info("Worker proxy logs request: " + req.path);
         std::string remotePath = req.get_param_value("remote_path");
         std::string runId = req.get_param_value("run_id");
 
@@ -472,59 +440,103 @@ namespace taskhub
         }
 
         std::string err;
-        auto target = resolve_proxy_target(runId, remotePath, err);
-        if (!target) {
-            resp::error(res, 404, err, 404);
-            return;
-        }
+        
+        // 逐层解析嵌套路径
+        while (true) {
+            auto target = resolve_proxy_target(runId, remotePath, err);
+            if (!target) {
+                resp::error(res, 404, err, 404);
+                return;
+            }
 
-        if (target->isLocal) {
-            // 本地执行：直接调用 LogHandler
-            // query: task_id, run_id, from, limit
-            LogHandler::query(req, res);
-        } else {
-            // 转发
-            proxy_forward(*target, "/api/workers/proxy/logs", req, res);
+            // 如果是远程 worker，转发请求
+            if (!target->isLocal) {
+                proxy_forward(*target, "/api/workers/proxy/logs", req, res);
+                return;
+            }
+
+            // 如果是本地且没有更多嵌套路径，执行本地查询
+            if (target->nextRemotePath.empty()) {
+                auto modifiedReq = make_request_with_modified_runid(req, target->nextRunId);
+                LogHandler::query(modifiedReq, res);
+                return;
+            }
+
+            // 如果是本地但还有嵌套路径，更新参数继续解析下一层
+            runId = target->nextRunId;
+            remotePath = target->nextRemotePath;
         }
     }
 
     // Request: GET /api/workers/proxy/dag/task_runs?remote_path=...&run_id=...
     void WorkHandler::workers_proxy_task_runs(const httplib::Request &req, httplib::Response &res)
     {
+        Logger::info("GET /api/workers/proxy/dag/task_runs");
         std::string remotePath = req.get_param_value("remote_path");
         std::string runId = req.get_param_value("run_id");
 
         std::string err;
-        auto target = resolve_proxy_target(runId, remotePath, err);
-        if (!target) {
-            resp::error(res, 404, err, 404);
-            return;
-        }
+        
+        // 逐层解析嵌套路径
+        while (true) {
+            auto target = resolve_proxy_target(runId, remotePath, err);
+            if (!target) {
+                resp::error(res, 404, err, 404);
+                return;
+            }
 
-        if (target->isLocal) {
-            TaskHandler::queryTaskRuns(req, res);
-        } else {
-            proxy_forward(*target, "/api/workers/proxy/dag/task_runs", req, res);
+            // 如果是远程 worker，转发请求
+            if (!target->isLocal) {
+                proxy_forward(*target, "/api/workers/proxy/dag/task_runs", req, res);
+                return;
+            }
+
+            // 如果是本地且没有更多嵌套路径，执行本地查询
+            if (target->nextRemotePath.empty()) {
+                auto modifiedReq = make_request_with_modified_runid(req, target->nextRunId);
+                TaskHandler::queryTaskRuns(modifiedReq, res);
+                return;
+            }
+
+            // 如果是本地但还有嵌套路径，更新参数继续解析下一层
+            runId = target->nextRunId;
+            remotePath = target->nextRemotePath;
         }
     }
 
     // Request: GET /api/workers/proxy/dag/events
     void WorkHandler::workers_proxy_task_events(const httplib::Request &req, httplib::Response &res)
     {
+        Logger::info("GET /api/workers/proxy/dag/events");
         std::string remotePath = req.get_param_value("remote_path");
         std::string runId = req.get_param_value("run_id");
 
         std::string err;
-        auto target = resolve_proxy_target(runId, remotePath, err);
-        if (!target) {
-            resp::error(res, 404, err, 404);
-            return;
-        }
+        
+        // 逐层解析嵌套路径
+        while (true) {
+            auto target = resolve_proxy_target(runId, remotePath, err);
+            if (!target) {
+                resp::error(res, 404, err, 404);
+                return;
+            }
 
-        if (target->isLocal) {
-            TaskHandler::queryTaskEvents(req, res);
-        } else {
-            proxy_forward(*target, "/api/workers/proxy/dag/events", req, res);
+            // 如果是远程 worker，转发请求
+            if (!target->isLocal) {
+                proxy_forward(*target, "/api/workers/proxy/dag/events", req, res);
+                return;
+            }
+
+            // 如果是本地且没有更多嵌套路径，执行本地查询
+            if (target->nextRemotePath.empty()) {
+                auto modifiedReq = make_request_with_modified_runid(req, target->nextRunId);
+                TaskHandler::queryTaskEvents(modifiedReq, res);
+                return;
+            }
+
+            // 如果是本地但还有嵌套路径，更新参数继续解析下一层
+            runId = target->nextRunId;
+            remotePath = target->nextRemotePath;
         }
     }
     // Request: POST /api/worker/execute
@@ -559,6 +571,7 @@ namespace taskhub
         },core::TaskPriority::Critical);
 
         json data;
+        data["ok"] = true;
         data["run_id"] = runId;
         resp::ok(res, data);
     }

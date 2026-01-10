@@ -136,6 +136,18 @@ core::TaskResult ShellExecutionStrategy::execute(core::ExecutionContext &ctx)
         return ctx.fail("TaskRunner：pipe() 创建失败");
     }
 
+    // 2.1) 预先提取子进程需要的配置信息（fork 之后调用这些非异步信号安全函数是不稳妥的）
+    std::string cwd = core::getParam(cfg.execParams, "cwd");
+    std::string shellPath = core::getParam(cfg.execParams, "shell", "/bin/sh");
+    
+    // 提取环境变量
+    std::vector<std::pair<std::string, std::string>> envs;
+    for (const auto& kv : cfg.execParams) {
+        if (kv.first.size() > 4 && kv.first.substr(0, 4) == "env.") {
+            envs.push_back({kv.first.substr(4), kv.second});
+        }
+    }
+
     // 3) 使用 fork 启动子进程执行命令
     const pid_t pid = ::fork();
     if (pid < 0) {
@@ -146,6 +158,9 @@ core::TaskResult ShellExecutionStrategy::execute(core::ExecutionContext &ctx)
 
     if (pid == 0) {
         // ---- child ----
+        // 注意：在多线程程序的 fork 子进程中，只能安全调用异步信号安全（async-signal-safe）函数。
+        // 避免使用 std::string 分配或复杂的 map 查找。
+
         // 设置新的进程组 ID，方便后续统一终止整个进程组
         ::setpgid(0, 0);
 
@@ -158,7 +173,6 @@ core::TaskResult ShellExecutionStrategy::execute(core::ExecutionContext &ctx)
         ::close(errPipe[0]); ::close(errPipe[1]);
 
         // 1) 处理工作目录 (cwd)
-        std::string cwd = core::getParam(cfg.execParams, "cwd");
         if (!cwd.empty()) {
             if (::chdir(cwd.c_str()) != 0) {
                 // 如果 chdir 失败，虽然子进程会继续，但建议记录或处理。
@@ -166,17 +180,11 @@ core::TaskResult ShellExecutionStrategy::execute(core::ExecutionContext &ctx)
         }
 
         // 2) 处理环境变量 (env.XXX)
-        for (const auto& kv : cfg.execParams) {
-            if (kv.first.size() > 4 && kv.first.substr(0, 4) == "env.") {
-                std::string envName = kv.first.substr(4);
-                ::setenv(envName.c_str(), kv.second.c_str(), 1);
-            }
+        for (const auto& env : envs) {
+            ::setenv(env.first.c_str(), env.second.c_str(), 1);
         }
 
-        // 3) 处理 Shell 路径 (默认 /bin/sh)
-        std::string shellPath = core::getParam(cfg.execParams, "shell", "/bin/sh");
-
-        // 调用 Shell 执行用户提供的命令字符串
+        // 3) 调用 Shell 执行用户提供的命令字符串
         ::execl(shellPath.c_str(), shellPath.c_str(), "-c", actualCmd.c_str(), (char*)nullptr);
 
         // 如果 exec 失败，则直接退出并返回错误码 127
@@ -259,13 +267,6 @@ core::TaskResult ShellExecutionStrategy::execute(core::ExecutionContext &ctx)
     } else {
         exitCode = childStatus;
     }
-    r.exitCode = exitCode;
-
-    // 6) 若启用输出捕获功能，则填充对应的输出字段
-    if (cfg.captureOutput) {
-        r.stdoutData = stdoutBuf;
-        r.stderrData = stderrBuf;
-    }
 
     // 7) 根据最终状态确定任务的整体执行结果
     if (ctx.isTimeout()) {
@@ -282,6 +283,8 @@ core::TaskResult ShellExecutionStrategy::execute(core::ExecutionContext &ctx)
 
     // ✅ 将 stdout/stderr 按行写入 LogManager buffer（用于 WS 实时订阅/分页拉取）
     if (cfg.captureOutput) {
+        r.stdoutData = stdoutBuf;
+        r.stderrData = stderrBuf;
         emit_lines_to_log_buffer(cfg.id, true,  stdoutBuf);
         emit_lines_to_log_buffer(cfg.id, false, stderrBuf);
     }

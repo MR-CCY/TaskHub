@@ -11,7 +11,6 @@ static QString ellipsize(const QString& s, int maxChars) {
 
 void RectItem::execCreateCmd(bool canUndo)
 {
-    // 注意：这里需要 sceneContext() 和 undoStack() 已经被注入
     // 在 Task 里创建 Item 后，必须调用 attachContext
     if (!sceneCtx()) return;
 
@@ -19,7 +18,7 @@ void RectItem::execCreateCmd(bool canUndo)
     cmd->pushTo(undo());
 }
 
-void RectItem::setRect(const QRectF& rect)
+void RectItem::setRect(const QRectF &rect)
 {
     if (rect_ == rect) return;
     prepareGeometryChange();
@@ -85,9 +84,8 @@ RectItem::RectItem(const QRectF &rect, QGraphicsItem *parent)
     setFlag(QGraphicsItem::ItemIsMovable);
     setFlag(QGraphicsItem::ItemSendsGeometryChanges);
     setCacheMode(QGraphicsItem::NoCache); // 避免移动时的残影
-    props_["name"] = "Node";
-    props_["enabled"] = true;
-
+    setProp("name", "Node");
+    setProp("enabled", true);
 }
 
 QRectF RectItem::boundingRect() const
@@ -116,7 +114,7 @@ void RectItem::paint(QPainter* p, const QStyleOptionGraphicsItem* opt, QWidget*)
     p->setRenderHint(QPainter::Antialiasing, true);
 
     const bool selected = (opt && (opt->state & QStyle::State_Selected));
-    const bool enabled  = props_.value("enabled", true).toBool();
+    const bool enabled  = prop("enabled").toBool();
 
     // 绘制背景和边框
     QColor bg = enabled ? QColor(250, 250, 250) : QColor(235, 235, 235);
@@ -138,8 +136,9 @@ void RectItem::paint(QPainter* p, const QStyleOptionGraphicsItem* opt, QWidget*)
     p->drawRect(QRectF(headerR.left(), headerR.top() + radius_, headerR.width(), headerR.height() - radius_));
 
     // 绘制标题栏文本：typeLabel + name
-    QString name = props_.value("name", "Node").toString();
-    const QString id= props_.value("id", "").toString();
+    QString name = prop("name").toString();
+    if (name.isEmpty()) name = "Node";
+    const QString id = prop("id").toString();
     QString title = QString("%1  %2 ID:%3").arg(typeLabel(), name,id);
 
     p->setPen(QColor(255, 255, 255));
@@ -195,39 +194,7 @@ void RectItem::setTaskConfig(const QVariantMap& cfg) {
     };
     for (const auto key : keys) {
         if (cfg.contains(key)) {
-            props_[key] = cfg.value(key);
+            setProp(key, cfg.value(key));
         }
     }
-}
-
-QVariant RectItem::propByKeyPath(const QString& keyPath) const {
-    if (keyPath.startsWith("exec_params.")) {
-        QVariantMap m = props_.value("exec_params").toMap();
-        QString sub = keyPath.mid(QString("exec_params.").size());
-        return m.value(sub);
-    }
-    if (keyPath.startsWith("metadata.")) {
-        QVariantMap m = props_.value("metadata").toMap();
-        QString sub = keyPath.mid(QString("metadata.").size());
-        return m.value(sub);
-    }
-    return props_.value(keyPath);
-}
-
-void RectItem::setPropByKeyPath(const QString& keyPath, const QVariant& v) {
-    if (keyPath.startsWith("exec_params.")) {
-        QVariantMap m = props_.value("exec_params").toMap();
-        QString sub = keyPath.mid(QString("exec_params.").size());
-        m[sub] = v;
-        props_["exec_params"] = m;
-        return;
-    }
-    if (keyPath.startsWith("metadata.")) {
-        QVariantMap m = props_.value("metadata").toMap();
-        QString sub = keyPath.mid(QString("metadata.").size());
-        m[sub] = v;
-        props_["metadata"] = m;
-        return;
-    }
-    props_[keyPath] = v;
 }

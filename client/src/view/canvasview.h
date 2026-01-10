@@ -56,4 +56,7 @@ private:
 
     bool middlePanning_ = false;
     QPoint lastPanPos_;
+    
+    // For smooth trackpad zooming
+    qreal wheelDeltaAccumulator_ = 0.0;
 };

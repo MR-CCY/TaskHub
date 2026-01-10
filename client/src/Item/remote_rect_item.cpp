@@ -9,21 +9,21 @@ int gRemoteIdCounter = 1;
 RemoteRectItem::RemoteRectItem(const QRectF& rect, QGraphicsItem* parent)
     : ContainerRectItem(rect, parent)
 {
-    props_["id"] = QString("R_%1").arg(gRemoteIdCounter++);
-    props_["name"] = "Remote";
-    props_["exec_type"] = "Remote";
-    props_["exec_command"] = QString("");
-    props_["exec_params"] = QVariantMap{};
-    props_["timeout_ms"] = static_cast<qint64>(0);
-    props_["retry_count"] = 0;
-    props_["retry_delay_ms"] = static_cast<qint64>(1000);
-    props_["retry_exp_backoff"] = true;
-    props_["priority"] = 0;
-    props_["queue"] = "default";
-    props_["capture_output"] = true;
-    props_["metadata"] = QVariantMap{};
-    setPropByKeyPath("exec_params.config.fail_policy", "SkipDownstream");
-    setPropByKeyPath("exec_params.config.max_parallel", 4);
+    setProp("id", QString("R_%1").arg(gRemoteIdCounter++));
+    setProp("name", "Remote");
+    setProp("exec_type", "Remote");
+    setProp("exec_command", QString(""));
+    setProp("exec_params", QVariantMap{});
+    setProp("timeout_ms", static_cast<qint64>(0));
+    setProp("retry_count", 0);
+    setProp("retry_delay_ms", static_cast<qint64>(1000));
+    setProp("retry_exp_backoff", true);
+    setProp("priority", 0);
+    setProp("queue", "default");
+    setProp("capture_output", true);
+    setProp("metadata", QVariantMap{});
+    setProp("exec_params.config.fail_policy", "SkipDownstream");
+    setProp("exec_params.config.max_parallel", 4);
 }
 
 QString RemoteRectItem::typeLabel() const {

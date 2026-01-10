@@ -36,13 +36,7 @@ namespace {
     }
 }
 
-void DagLoader::loadLevel(const QJsonArray& tasks, 
-                          CanvasScene* scene, 
-                          UndoStack* undo, 
-                          QGraphicsItem* parentNode,
-                          const QHash<QString, RectItem*>& preExisting,
-                          QHash<QString, RectItem*>& outCreatedNodes,
-                          const QString& pathPrefix)
+void DagLoader::loadLevel(const QJsonArray& tasks, CanvasScene* scene, UndoStack* undo, QGraphicsItem* parentNode,const QHash<QString, RectItem*>& preExisting,QHash<QString, RectItem*>& outCreatedNodes,const QString& pathPrefix)
 {
     QHash<QString, RectItem*> levelNodes = preExisting;
 
@@ -80,22 +74,6 @@ void DagLoader::loadLevel(const QJsonArray& tasks,
             if (!obj.contains(sk)) continue;
             // logic aligned with ImportTask and DagRunViewer
             if (sk == "exec_params" || sk == "metadata") {
-                 // ImportTask uses jsonObjectToStringMap for flat map often, 
-                 // DagRunViewer used recursive toVariantMap.
-                 // Ideally consistency is better. DagRunViewer's method supports nested objects better.
-                 // ImportTask one flattens.
-                 // Since we standardized on flat for exec_params recently (except dag_json which is handled separately)
-                 // Let's use toVariant() generic conversion to be safe or stick to previous logic.
-                 // ImportTask used: jsonObjectToStringMap.
-                 // DagRunViewer used: val.toObject().toVariantMap().
-                 // However, "dag_json" inside exec_params is a string in task_config logic usually, 
-                 // but in JSON it might be an object if serialised that way? 
-                 // No, in dag_serializer.cpp we put it as nested object?
-                 // Wait, dag_serializer.cpp puts `dag_json` as a *string* sometimes if it was a payload.
-                 // But recursive serialization puts it as object? No, recursive serialization logic:
-                 // `exec_params["dag_json"] = dagJsonStr;` -> It is a string.
-                 // So `jsonObjectToStringMap` or `toVariantMap` on an object that only contains strings is fine.
-                 // But wait, `dag_json` is BIG JSON string.
                  cfg[sk] = obj.value(sk).toVariant(); // generic
             } else if (sk == "timeout_ms" || sk == "retry_delay_ms") {
                 cfg[sk] = obj.value(sk).toVariant().toLongLong();
@@ -107,8 +85,7 @@ void DagLoader::loadLevel(const QJsonArray& tasks,
                 cfg[sk] = obj.value(sk).toString();
             }
         }
-        // Special case: if exec_params is Map(String, Variant), we need to ensure consistency.
-        // ImportTask used helper. DagRunViewer used generic QVariantMap.
+       
         // Let's use simple QVariant conversion from QJsonValue.
         if (obj.contains("exec_params")) {
              cfg["exec_params"] = obj.value("exec_params").toVariant();
@@ -124,7 +101,6 @@ void DagLoader::loadLevel(const QJsonArray& tasks,
             node->setParentItem(parentNode);
         }
         
-        node->execCreateCmd(true);
         node->execCreateCmd(true);
         levelNodes[id] = node;
         outCreatedNodes[fullId] = node;

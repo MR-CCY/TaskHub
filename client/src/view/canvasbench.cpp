@@ -8,6 +8,7 @@
 #include <QHash>
 #include <QList>
 #include <QVariant>
+#include <QVBoxLayout>
 
 // 引入你之前写好的头文件
 #include "canvasscene.h"
@@ -52,6 +53,10 @@ void CanvasBench::buildCore()
     view_->setScene(scene_);
     view_->setUndoStack(undoStack_);
     view_->setTaskManager(taskMgr_); // 关键：View 拿到 TaskMgr 直接派发事件
+
+    // 注意：不在这里设置布局！
+    // DagEditBench 有复杂的UI（toolbar + splitter），自己管理布局
+    // DagRunViewerBench 是简单的只读视图，在自己的构造函数中添加布局
 
     // 3. 启动默认任务 (SelectTask)
     // SelectTask 是 Level 0，常驻栈底

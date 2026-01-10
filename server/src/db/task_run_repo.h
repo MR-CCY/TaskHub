@@ -38,6 +38,7 @@ public:
         std::string workerId;
         std::string workerHost;
         int workerPort{0};
+        std::string metadataJson;
     };
 
     std::vector<TaskRunRow> query(const std::string& runId,const std::string& name,int limit);

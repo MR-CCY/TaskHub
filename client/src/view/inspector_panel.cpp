@@ -103,22 +103,15 @@ void InspectorPanel::onSelectionChanged() {
     }
     showDag();
 }
-void InspectorPanel::setTaskRuns(const QJsonArray& items)
+
+void InspectorPanel::refreshCurrent()
 {
-    // 简单策略：如果当前选中节点匹配 logical_id，则刷新节点面板字段
     RectItem* currentNode = nullptr;
     if (scene_ && !scene_->selectedItems().isEmpty()) {
         currentNode = dynamic_cast<RectItem*>(scene_->selectedItems().first());
     }
     if (!currentNode) return;
-    const QString curId = currentNode->prop("id").toString();
-    for (const auto& v : items) {
-        const auto o = v.toObject();
-        if (o.value("logical_id").toString() == curId) {
-            nodeWidget_->setRuntimeValues(o);
-            break;
-        }
-    }
+    showNode(currentNode);
 }
 
 void InspectorPanel::showDag() {
@@ -129,7 +122,9 @@ void InspectorPanel::showDag() {
 void InspectorPanel::showNode(RectItem* node) {
     QVariantMap props = node->properties();
     QVariantMap exec = props.value("exec_params").toMap();
+    QVariantMap result = props.value("result").toMap();
     nodeWidget_->setValues(props, exec);
+    nodeWidget_->setResultValues(result);
     stack_->setCurrentWidget(nodeWidget_);
 }
 
@@ -168,13 +163,8 @@ void InspectorPanel::runDag() {
         qWarning("ApiClient is null, cannot run DAG");
         return;
     }
-
-
-    // Generate top-level run_id
     auto generateRunId = []() -> QString {
-        // ... (as before)
-        return QString::number(QDateTime::currentMSecsSinceEpoch()) + "_" + 
-               QUuid::createUuid().toString().remove('{').remove('}').remove('-').mid(0, 6);
+        return QString::number(QDateTime::currentMSecsSinceEpoch()) + "_" + QUuid::createUuid().toString().remove('{').remove('}').remove('-').mid(0, 6);
     };
 
     QString topRunId = generateRunId();
@@ -193,12 +183,10 @@ void InspectorPanel::runDag() {
             QString type = task.value("exec_type").toString();
             QJsonObject params = task.value("exec_params").toObject();
 
-            if (type == "Dag" || type == "Template") {
+            if (type == "Dag" || type == "Template"|| type == "Remote") {
                 QString newId = generateRunId();
-                params["manual_run_id"] = newId;
+                params["run_id"] = newId;
                 processIds(params, newId);
-            } else if (type == "Remote") {
-                processIds(params, currentRunId);
             }
             
             task["exec_params"] = params;

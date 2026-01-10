@@ -87,7 +87,7 @@ core::TaskResult TemplateExecutionStrategy::execute(core::ExecutionContext& ctx)
         rendered["config"]["name"] = rendered.value("name", tplOpt->name);
     }
 
-    std::string runId = ctx.get("manual_run_id");
+    std::string runId = ctx.get("run_id");
     if (runId.empty()) {
         runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
     }

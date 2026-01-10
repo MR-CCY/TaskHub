@@ -253,6 +253,8 @@ inline bool extractDagBody(const TaskConfig& cfg, json& out, std::string& err) {
                 config["name"] = cfg.name;
                 out["config"] = config;
             }
+            auto itRunid = cfg.execParams.find("run_id");
+            if (itRunid != cfg.execParams.end()) out["run_id"] = itRunid->second;
             return true;
         } catch (const std::exception& e) {
             err = std::string("extractDagBody: failed to parse structured exec_params: ") + e.what();

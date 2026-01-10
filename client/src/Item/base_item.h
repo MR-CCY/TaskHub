@@ -19,8 +19,12 @@ public:
 
     // ---- “统一属性容器” ----
     const QMap<QString, QVariant>& properties() const { return props_; }
-    QVariant prop(const QString& key) const { return props_.value(key); }
-    void setProp(const QString& key, const QVariant& v) { props_[key] = v; }
+    QVariant prop(const QString& key) const { return propByKeyPath(key); }
+    void setProp(const QString& key, const QVariant& v) { setPropByKeyPath(key, v); }
+
+    // 属性访问（支持 exec_params.* / metadata.*）
+    QVariant propByKeyPath(const QString& keyPath) const;
+    void setPropByKeyPath(const QString& keyPath, const QVariant& v);
 
     // 工厂 URI（序列化会用到）
     QString factoryUri() const { return factoryUri_; }
@@ -46,4 +50,8 @@ protected:
     QGraphicsScene* scene_ = nullptr;
     GraphModel* model_ = nullptr;
     UndoStack* undo_ = nullptr;
+
+private:
+    QVariantMap setNestedValue(const QVariantMap& source, const QStringList& path, int index, const QVariant& value) const;
+    QVariant getNestedValue(const QVariantMap& source, const QStringList& path, int index) const;
 };

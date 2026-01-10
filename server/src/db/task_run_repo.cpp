@@ -233,9 +233,7 @@ void TaskRunRepo::markSkipped(const std::string& runId, const std::string& logic
     sqlite3_finalize(stmt);
 }
 
-std::vector<TaskRunRepo::TaskRunRow> TaskRunRepo::query(const std::string& runId,
-                                                       const std::string& name,
-                                                       int limit)
+std::vector<TaskRunRepo::TaskRunRow> TaskRunRepo::query(const std::string& runId,const std::string& name,int limit)
 {
     std::vector<TaskRunRow> rows;
     sqlite3* db = Db::instance().handle();
@@ -317,7 +315,7 @@ std::optional<TaskRunRepo::TaskRunRow> TaskRunRepo::get(const std::string& runId
     const char* sql =
         "SELECT id, run_id, logical_id, task_id, name, exec_type, exec_command, exec_params_json, deps_json, "
         "status, exit_code, duration_ms, message, stdout, stderr, attempt, max_attempts, start_ts_ms, end_ts_ms, "
-        "worker_id, worker_host, worker_port "
+        "worker_id, worker_host, worker_port,metadata_json "
         "FROM task_run WHERE run_id=? AND logical_id=?";
 
     sqlite3_stmt* stmt = nullptr;
@@ -356,6 +354,7 @@ std::optional<TaskRunRepo::TaskRunRow> TaskRunRepo::get(const std::string& runId
         r.workerId      = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 19));
         r.workerHost    = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 20));
         r.workerPort    = sqlite3_column_int(stmt, 21);
+        r.metadataJson    = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 22));
         result = std::move(r);
     }
     sqlite3_finalize(stmt);

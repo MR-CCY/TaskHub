@@ -13,7 +13,7 @@
 #include "Item/line_item.h"
 #include "Item/rect_item.h"
 #include "view/canvasscene.h"
-
+#include "view/canvasview.h"
 namespace {
 struct NodeInfo {
     QSet<RectItem*> parents;
@@ -308,5 +308,17 @@ void LayoutTask::execute() {
         layoutNodes(topLevelNodes, topLevelLines);
     }
 
+    // 关键：使用实际节点的边界，而不是scene的固定sceneRect(-5000,-5000,10000,10000)
+    QRectF itemsRect = view()->scene()->itemsBoundingRect();
+    if (!itemsRect.isEmpty()) {
+        // 加一些边距让内容不贴边
+        qreal margin = 50.0;
+        itemsRect.adjust(-margin, -margin, margin, margin);
+        
+        // 基于实际内容范围自动缩放并居中
+        view()->fitInView(itemsRect, Qt::KeepAspectRatio);
+        // 稍微放大让节点更清晰
+        view()->scale(25, 25);
+    }
     removeSelf();
 }

@@ -255,7 +255,6 @@ namespace taskhub {
             resp::bad_request(res, "Invalid JSON", 1002);
             return;
         }
-
         // 统一由 DagService 生成 ID 和处理持久化
         std::string runId;
         if (body.contains("run_id") && body["run_id"].is_string()) {
@@ -281,6 +280,7 @@ namespace taskhub {
 
     void TaskHandler::queryDagRuns(const httplib::Request &req, httplib::Response &resp)
     {
+        Logger::info("GET /api/query_dag_runs");
         const std::string runId   = req.has_param("run_id") ? req.get_param_value("run_id") : "";
         const std::string name    = req.has_param("name") ? req.get_param_value("name") : "";
         const long long startTs   = http_params::get_ll(req, "start_ts_ms", 0);
@@ -314,11 +314,11 @@ namespace taskhub {
 
     void TaskHandler::queryTaskRuns(const httplib::Request &req, httplib::Response &resp)
     {
+        Logger::info("GET /api/query_task_runs");
         const std::string runId = req.has_param("run_id") ? req.get_param_value("run_id") : "";
         const std::string name  = req.has_param("name") ? req.get_param_value("name") : "";
         int limit = http_params::get_int(req, "limit", 200);
         limit = std::clamp(limit, 1, 1000);
-
         auto rows = TaskRunRepo::instance().query(runId, name, limit);
         json arr = json::array();
         auto parse_json_safe = [](const std::string& s, const std::string& fallback) {

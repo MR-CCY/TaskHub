@@ -178,16 +178,44 @@ void CanvasView::handleGestureEvent(QEvent* e) {
 
 /**
  * ===== 滚轮缩放 =====
+ * Mac触摸板优化：累积小的delta值，实现平滑缩放
  */
 void CanvasView::handleWheelZoom(QWheelEvent* e) {
     const QPoint delta = e->angleDelta();
     if (delta.isNull()) return;
 
-    const int steps = delta.y() / 120;
-    if (steps != 0) {
-        zoomBySteps(steps);
-        e->accept();
+    // 累积delta，支持Mac触摸板的小增量
+    wheelDeltaAccumulator_ += delta.y();
+    
+    // 使用较小的阈值（60而不是120）让缩放更响应
+    constexpr qreal threshold = 60.0;
+    
+    if (qAbs(wheelDeltaAccumulator_) >= threshold) {
+        // 计算缩放因子：直接使用累积的delta，更平滑
+        constexpr qreal scaleSensitivity = 0.002;  // 调整这个值来控制灵敏度
+        const qreal scaleFactor = 1.0 + (wheelDeltaAccumulator_ * scaleSensitivity);
+        
+        // 限制单次缩放范围，避免突然变化过大
+        const qreal clampedFactor = qBound(0.9, scaleFactor, 1.15);
+        
+        // 关键：以视图中心为缩放点，而不是鼠标位置
+        // 保存当前的锚点设置
+        const auto oldAnchor = transformationAnchor();
+        
+        // 设置为以视图中心缩放
+        setTransformationAnchor(QGraphicsView::AnchorViewCenter);
+        
+        // 执行缩放
+        scale(clampedFactor, clampedFactor);
+        
+        // 恢复原来的锚点设置
+        setTransformationAnchor(oldAnchor);
+        
+        // 重置累积器
+        wheelDeltaAccumulator_ = 0.0;
     }
+    
+    e->accept();
 }
 
 void CanvasView::zoomBySteps(int steps) {
@@ -200,6 +228,9 @@ void CanvasView::zoomBySteps(int steps) {
         for (int i = 0; i < -steps; ++i) factor /= base;
     }
     scale(factor, factor);
+    
+    // 重置累积器
+    wheelDeltaAccumulator_ = 0.0;
 }
 
 /**

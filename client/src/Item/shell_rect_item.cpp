@@ -16,25 +16,25 @@ ShellRectItem::ShellRectItem(const QRectF& rect, QGraphicsItem* parent)
     : RectItem(rect, parent)
 {
 
-    props_["id"] = QString("S_%1").arg(gShellIdCounter++);
-    props_["name"] = "Shell";
-    props_["exec_type"] = "Shell";
-    props_["exec_command"] = "";
-    props_["timeout_ms"] = static_cast<qint64>(0);
-    props_["retry_count"] = 0;
-    props_["retry_delay_ms"] = static_cast<qint64>(1000);
-    props_["retry_exp_backoff"] = true;
-    props_["priority"] = 0;
-    props_["queue"] = "default";
-    props_["capture_output"] = true;
-    props_["metadata"] = QVariantMap{};
-    props_["description"] = "";
+    setProp("id", QString("S_%1").arg(gShellIdCounter++));
+    setProp("name", "Shell");
+    setProp("exec_type", "Shell");
+    setProp("exec_command", "");
+    setProp("timeout_ms", static_cast<qint64>(0));
+    setProp("retry_count", 0);
+    setProp("retry_delay_ms", static_cast<qint64>(1000));
+    setProp("retry_exp_backoff", true);
+    setProp("priority", 0);
+    setProp("queue", "default");
+    setProp("capture_output", true);
+    setProp("metadata", QVariantMap{});
+    setProp("description", "");
 
     // 使用 KeyPath 初始化嵌套参数
-    setPropByKeyPath("exec_params.cmd", "echo hello");
-    setPropByKeyPath("exec_params.cwd", "");
-    setPropByKeyPath("exec_params.shell", "/bin/bash");
-    setPropByKeyPath("exec_params.env", "");
+    setProp("exec_params.cmd", "echo hello");
+    setProp("exec_params.cwd", "");
+    setProp("exec_params.shell", "/bin/bash");
+    setProp("exec_params.env", "");
 }
 
 QString ShellRectItem::typeLabel() const { 

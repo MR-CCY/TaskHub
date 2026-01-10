@@ -22,8 +22,7 @@ public:
 
 public slots:
     void onSelectionChanged();
-    void setTaskRuns(const QJsonArray& items);
-
+    void refreshCurrent();
 private slots:
     void saveDagEdits();
     void saveNodeEdits();

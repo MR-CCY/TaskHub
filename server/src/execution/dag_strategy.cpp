@@ -35,7 +35,7 @@ core::TaskResult DagExecutionStrategy::execute(core::ExecutionContext& ctx)
         return result;
     }
 
-    std::string runId = ctx.get("manual_run_id");
+    std::string runId = ctx.get("run_id");
     if (runId.empty()) {
         // Fallback: generate if not valid
         runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);

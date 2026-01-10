@@ -107,7 +107,13 @@ inline int read_dispatch_max_retries() {
 
 inline taskhub::core::TaskResult build_dispatch_ack_result(const json& payload) {
     taskhub::core::TaskResult r;
-    const bool ok = payload.value("ok", false);
+    
+    // 如果包含 run_id，说明分派成功（由 worker_execute 处理）
+    bool ok = payload.value("ok", false);
+    if (!ok && payload.contains("run_id") && payload["run_id"].is_string()) {
+        ok = true;
+    }
+
     r.status = ok ? taskhub::core::TaskStatus::Success : taskhub::core::TaskStatus::Failed;
     r.exitCode = ok ? 0 : 1;
     if (payload.contains("message") && payload["message"].is_string()) {
@@ -354,13 +360,13 @@ namespace taskhub::runner {
             if (jResp.contains("data") && jResp["data"].is_object()) {
                 payload = &jResp["data"];
             }
-
+        
             core::TaskResult parsed= build_dispatch_ack_result(*payload);
 
             // M12: push stdout/stderr to LogManager buffer (line-by-line)
             if (cfg.captureOutput) {
-                push_lines_to_buffer(cfg.id, /*isStdout*/true, parsed.stdoutData);
-                push_lines_to_buffer(cfg.id, /*isStdout*/false, parsed.stderrData);
+                push_lines_to_buffer(cfg.id,true, parsed.stdoutData);
+                push_lines_to_buffer(cfg.id,false, parsed.stderrData);
             }
 
             // 9) keep worker info (avoid losing them if parse doesn't set)
