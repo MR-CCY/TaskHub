@@ -55,6 +55,39 @@ sequenceDiagram
 - `server/migrations/` SQLite migrations
 - `m11_7_dispatch_retry_check.sh` 派发重试验收脚本
 
+## 客户端（Qt6）
+客户端是 Qt6 Widgets 桌面应用，负责 DAG 图形编辑、运行监控与模板/定时任务管理。主入口与导航在 `client/src/ui/main_window.*`，通过 `ApiClient`/`WsClient` 与服务端交互。
+
+### 功能概览
+- DAG 画布编辑：`client/src/view/canvasbench.*`、`client/src/view/dag_edit_bench.*`、`client/src/view/canvasview.*`、`client/src/view/canvasscene.*` + `client/src/Item/*`，支持节点/连线、撤销重做、导入/导出 JSON、自动布局。
+- 节点类型与 Inspector：`client/src/Item/node_type.h`（Shell/Http/Remote/Local/Dag/Template）、`client/src/view/node_palette_widget.*`、`client/src/view/inspector_panel.*`、`client/src/view/node_inspector_*`。
+- 运行与监控：`client/src/view/dag_runs_widget.*`、`client/src/view/dag_run_viewer.*`、`client/src/view/dag_run_monitor_dialog.*`。
+- 模板与定时任务：`client/src/view/template_manager_widget.*`、`client/src/view/cron_jobs_widget.*`。
+- 网络与日志：`client/src/net/api_client.*`（HTTP）+ `client/src/net/ws_client.*`（WS），`client/src/ui/console_dock.*` 统一输出日志/事件。
+- 登录与上下文：`client/src/ui/login_dialog.*`、`client/src/core/app_context.*`、`client/src/ui/user_bar_widget.*`。
+
+## STOC 交互架构（Scene - Task - Operator - Command）
+这套架构将“视图渲染”、“交互控制”、“业务逻辑”和“数据变更”解耦，适用于复杂图形编辑软件。
+
+1. Scene（场景/视图层）
+   - 对应代码：`client/src/view/canvasscene.h`、`client/src/view/canvasview.h`
+   - 职责：提供图元容器与渲染环境；`CanvasView` 作为**唯一输入入口**，在 `viewportEvent()` 中把事件派发给 Task 栈。
+
+2. Task（任务/交互层）
+   - 对应代码：`client/src/tasks/task.h`、`client/src/tasks/task_manager.*`（以及 `CreateTask/MoveTask/ConnectTask/...`）
+   - 职责：事件分发与交互状态机；任务按 `level` 栈式管理，事件自栈顶向下沉直到被消费。
+
+3. Operator（算子/业务层）
+   - 对应代码：`client/src/operator/base_operator.*`、`client/src/operator/create_rect_operator.h`
+   - 职责：业务编排；**不直接 new Command**，而是委托给 Item 生成命令（注释见 `CreateRectOperator`）。
+
+4. Command（命令/动作层）
+   - 对应代码：`client/src/commands/command.*`、`client/src/commands/create_command.*`、`client/src/commands/undostack.*`
+   - 职责：原子数据修改 + 撤销/重做，基于 `QUndoCommand` 与 `UndoStack` 执行。
+
+### 典型调用链路（创建节点）
+用户点击画布 → `CreateTask::dispatch`（`client/src/tasks/create_task.cpp`）创建 Item 并 `attachContext` → `CreateRectOperator::doOperator` → `BaseItem::execCreateCmd`（`client/src/Item/base_item.h`）→ `CreateCommand` + `UndoStack::push` → `CreateCommand::execute` 将图元加入 `CanvasScene`。
+
 ## 构建
 
 Server + Client：
