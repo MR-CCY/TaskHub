@@ -54,13 +54,18 @@ void DagLoader::loadLevel(const QJsonArray& tasks, CanvasScene* scene, UndoStack
             // 已有节点可能来自冲突处理
             // 也要加入到 output，方便调用者知道哪些节点在其控制下
             outCreatedNodes[fullId] = levelNodes[id];
+            qDebug() << "[DagLoader] Skipping existing node:" << id;
             continue;
         }
 
         const QString execType = obj.value("exec_type").toString("Local");
         NodeType nt = typeFromExec(execType);
-        RectItem* node = NodeItemFactory::createNode(nt, QRectF(0, 0, 140, 140));
-        if (!node) continue;
+        qDebug() << "[DagLoader] Creating node:" << id << "type:" << execType << "NodeType:" << static_cast<int>(nt);
+        RectItem* node = NodeItemFactory::createNode(nt, QRectF(0, 0, 150, 150));
+        if (!node) {
+            qWarning() << "[DagLoader] Failed to create node:" << id << "type:" << execType;
+            continue;
+        }
 
         // props 填充
         QVariantMap cfg;
@@ -104,6 +109,7 @@ void DagLoader::loadLevel(const QJsonArray& tasks, CanvasScene* scene, UndoStack
         node->execCreateCmd(true);
         levelNodes[id] = node;
         outCreatedNodes[fullId] = node;
+        qDebug() << "[DagLoader] Successfully created node:" << id;
     }
 
     // 2. 解析递归容器内容
@@ -133,21 +139,32 @@ void DagLoader::loadLevel(const QJsonArray& tasks, CanvasScene* scene, UndoStack
         const QJsonObject obj = jt.toObject();
         const QString id = obj.value("id").toString();
         auto* target = levelNodes.value(id, nullptr);
-        if (!target) continue;
+        if (!target) {
+            qDebug() << "[DagLoader] Target node not found for connections:" << id;
+            continue;
+        }
         const QJsonArray deps = obj.value("deps").toArray();
         for (const auto& depVal : deps) {
             const QString depId = depVal.toString();
             auto* src = levelNodes.value(depId, nullptr);
-            if (!src || src == target) continue;
+            if (!src || src == target) {
+                qDebug() << "[DagLoader] Cannot create line from" << depId << "to" << id << "- src:" << (void*)src << "target:" << (void*)target;
+                continue;
+            }
             
             QGraphicsItem* lineParent = parentNode; // 连线与节点同级
             if (!LineItemFactory::canConnect(src, target, lineParent)) {
+                qDebug() << "[DagLoader] CanConnect returned false for" << depId << "->" << id;
                 continue;
             }
             auto* line = LineItemFactory::createLine(src, target, lineParent);
-            if (!line) continue;
+            if (!line) {
+                qWarning() << "[DagLoader] Failed to create line from" << depId << "to" << id;
+                continue;
+            }
             line->attachContext(scene, nullptr, undo);
             line->execCreateCmd(true);
+            qDebug() << "[DagLoader] Successfully created line:" << depId << "->" << id;
         }
     }
 }

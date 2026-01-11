@@ -55,6 +55,15 @@ void LineItem::trackNodes() {
     QRectF endRectScene   = end_->mapRectToScene(end_->boundingRect());
     QPointF sceneP1 = projectToRectEdge(startRectScene, endRectScene.center());
     QPointF sceneP2 = projectToRectEdge(endRectScene,   startRectScene.center());
+    
+    // 延长线条端点，沿着方向向外延伸
+    const qreal extension = 40.0; // 延长距离
+    QLineF startLine(sceneP1, endRectScene.center());
+    sceneP1 = startLine.pointAt(-extension / startLine.length());
+    
+    QLineF endLine(sceneP2, startRectScene.center());
+    sceneP2 = endLine.pointAt(-extension / endLine.length());
+    
     QPointF p1 = mapFromScene(sceneP1);
     QPointF p2 = mapFromScene(sceneP2);
     

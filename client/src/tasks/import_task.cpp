@@ -80,7 +80,7 @@ void ImportTask::execute() {
 
     undo_->endMacro();
     if (auto* mgr = manager()) {
-        auto* layoutTask = new LayoutTask(scene_, mgr);
+        auto* layoutTask = new LayoutTask(scene_, view_, mgr);
         mgr->push(layoutTask);
         layoutTask->execute();
     }

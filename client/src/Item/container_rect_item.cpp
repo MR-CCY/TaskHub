@@ -38,10 +38,6 @@ void ContainerRectItem::adjustToChildren() {
     qreal maxRight = 0.0;
     qreal minTop = 0.0;
     qreal maxBottom = 0.0;
-    qreal leftWidth = 0.0;
-    qreal rightWidth = 0.0;
-    qreal topHeight = 0.0;
-    qreal bottomHeight = 0.0;
 
     for (auto* node : nodes) {
         QRectF r = node->rect().translated(node->pos());
@@ -50,35 +46,29 @@ void ContainerRectItem::adjustToChildren() {
             maxRight = r.right();
             minTop = r.top();
             maxBottom = r.bottom();
-            leftWidth = r.width();
-            rightWidth = r.width();
-            topHeight = r.height();
-            bottomHeight = r.height();
             first = false;
             continue;
         }
         if (r.left() < minLeft) {
             minLeft = r.left();
-            leftWidth = r.width();
         }
         if (r.right() > maxRight) {
             maxRight = r.right();
-            rightWidth = r.width();
         }
         if (r.top() < minTop) {
             minTop = r.top();
-            topHeight = r.height();
         }
         if (r.bottom() > maxBottom) {
             maxBottom = r.bottom();
-            bottomHeight = r.height();
         }
     }
 
-    const qreal left = minLeft - leftWidth / 2.0;
-    const qreal right = maxRight + rightWidth / 2.0;
-    const qreal top = minTop - topHeight / 2.0;
-    const qreal bottom = maxBottom + bottomHeight / 2.0;
+    // 使用固定留白：标准节点尺寸（150）的一半 = 75
+    constexpr qreal PADDING = 75.0;
+    const qreal left = minLeft - PADDING;
+    const qreal right = maxRight + PADDING;
+    const qreal top = minTop - PADDING;
+    const qreal bottom = maxBottom + PADDING;
     QRectF outer(left, top, right - left, bottom - top);
 
     if (outer.width() <= 0 || outer.height() <= 0) {

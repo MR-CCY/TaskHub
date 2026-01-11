@@ -140,7 +140,7 @@ void CanvasBench::editSelectedNode() {
 }
 
 void CanvasBench::layoutDag() {
-    auto* task = new LayoutTask(scene_, this);
+    auto* task = new LayoutTask(scene_, view_, this);
     taskMgr_->push(task);
     task->execute();
 }

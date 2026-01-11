@@ -43,6 +43,10 @@ public:
       void setStatusLabel(const QString& s) { statusLabel_ = s; update(); }
       QString statusLabel() const { return statusLabel_; }
 
+      // 布局期间禁用碰撞检测
+      static void setCollisionDetectionEnabled(bool enabled) { collisionDetectionEnabled_ = enabled; }
+      static bool isCollisionDetectionEnabled() { return collisionDetectionEnabled_; }
+
       // 可选：提供 rect 访问（子类一般不需要直接碰 rect_）
       QRectF rect() const { return rect_; }
 protected:
@@ -58,4 +62,5 @@ private:
     QString nodeId_;   // 逻辑 Node ID（编辑态唯一）
     QColor statusColor_;
     QString statusLabel_;
+    static inline bool collisionDetectionEnabled_ = true;
 };

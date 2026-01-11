@@ -4,7 +4,7 @@
 #include <QPointF>
 
 #include "base_item.h"
-
+#include "rect_item.h"
 class RectItem;
 
 class LineItem : public BaseItem {

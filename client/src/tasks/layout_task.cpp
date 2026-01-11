@@ -28,31 +28,17 @@ QString nodeKey(RectItem* node) {
 
 void layoutNodes(const QVector<RectItem*>& nodes, const QVector<LineItem*>& lines) {
     if (nodes.isEmpty()) return;
+    
+    // 布局期间禁用碰撞检测
+    RectItem::setCollisionDetectionEnabled(false);
 
     const auto isContainer = [](RectItem* node) {
         return dynamic_cast<ContainerRectItem*>(node) != nullptr;
     };
 
-    qreal baseNodeHeight = 0.0;
-    qreal baseNodeWidth = 0.0;
-    for (auto* node : nodes) {
-        if (isContainer(node)) continue;
-        baseNodeHeight = node->rect().height();
-        baseNodeWidth = node->rect().width();
-        if (baseNodeHeight > 0.0) break;
-    }
-    if (baseNodeHeight <= 0.0 && !nodes.isEmpty()) {
-        baseNodeHeight = nodes.first()->rect().height();
-    }
-    if (baseNodeWidth <= 0.0 && !nodes.isEmpty()) {
-        baseNodeWidth = nodes.first()->rect().width();
-    }
-    if (baseNodeHeight <= 0.0) {
-        baseNodeHeight = 150.0;
-    }
-    if (baseNodeWidth <= 0.0) {
-        baseNodeWidth = 150.0;
-    }
+    // 使用固定的标准节点尺寸，而不是从第一个节点推断
+    constexpr qreal baseNodeHeight = 150.0;
+    constexpr qreal baseNodeWidth = 150.0;
 
     auto slotCount = [&](RectItem* node) {
         if (!isContainer(node)) return 1;
@@ -190,9 +176,10 @@ void layoutNodes(const QVector<RectItem*>& nodes, const QVector<LineItem*>& line
         finalLevels[lvl] = display;
     }
 
-    const qreal spacingX = 260.0;
-    const qreal minGapX = std::max<qreal>(80.0, baseNodeWidth * 0.5);
-    const qreal spacingY = 220.0;
+    // 使用标准节点尺寸计算布局间距
+    const qreal spacingX = 260.0;  // 列间距
+    const qreal minGapX = 75.0;    // 最小水平间距：标准节点宽度的一半
+    const qreal spacingY = 220.0;  // 行间距
     qreal colX = 0.0;
     for (auto it = finalLevels.begin(); it != finalLevels.end(); ++it) {
         const auto& list = it.value();
@@ -205,17 +192,36 @@ void layoutNodes(const QVector<RectItem*>& nodes, const QVector<LineItem*>& line
         }
         int rowSlots = 0;
         for (auto* node : list) {
-            node->setPos(colX, rowSlots * spacingY);
+            QPointF pos(colX, rowSlots * spacingY);
+            node->setPos(pos);
+            QString nodeId = node->prop("id").toString();
+            QRectF nodeRect = node->rect();
+            qDebug() << "[Layout] Node:" << nodeId << "pos:" << pos << "rect:" << nodeRect << "size:" << nodeRect.width() << "x" << nodeRect.height();
             rowSlots += slotCount(node);
         }
         const qreal stepX = std::max(spacingX, maxWidth + minGapX);
         colX += stepX;
     }
+    
+    // 调试：列出所有顶层节点
+    qDebug() << "[Layout] === Layout completed, listing all top-level nodes ===";
+    for (auto* node : nodes) {
+        QString nodeId = node->prop("id").toString();
+        QPointF scenePos = node->scenePos();
+        QRectF sceneBounds = node->mapRectToScene(node->boundingRect());
+        bool hasParent = (node->parentItem() != nullptr);
+        qDebug() << "[Layout] Node:" << nodeId << "scenePos:" << scenePos << "sceneBounds:" << sceneBounds << "hasParent:" << hasParent;
+    }
+    
+    // 恢复碰撞检测
+    RectItem::setCollisionDetectionEnabled(true);
 }
 }
 
-LayoutTask::LayoutTask(CanvasScene* scene, QObject* parent)
-    : Task(10, parent), scene_(scene) {}
+LayoutTask::LayoutTask(CanvasScene* scene, CanvasView* view, QObject* parent)
+    : Task(10, parent), scene_(scene) {
+    setView(view);  // 设置 view，避免后续 view() 返回空指针
+}
 
 bool LayoutTask::dispatch(QEvent* e) {
     Q_UNUSED(e);

@@ -3,6 +3,7 @@
 #include "line_item.h"
 #include "container_rect_item.h"
 #include "commands/create_command.h"
+#include <QApplication>
 
 static QString ellipsize(const QString& s, int maxChars) {
     if (s.size() <= maxChars) return s;
@@ -33,7 +34,8 @@ QVariant RectItem::itemChange(GraphicsItemChange change, const QVariant &value)
             return newPos;
         }
 
-        if (scene()) {
+        // 只在碰撞检测启用时才进行检查（布局期间会禁用）
+        if (scene() && isCollisionDetectionEnabled()) {
             const bool isContainer = dynamic_cast<ContainerRectItem*>(this) != nullptr;
             const QRectF newBounds = boundingRect().translated(newPos);
             for (auto* item : scene()->items()) {

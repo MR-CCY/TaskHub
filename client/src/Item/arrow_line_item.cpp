@@ -3,30 +3,7 @@
 #include <QPainter>
 #include <QtMath>
 
-namespace {
-/**
- * @brief 绘制沿路径方向居中的">"符号
- * @param painter 用于绘制的QPainter对象
- * @param pos 符号绘制位置
- * @param angleDeg 符号旋转角度（度）
- * @param font 字体设置
- * @param color 符号颜色
- */
-void drawArrowGlyph(QPainter* painter, const QPointF& pos, qreal angleDeg, const QFont& font, const QColor& color) {
-    painter->save();
-    painter->translate(pos);
-    painter->rotate(-angleDeg); // align glyph with path direction
-    painter->setPen(color);
-    painter->setBrush(color);
-    painter->setFont(font);
-    QFontMetrics fm(font);
-    const QString g(">");
-    const QRect bbox = fm.boundingRect(g);
-    QRectF rect(-bbox.width() / 2.0, -bbox.height() / 2.0, bbox.width(), bbox.height());
-    painter->drawText(rect, Qt::AlignCenter, g);
-    painter->restore();
-}
-}
+
 
 /**
  * @brief 构造一个带箭头的连线项
@@ -57,34 +34,89 @@ QRectF ArrowLineItem::boundingRect() const {
 void ArrowLineItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget) {
     painter->setRenderHint(QPainter::Antialiasing);
 
-    const QColor lineColor(124, 251, 250); // 背景线色（亮青）
-    QPen pen(lineColor, 20); // 稍微加粗
+    const QPainterPath& path = currentPath();
+    const qreal totalLen = path.length();
+    
+    if (totalLen < 1.0) return;
+
+    // 获取起点和终点的颜色
+    QColor startColor = startItem() ? startItem()->headerColor() : QColor(124, 251, 250);
+    QColor endColor = endItem() ? endItem()->headerColor() : QColor(124, 251, 250);
+
+    // 将路径端点转换到场景坐标系来创建渐变
+    QPointF pathStartLocal = path.pointAtPercent(0.0);
+    QPointF pathEndLocal = path.pointAtPercent(1.0);
+    QPointF pathStartScene = mapToScene(pathStartLocal);
+    QPointF pathEndScene = mapToScene(pathEndLocal);
+    
+    // 在场景坐标系中创建渐变，然后映射回 item 坐标
+    QLinearGradient gradient(mapFromScene(pathStartScene), mapFromScene(pathEndScene));
+    gradient.setColorAt(0.0, startColor);
+    gradient.setColorAt(1.0, endColor);
+
+    // 使用渐变色绘制线条
+    QPen pen;
+    pen.setBrush(gradient);
+    pen.setWidth(20);
+    pen.setCapStyle(Qt::RoundCap);
+    pen.setJoinStyle(Qt::RoundJoin);
+    
     if (isSelected()) {
-        pen.setColor(Qt::blue);
+        pen.setBrush(Qt::blue);
         pen.setStyle(Qt::DashLine);
     }
+    
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
-
-    const QPainterPath& path = currentPath();
     painter->drawPath(path);
 
-    // 在路径中心绘制文字箭头花纹 >>>>
-    const qreal totalLen = path.length();
-    if (totalLen > 1.0) {
-        QFont glyphFont = painter->font();
-        glyphFont.setPointSizeF(glyphFont.pointSizeF() + 8); // 字体更大，箭头更粗
-        QFontMetrics fm(glyphFont);
-        const QString glyph(">"); 
-        const int adv = fm.horizontalAdvance(glyph);
-        const qreal spacing = adv + 4.0; // 控制密度
-        const QColor glyphColor(31, 31, 31); // 深色箭头
+    // 只在非选中状态下绘制箭头斑纹
+    if (!isSelected()) {
+        // 绘制白色侧向V字形箭头斑纹（>形状，类似道路标线）
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(Qt::white);
+
+        const qreal arrowWidth = 16.0;   // 箭头总高度（垂直方向）
+        const qreal arrowLength = 12.0;  // 箭头长度（水平方向）
+        const qreal lineWidth = 5.0;     // 每条边的宽度
+        const qreal spacing = 25.0;      // 箭头之间的间距
 
         for (qreal d = spacing; d < totalLen - spacing; d += spacing) {
             qreal t = path.percentAtLength(d);
             QPointF pt = path.pointAtPercent(t);
-            qreal angle = path.angleAtPercent(t);
-            drawArrowGlyph(painter, pt, angle, glyphFont, glyphColor);
+            qreal angleDeg = path.angleAtPercent(t);
+
+            painter->save();
+            painter->translate(pt);
+            painter->rotate(-angleDeg); // 对齐路径方向
+
+            // 绘制侧向V字形箭头（>形状）
+            // 计算三个端点
+            QPointF tip(arrowLength/2, 0);                    // 右侧尖端
+            QPointF topLeft(-arrowLength/2, -arrowWidth/2);  // 左上
+            QPointF bottomLeft(-arrowLength/2, arrowWidth/2); // 左下
+            
+            // 使用 stroker 创建圆角线条
+            QPainterPathStroker stroker;
+            stroker.setWidth(lineWidth);
+            stroker.setCapStyle(Qt::RoundCap);
+            stroker.setJoinStyle(Qt::RoundJoin);
+            
+            // 绘制上半边（左上到右尖端）
+            QPainterPath topLine;
+            topLine.moveTo(topLeft);
+            topLine.lineTo(tip);
+            QPainterPath topStroke = stroker.createStroke(topLine);
+            painter->drawPath(topStroke);
+            
+            // 绘制下半边（右尖端到左下）
+            QPainterPath bottomLine;
+            bottomLine.moveTo(tip);
+            bottomLine.lineTo(bottomLeft);
+            QPainterPath bottomStroke = stroker.createStroke(bottomLine);
+            painter->drawPath(bottomStroke);
+
+            painter->restore();
         }
     }
 }

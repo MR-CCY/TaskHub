@@ -5,7 +5,7 @@ class CanvasScene;
 
 class LayoutTask : public Task {
 public:
-    explicit LayoutTask(CanvasScene* scene, QObject* parent = nullptr);
+    explicit LayoutTask(CanvasScene* scene, CanvasView* view, QObject* parent = nullptr);
 
     bool dispatch(QEvent* e) override;
     void execute();
