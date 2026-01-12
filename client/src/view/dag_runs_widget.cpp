@@ -12,6 +12,7 @@
 #include <QPushButton>
 #include <QStandardItemModel>
 #include <QTableView>
+#include <QComboBox>
 #include <QVBoxLayout>
 #include <QDialog>
 
@@ -44,6 +45,15 @@ void DagRunsWidget::buildUi()
 
     runIdEdit_ = new QLineEdit(this);
     nameEdit_ = new QLineEdit(this);
+    sourceCombo_ = new QComboBox(this);
+    sourceCombo_->addItem(tr("全部"), "");
+    sourceCombo_->addItem(tr("手动"), "manual");
+    sourceCombo_->addItem(tr("定时任务"), "cron");
+    sourceCombo_->addItem(tr("嵌套执行"), "execution");
+    sourceCombo_->addItem(tr("模板运行"), "template");
+    sourceCombo_->addItem(tr("任务模板"), "task_template");
+    sourceCombo_->addItem(tr("远程任务"), "worker");
+
     startEdit_ = new QDateTimeEdit(this);
     endEdit_ = new QDateTimeEdit(this);
     startEdit_->setCalendarPopup(true);
@@ -65,6 +75,9 @@ void DagRunsWidget::buildUi()
 
     filters->addWidget(new QLabel(tr("名称"),this));
     filters->addWidget(nameEdit_);
+
+    filters->addWidget(new QLabel(tr("来源"),this));
+    filters->addWidget(sourceCombo_);
 
     filters->addWidget(new QLabel(tr("起止时间"),this));
     filters->addWidget(startEdit_);
@@ -105,9 +118,10 @@ void DagRunsWidget::onSearch()
     if (!api_) return;
     const QString runId = runIdEdit_->text().trimmed();
     const QString name = nameEdit_->text().trimmed();
+    const QString source = sourceCombo_->currentData().toString();
     const qint64 startMs = startEdit_->dateTime().isValid() ? startEdit_->dateTime().toMSecsSinceEpoch() : 0;
     const qint64 endMs = endEdit_->dateTime().isValid() ? endEdit_->dateTime().toMSecsSinceEpoch() : 0;
-    api_->getDagRuns(runId, name, startMs, endMs, 100);
+    api_->getDagRuns(runId, name, source, startMs, endMs, 100);
 }
 
 QString DagRunsWidget::formatTs(qint64 ms) const
@@ -131,12 +145,20 @@ void DagRunsWidget::fillRow(int row, const QJsonObject& obj)
     const QString message = obj.value("message").toString();
     const QString dag_json= obj.value("dag_json").toString();
 
+    QString sourceText = source;
+    if (source == "manual") sourceText = tr("手动");
+    else if (source == "cron") sourceText = tr("定时任务");
+    else if (source == "execution") sourceText = tr("嵌套执行");
+    else if (source == "template") sourceText = tr("模板运行");
+    else if (source == "task_template") sourceText = tr("任务模板");
+    else if (source == "worker") sourceText = tr("远程任务");
+
     QList<QStandardItem*> items;
     auto* runItem = new QStandardItem(runId);
     runItem->setData(dag_json, kDagJsonRole);
     items << runItem;
     items << new QStandardItem(name);
-    items << new QStandardItem(source);
+    items << new QStandardItem(sourceText);
     items << new QStandardItem(status);
     auto* startIt = new QStandardItem(formatTs(startMs));
     startIt->setData(startMs, Qt::UserRole);

@@ -3,6 +3,7 @@
 #include <QDateTime>
 
 class QLineEdit;
+class QComboBox;
 class QDateTimeEdit;
 class QPushButton;
 class QTableView;
@@ -31,6 +32,7 @@ private:
     ApiClient* api_ = nullptr;
     QLineEdit* runIdEdit_ = nullptr;
     QLineEdit* nameEdit_ = nullptr;
+    QComboBox* sourceCombo_ = nullptr;
     QDateTimeEdit* startEdit_ = nullptr;
     QDateTimeEdit* endEdit_ = nullptr;
     QPushButton* searchBtn_ = nullptr;

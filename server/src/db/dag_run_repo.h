@@ -41,6 +41,7 @@ public:
 
     std::vector<DagRunRow> query(const std::string& runId,
                                  const std::string& nameLike,
+                                 const std::string& source,
                                  long long startTs,
                                  long long endTs,
                                  int limit);

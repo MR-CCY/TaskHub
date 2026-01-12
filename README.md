@@ -168,7 +168,7 @@ cmake --build build
 - Remote 节点（`exec_type: Remote`）当前用于“派发子 DAG”：必须提供 `exec_params.dag_json`（DAG JSON 字符串），Master 会转成 `{"type":"dag","payload":...}` 调用 Worker 的 `/api/worker/execute`，并返回 `run_id/task_ids` ACK
 - 本地同步 DAG / Template 任务：
   - `exec_type: Dag`，`exec_params.dag_json` = DAG JSON 字符串
-  - `exec_type: Template`，`exec_params.template_id` + `exec_params.template_params_json`
+  - `exec_type: Template`，`exec_params.template_id` + `exec_params.params`（对象；兼容旧 `exec_params.template_params_json`）
 - 透传查询（支持多级 Remote 嵌套，按 `remote_path` 逐跳定位）：
   - 日志：`GET /api/workers/proxy/logs?run_id=...&remote_path=R_1/R_2&task_id=...`
   - DAG/事件：`/api/workers/proxy/dag/task_runs`、`/api/workers/proxy/dag/events`（同样支持 `remote_path`）

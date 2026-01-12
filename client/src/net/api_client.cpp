@@ -72,10 +72,11 @@ void ApiClient::runTemplateAsync(const QString& templateId, const QJsonObject& p
     postJson("runTemplateAsync", "/template/run_async", body);
 }
 
-void ApiClient::getDagRuns(const QString& runId, const QString& name, qint64 startTsMs, qint64 endTsMs, int limit) {
+void ApiClient::getDagRuns(const QString& runId, const QString& name, const QString& source, qint64 startTsMs, qint64 endTsMs, int limit) {
     QUrlQuery q;
     if (!runId.isEmpty()) q.addQueryItem("run_id", runId);
     if (!name.isEmpty()) q.addQueryItem("name", name);
+    if (!source.isEmpty()) q.addQueryItem("source", source);
     if (startTsMs > 0) q.addQueryItem("start_ts_ms", QString::number(startTsMs));
     if (endTsMs > 0) q.addQueryItem("end_ts_ms", QString::number(endTsMs));
     if (limit > 0) q.addQueryItem("limit", QString::number(limit));

@@ -146,6 +146,7 @@ void DagRunRepo::finishRun(const std::string& runId,
 
 std::vector<DagRunRepo::DagRunRow> DagRunRepo::query(const std::string& runId,
                                                     const std::string& nameLike,
+                                                    const std::string& source,
                                                     long long startTs,
                                                     long long endTs,
                                                     int limit)
@@ -170,6 +171,10 @@ std::vector<DagRunRepo::DagRunRow> DagRunRepo::query(const std::string& runId,
     if (!nameLike.empty()) {
         sql += " AND name LIKE ?";
         params.push_back("%" + nameLike + "%");
+    }
+    if (!source.empty()) {
+        sql += " AND source = ?";
+        params.push_back(source);
     }
     if (startTs > 0) {
         sql += " AND start_ts_ms >= ?";

@@ -283,12 +283,13 @@ namespace taskhub {
         Logger::info("GET /api/query_dag_runs");
         const std::string runId   = req.has_param("run_id") ? req.get_param_value("run_id") : "";
         const std::string name    = req.has_param("name") ? req.get_param_value("name") : "";
+        const std::string source  = req.has_param("source") ? req.get_param_value("source") : "";
         const long long startTs   = http_params::get_ll(req, "start_ts_ms", 0);
         const long long endTs     = http_params::get_ll(req, "end_ts_ms", 0);
         int limit = http_params::get_int(req, "limit", 100);
         limit = std::clamp(limit, 1, 500);
 
-        auto rows = DagRunRepo::instance().query(runId, name, startTs, endTs, limit);
+        auto rows = DagRunRepo::instance().query(runId, name, source, startTs, endTs, limit);
         json arr = json::array();
         for (const auto& r : rows) {
             json j;

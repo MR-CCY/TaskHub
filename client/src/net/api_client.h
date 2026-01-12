@@ -27,6 +27,7 @@ public:
     void listTemplates();
     void runTemplateAsync(const QString& templateId, const QJsonObject& params, const QString& runId = QString());
     void getDagRuns(const QString& runId = QString(), const QString& name = QString(),
+                    const QString& source = QString(),
                     qint64 startTsMs = 0, qint64 endTsMs = 0, int limit = 100);
     void getTaskRuns(const QString& runId = QString(), const QString& name = QString(), int limit = 200);
     // Proxy for remote task runs
