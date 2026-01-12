@@ -4,6 +4,7 @@
 #include <QUuid>
 #include <functional>
 #include <QStackedWidget>
+#include "utils/id_utils.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -86,6 +87,7 @@ void InspectorPanel::setReadOnlyMode(bool ro)
 void InspectorPanel::setApiClient(ApiClient* api)
 {
     api_ = api;
+    if (nodeWidget_) nodeWidget_->setApiClient(api);
 }
 
 void InspectorPanel::onSelectionChanged() {
@@ -163,17 +165,13 @@ void InspectorPanel::runDag() {
         qWarning("ApiClient is null, cannot run DAG");
         return;
     }
-    auto generateRunId = []() -> QString {
-        return QString::number(QDateTime::currentMSecsSinceEpoch()) + "_" + QUuid::createUuid().toString().remove('{').remove('}').remove('-').mid(0, 6);
-    };
-
-    QString topRunId = generateRunId();
+    QString topRunId = taskhub::utils::generateRunId();
     QJsonObject mutableDag = dagJson;
     mutableDag["run_id"] = topRunId;
 
     // Recursive helper to inject IDs
     std::function<void(QJsonObject&, const QString&)> processIds;
-    processIds = [&processIds, &generateRunId](QJsonObject& container, const QString& currentRunId) 
+    processIds = [&processIds](QJsonObject& container, const QString& currentRunId) 
     {
         if (!container.contains("tasks") || !container["tasks"].isArray()) return;
         
@@ -184,7 +182,7 @@ void InspectorPanel::runDag() {
             QJsonObject params = task.value("exec_params").toObject();
 
             if (type == "Dag" || type == "Template"|| type == "Remote") {
-                QString newId = generateRunId();
+                QString newId = taskhub::utils::generateRunId();
                 params["run_id"] = newId;
                 processIds(params, newId);
             }
@@ -269,6 +267,13 @@ void InspectorPanel::saveNodeEdits() {
     if (!node) return;
     QVariantMap props = node->properties();
     QVariantMap exec = props.value("exec_params").toMap();
+    const QString execType = props.value("exec_type").toString().trimmed().toLower();
+    QJsonObject templateParams;
+    if (execType == "template") {
+        if (!nodeWidget_->buildTemplateParamsPayload(templateParams)) {
+            return;
+        }
+    }
     undo_->beginMacro("Edit Node");
     auto pushChange = [&](const QString& key, const QVariant& oldV, const QVariant& newV) {
         if (oldV == newV) return;
@@ -338,13 +343,12 @@ void InspectorPanel::saveNodeEdits() {
     // Local 处理器
     pushChange("exec_params.handler", exec.value("handler"), nodeWidget_->localHandlerValue());
 
-    const QString execType = props.value("exec_type").toString().trimmed().toLower();
     if (execType == "dag") {
         pushChange("exec_params.config.fail_policy", exec.value("config.fail_policy"), nodeWidget_->dagFailPolicyValue());
         pushChange("exec_params.config.max_parallel", exec.value("config.max_parallel"), nodeWidget_->dagMaxParallelValue());
     } else if (execType == "template") {
         pushChange("exec_params.template_id", exec.value("template_id"), nodeWidget_->templateIdValue());
-        pushChange("exec_params.template_params_json", exec.value("template_params_json"), nodeWidget_->templateParamsJsonValue());
+        pushChange("exec_params.params", exec.value("params"), templateParams.toVariantMap());
     } else if (execType == "remote") {
         pushChange("exec_params.config.fail_policy", exec.value("config.fail_policy"), nodeWidget_->remoteFailPolicyValue());
         pushChange("exec_params.config.max_parallel", exec.value("config.max_parallel"), nodeWidget_->remoteMaxParallelValue());

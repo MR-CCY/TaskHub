@@ -57,5 +57,5 @@ QString NodeItemFactory::toString(NodeType type) {
 }
 
 bool NodeItemFactory::isContainerType(NodeType type) {
-    return type == NodeType::Remote || type == NodeType::Dag || type == NodeType::Template;
+    return type == NodeType::Remote || type == NodeType::Dag;
 }

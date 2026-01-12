@@ -8,7 +8,7 @@ int gTemplateIdCounter = 1;
 }
 
 TemplateRectItem::TemplateRectItem(const QRectF& rect, QGraphicsItem* parent)
-    : ContainerRectItem(rect, parent)
+    : RectItem(rect, parent)
 {
     setProp("id", QString("TPL_%1").arg(gTemplateIdCounter++));
     setProp("name", "Template");

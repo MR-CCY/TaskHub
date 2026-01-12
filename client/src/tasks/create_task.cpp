@@ -29,8 +29,11 @@ CreateTask::CreateTask(QObject* parent)
     : Task(200, parent) // Level 100, 假设比 SelectTask 高
 {}
 
-CreateTask::CreateTask(NodeType type, QObject* parent)
-    : Task(200, parent), useFactory_(true), nodeType_(type)
+CreateTask::CreateTask(NodeType type, const QString& templateId, QObject* parent)
+    : Task(200, parent),
+      useFactory_(true),
+      nodeType_(type),
+      templateId_(templateId.trimmed())
 {}
 
 bool CreateTask::dispatch(QEvent* e) {
@@ -60,6 +63,10 @@ bool CreateTask::dispatch(QEvent* e) {
                 removeSelf();
                 return true;
             }
+            if (useFactory_ && nodeType_ == NodeType::Template && !templateId_.isEmpty()) {
+                item->setProp("exec_params.template_id", templateId_);
+            }
+
             if (container) {
                 item->setPos(container->mapFromScene(pos));
             } else {

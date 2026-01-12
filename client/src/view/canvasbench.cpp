@@ -103,8 +103,8 @@ void CanvasBench::startCreateRectMode()
     qDebug() << "Pushing CreateTask...";
     taskMgr_->push(task); 
 }
-void CanvasBench::startCreateNodeMode(NodeType type) {
-    auto* task = new CreateTask(type, this);
+void CanvasBench::startCreateNodeMode(NodeType type, const QString& templateId) {
+    auto* task = new CreateTask(type, templateId, this);
     task->setView(view_);
     qDebug() << "Pushing CreateTask for node type" << static_cast<int>(type);
     taskMgr_->push(task);

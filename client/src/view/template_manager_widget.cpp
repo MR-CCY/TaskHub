@@ -1,4 +1,5 @@
 #include "template_manager_widget.h"
+#include "utils/id_utils.h"
 
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -329,5 +330,6 @@ void TemplateManagerWidget::onRunTemplate() {
     if (!buildParamsPayload(params)) {
         return;
     }
-    api_->runTemplateAsync(templateId, params);
+    const QString runId = taskhub::utils::generateRunId();
+    api_->runTemplateAsync(templateId, params, runId);
 }

@@ -2,12 +2,15 @@
 
 #include <QAbstractItemView>
 #include <QHBoxLayout>
+#include <QJsonObject>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QPushButton>
 #include <QStyle>
 #include <QTreeWidget>
 #include <QVBoxLayout>
+
+#include "net/api_client.h"
 
 namespace {
 const struct ItemDef { QString text; NodeType type; QString icon; } kTypeDefs[] = {
@@ -24,6 +27,19 @@ NodePaletteWidget::NodePaletteWidget(QWidget* parent)
     : QWidget(parent)
 {
     buildUi();
+}
+
+void NodePaletteWidget::setApiClient(ApiClient* api)
+{
+    if (api_ == api) return;
+    if (api_) {
+        disconnect(api_, nullptr, this, nullptr);
+    }
+    api_ = api;
+    if (api_) {
+        connect(api_, &ApiClient::templatesOk, this, &NodePaletteWidget::onTemplates);
+        api_->listTemplates();
+    }
 }
 
 void NodePaletteWidget::buildUi()
@@ -65,7 +81,13 @@ void NodePaletteWidget::buildUi()
     });
     connect(addButton_, &QPushButton::clicked, this, [this]() {
         if (nodeList_->selectedItems().isEmpty()) return;
-        emit addNodeRequested(selectedNodeType());
+        const NodeType type = selectedNodeType();
+        QString templateId;
+        if (type == NodeType::Template) {
+            templateId = selectedTemplateId();
+            if (templateId.isEmpty()) return;
+        }
+        emit addNodeRequested(type, templateId);
     });
 
     // 默认选中第一个子节点
@@ -95,20 +117,37 @@ void NodePaletteWidget::populateListForType(NodeType type, const QString& filter
 {
     nodeList_->clear();
     const QString filter = filterText.trimmed();
-    QStringList items;
-    items << tr("<自定义节点>");
-
-    for (const QString& name : items) {
-        if (!filter.isEmpty() && !name.contains(filter, Qt::CaseInsensitive)) {
-            continue;
+    if (type == NodeType::Template) {
+        if (templates_.isEmpty() && api_ && !awaitingTemplates_) {
+            awaitingTemplates_ = true;
+            api_->listTemplates();
         }
-        nodeList_->addItem(name);
+        for (const auto& v : templates_) {
+            if (!v.isObject()) continue;
+            const QJsonObject obj = v.toObject();
+            const QString templateId = obj.value("template_id").toString();
+            const QString name = obj.value("name").toString();
+            if (templateId.isEmpty()) continue;
+            QString display = name.isEmpty() ? templateId : QString("%1 (%2)").arg(name, templateId);
+            if (!filter.isEmpty()
+                && !display.contains(filter, Qt::CaseInsensitive)
+                && !templateId.contains(filter, Qt::CaseInsensitive)
+                && !name.contains(filter, Qt::CaseInsensitive)) {
+                continue;
+            }
+            auto* item = new QListWidgetItem(display, nodeList_);
+            item->setData(Qt::UserRole, templateId);
+        }
+    } else {
+        const QString name = tr("<自定义节点>");
+        if (filter.isEmpty() || name.contains(filter, Qt::CaseInsensitive)) {
+            nodeList_->addItem(name);
+        }
     }
 
     if (nodeList_->count() > 0) {
         nodeList_->setCurrentRow(0);
     }
-    Q_UNUSED(type);
 }
 
 NodeType NodePaletteWidget::selectedNodeType() const
@@ -124,4 +163,20 @@ NodeType NodePaletteWidget::selectedNodeType() const
         return NodeType::Shell;
     }
     return static_cast<NodeType>(v.toInt());
+}
+
+QString NodePaletteWidget::selectedTemplateId() const
+{
+    if (nodeList_->selectedItems().isEmpty()) return QString();
+    auto* item = nodeList_->selectedItems().first();
+    return item ? item->data(Qt::UserRole).toString() : QString();
+}
+
+void NodePaletteWidget::onTemplates(const QJsonArray& items)
+{
+    templates_ = items;
+    awaitingTemplates_ = false;
+    if (selectedNodeType() == NodeType::Template) {
+        populateListForType(NodeType::Template, filterEdit_ ? filterEdit_->text() : QString());
+    }
 }

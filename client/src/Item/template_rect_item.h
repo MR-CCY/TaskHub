@@ -1,7 +1,7 @@
 #pragma once
-#include "container_rect_item.h"
+#include "rect_item.h"
 
-class TemplateRectItem : public ContainerRectItem {
+class TemplateRectItem : public RectItem {
 public:
     explicit TemplateRectItem(const QRectF& rect, QGraphicsItem* parent = nullptr);
 

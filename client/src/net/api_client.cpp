@@ -62,10 +62,13 @@ void ApiClient::listTemplates() {
     getJson("templates", "/templates");
 }
 
-void ApiClient::runTemplateAsync(const QString& templateId, const QJsonObject& params) {
+void ApiClient::runTemplateAsync(const QString& templateId, const QJsonObject& params, const QString& runId) {
     QJsonObject body;
     body["template_id"] = templateId;
     body["params"] = params;
+    if (!runId.isEmpty()) {
+        body["run_id"] = runId;
+    }
     postJson("runTemplateAsync", "/template/run_async", body);
 }
 

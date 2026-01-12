@@ -1,4 +1,5 @@
 #pragma once
+#include <QString>
 #include <QWidget>
 #include "canvasview.h"
 
@@ -43,7 +44,7 @@ protected:
     TaskManager* taskManager() const { return taskMgr_; }
 
     void startSelectMode();
-    void startCreateNodeMode(NodeType type);
+    void startCreateNodeMode(NodeType type, const QString& templateId = QString());
 private:
     void buildCore(); // 初始化 STOC 核心对象
     void startZoomTask();

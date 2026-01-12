@@ -95,6 +95,12 @@ void NodeInspectorWidget::setValues(const QVariantMap& props, const QVariantMap&
     updateExecSection(props.value("exec_type").toString());
 }
 
+void NodeInspectorWidget::setApiClient(ApiClient* api)
+{
+    api_ = api;
+    if (template_) template_->setApiClient(api);
+}
+
 QString NodeInspectorWidget::nameValue() const {
     return common_ ? common_->nameValue() : QString();
 }
@@ -189,8 +195,8 @@ QString NodeInspectorWidget::templateIdValue() const {
     return template_ ? template_->templateIdValue() : QString();
 }
 
-QString NodeInspectorWidget::templateParamsJsonValue() const {
-    return template_ ? template_->templateParamsValue() : QString();
+bool NodeInspectorWidget::buildTemplateParamsPayload(QJsonObject& outParams) {
+    return template_ ? template_->buildParamsPayload(outParams) : false;
 }
 
 QString NodeInspectorWidget::cronSpecValue() const {

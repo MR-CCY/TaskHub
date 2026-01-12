@@ -13,6 +13,7 @@ class NodeInspectorDagWidget;
 class NodeInspectorTemplateWidget;
 class NodeInspectorActionWidget;
 class NodeInspectorRuntimeWidget;
+class ApiClient;
 
 // Node-level inspector form.
 class NodeInspectorWidget : public QWidget {
@@ -21,6 +22,7 @@ public:
     explicit NodeInspectorWidget(QWidget* parent = nullptr);
 
     void setValues(const QVariantMap& props, const QVariantMap& exec);
+    void setApiClient(ApiClient* api);
 
     QString nameValue() const;
     // QString commandValue() const;
@@ -45,7 +47,7 @@ public:
     QString shellCmdValue() const;
 
     QString templateIdValue() const;
-    QString templateParamsJsonValue() const;
+    bool buildTemplateParamsPayload(QJsonObject& outParams);
     QString dagFailPolicyValue() const;
     int dagMaxParallelValue() const;
     QString cronSpecValue() const;
@@ -74,6 +76,7 @@ private:
     NodeInspectorTemplateWidget* template_ = nullptr;
     NodeInspectorActionWidget* actions_ = nullptr;
     NodeInspectorRuntimeWidget* runtime_ = nullptr;
+    ApiClient* api_ = nullptr;
 
     bool readOnly_ = false;
 };

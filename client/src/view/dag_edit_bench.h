@@ -14,7 +14,7 @@ class DagEditBench : public CanvasBench {
 public:
     explicit DagEditBench(QWidget* parent = nullptr);
     ~DagEditBench() override = default;
-    void setApiClient(class ApiClient* api) { api_ = api; if (inspector_) inspector_->setApiClient(api); }
+    void setApiClient(class ApiClient* api);
 
 private:
     void buildUi();

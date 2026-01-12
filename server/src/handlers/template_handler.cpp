@@ -257,7 +257,10 @@ namespace taskhub {
                 resp::error(res, 400, out.dump(), 400);
                 return;
             }
-            const std::string runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
+            std::string runId = req_json.value("run_id", "");
+            if (runId.empty()) {
+                runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
+            }
             if (!r.rendered.contains("config") || !r.rendered["config"].is_object()) {
                 r.rendered["config"] = json::object();
             }
@@ -286,8 +289,7 @@ namespace taskhub {
             }
 
             dagrun::injectRunId(r.rendered, runId);
-            dagrun::persistRunAndTasks(runId, r.rendered, "template");
-            auto dagResult= dag::DagService::instance().runDag(r.rendered, runId);
+            auto dagResult= dag::DagService::instance().runDag(r.rendered, "template", runId);
             if(!dagResult.success){
                 json out;
                 out["ok"] = false;
@@ -376,7 +378,10 @@ namespace taskhub {
                 return;
             }
 
-            const std::string runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
+            std::string runId = req_json.value("run_id", "");
+            if (runId.empty()) {
+                runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
+            }
             if (!r.rendered.contains("config") || !r.rendered["config"].is_object()) {
                 r.rendered["config"] = json::object();
             }
@@ -410,11 +415,10 @@ namespace taskhub {
             }
 
             dagrun::injectRunId(r.rendered, runId);
-            dagrun::persistRunAndTasks(runId, r.rendered, "template");
             // 通过 DAG 线程池执行，避免为每个请求创建新的 detached 线程
             dag::DagThreadPool::instance().post([rendered = r.rendered, runId]() mutable {
                 try {
-                    dag::DagService::instance().runDag(rendered, runId);
+                    dag::DagService::instance().runDag(rendered, "template", runId);
                 } catch (const std::exception& e) {
                     Logger::error(std::string("template run_async thread exception: ") + e.what());
                 }

@@ -20,7 +20,7 @@ namespace {
         }
         out = json::parse(raw, nullptr, false);
         if (out.is_discarded() || !out.is_object()) {
-            err = "TemplateExecution: invalid template_params_json";
+            err = "TemplateExecution: invalid params";
             return false;
         }
         return true;
@@ -43,6 +43,16 @@ core::TaskResult TemplateExecutionStrategy::execute(core::ExecutionContext& ctx)
         return result;
     }
 
+    // 检查嵌套深度限制
+    if (ctx.nestingDepth() >= core::ExecutionContext::MAX_NESTING_DEPTH) {
+        result.status = core::TaskStatus::Failed;
+        result.message = "TemplateExecution: nesting depth exceeds limit (" +
+                         std::to_string(core::ExecutionContext::MAX_NESTING_DEPTH) + ")";
+        Logger::error("TemplateExecutionStrategy::execute failed: " + result.message +
+                      ", current depth=" + std::to_string(ctx.nestingDepth()));
+        return result;
+    }
+
     std::string templateId = ctx.get("template_id");
     if (templateId.empty()) {
         return ctx.fail("TemplateExecution: missing template_id");
@@ -50,7 +60,11 @@ core::TaskResult TemplateExecutionStrategy::execute(core::ExecutionContext& ctx)
 
     json params;
     std::string err;
-    std::string paramsJson = ctx.get("template_params_json");
+    // Prefer exec_params.params (object) and fallback to legacy template_params_json (json string)
+    std::string paramsJson = ctx.get("params");
+    if (paramsJson.empty()) {
+        paramsJson = ctx.get("template_params_json");
+    }
     if (!parse_template_params(paramsJson, params, err)) {
         return ctx.fail(err);
     }
@@ -80,6 +94,8 @@ core::TaskResult TemplateExecutionStrategy::execute(core::ExecutionContext& ctx)
     if (!cfg.id.value.empty()) {
         rendered["config"]["parent_task_id"] = cfg.id.value;
     }
+    // Propagate nesting depth so DagService can inject child depth = parent+1
+    rendered["_nesting_depth"] = ctx.nestingDepth();
     if (!rendered.contains("name")) {
         rendered["name"] = tplOpt->name;
     }
@@ -91,18 +107,51 @@ core::TaskResult TemplateExecutionStrategy::execute(core::ExecutionContext& ctx)
     if (runId.empty()) {
         runId = std::to_string(utils::now_millis()) + "_" + utils::random_string(6);
     }
+    // Keep run_id in payload for easier debug/storage; DagService will persist (no double persist).
     dagrun::injectRunId(rendered, runId);
-    dagrun::persistRunAndTasks(runId, rendered, "task_template");
     result.metadata["run_id"] = runId;
     result.metadata["template_id"] = templateId;
 
+    // Start event
+    core::emitEvent(cfg,
+                    LogLevel::Info,
+                    "TemplateExecution start: templateId=" + templateId + ", runId=" + runId +
+                        ", nestingDepth=" + std::to_string(ctx.nestingDepth()),
+                    0,
+                    /*attempt*/1,
+                    {
+                        {"run_id", runId},
+                        {"template_id", templateId}
+                    });
+
     const auto start = SteadyClock::now();
-    auto dagResult = dag::DagService::instance().runDag(rendered, runId);
+    auto dagResult = dag::DagService::instance().runDag(rendered, "task_template", runId);
     const auto end = SteadyClock::now();
     result.durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
     result.status = dagResult.success ? core::TaskStatus::Success : core::TaskStatus::Failed;
     result.message = dagResult.message;
+    result.exitCode = dagResult.success ? 0 : 1;
+
+    // End event
+    {
+        LogLevel lvl = LogLevel::Info;
+        if (result.status == core::TaskStatus::Failed) lvl = LogLevel::Error;
+        if (result.status == core::TaskStatus::Timeout) lvl = LogLevel::Warn;
+        if (result.status == core::TaskStatus::Canceled) lvl = LogLevel::Warn;
+
+        core::emitEvent(cfg,
+                        lvl,
+                        "TemplateExecution end: status=" + std::to_string(static_cast<int>(result.status)) +
+                            ", durationMs=" + std::to_string(result.durationMs),
+                        result.durationMs,
+                        /*attempt*/1,
+                        {
+                            {"status", core::TaskStatusTypetoString(result.status)},
+                            {"run_id", runId},
+                            {"template_id", templateId}
+                        });
+    }
     return result;
 }
 

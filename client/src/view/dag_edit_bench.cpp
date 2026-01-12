@@ -19,6 +19,13 @@ DagEditBench::DagEditBench(QWidget* parent)
     buildUi();
     wireUi();
 }
+
+void DagEditBench::setApiClient(ApiClient* api)
+{
+    api_ = api;
+    if (inspector_) inspector_->setApiClient(api);
+    if (nodePanel_) nodePanel_->setApiClient(api);
+}
 void DagEditBench::buildUi()
 {
     toolbar_ = new QToolBar(this);
@@ -73,7 +80,7 @@ void DagEditBench::wireUi()
 
     connect(actConnect_, &QAction::triggered, this, &DagEditBench::startConnectMode);
     connect(actDelete_, &QAction::triggered, this, &DagEditBench::deleteSelected);
-    connect(nodePanel_, &NodePaletteWidget::addNodeRequested, this, [this](NodeType type) {
-        startCreateNodeMode(type);
+    connect(nodePanel_, &NodePaletteWidget::addNodeRequested, this, [this](NodeType type, const QString& templateId) {
+        startCreateNodeMode(type, templateId);
     });
 }
