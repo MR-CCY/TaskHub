@@ -1,6 +1,6 @@
 #include "task.h"
 #include "task_manager.h"
-#include "view/canvasbench.h"
+#include "view/canvas/canvasbench.h"
 Task::Task(int level, QObject* parent)
     : QObject(parent), level_(level) {
       auto bench = qobject_cast<CanvasBench*>(parent);

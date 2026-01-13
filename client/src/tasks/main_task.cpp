@@ -1,7 +1,7 @@
 #include "main_task.h"
 #include "task_manager.h"
 #include "select_task.h" // 必须引用默认任务
-#include "view/canvasview.h"  // 需要给 SelectTask 注入 View
+#include "view/canvas/canvasview.h"  // 需要给 SelectTask 注入 View
 #include "zoom_task.h"
 #include <QDebug>
 

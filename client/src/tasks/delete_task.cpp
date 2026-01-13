@@ -1,7 +1,7 @@
 #include "delete_task.h"
 
 #include "commands/command.h"
-#include "view/canvasscene.h"
+#include "view/canvas/canvasscene.h"
 #include "commands/undostack.h"
 #include "Item/base_item.h"
 #include "Item/line_item.h"

@@ -12,8 +12,8 @@
 #include "Item/container_rect_item.h"
 #include "Item/line_item.h"
 #include "Item/rect_item.h"
-#include "view/canvasscene.h"
-#include "view/canvasview.h"
+#include "view/canvas/canvasscene.h"
+#include "view/canvas/canvasview.h"
 namespace {
 struct NodeInfo {
     QSet<RectItem*> parents;

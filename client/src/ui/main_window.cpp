@@ -18,10 +18,10 @@
 #include "net/ws_client.h"
 #include "ui/console_dock.h"
 #include "ui/user_bar_widget.h"
-#include "view/dag_edit_bench.h"
-#include "view/dag_runs_widget.h"
-#include "view/template_manager_widget.h"
-#include "view/cron_jobs_widget.h"
+#include "view/canvas/dag_edit_bench.h"
+#include "view/widgets/dag_runs_widget.h"
+#include "view/widgets/template_manager_widget.h"
+#include "view/widgets/cron_jobs_widget.h"
 
 MainWindow::MainWindow(QWidget *parent):
     QMainWindow(parent)

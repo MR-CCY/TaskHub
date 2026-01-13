@@ -1,5 +1,5 @@
 #include "move_task.h"
-#include "view/canvasview.h"
+#include "view/canvas/canvasview.h"
 #include "commands/command.h" // 假设你的 MoveRectCommand 在这里
 #include "Item/rect_item.h"
 #include "Item/line_item.h"

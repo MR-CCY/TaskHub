@@ -1,6 +1,6 @@
 #include "node_inspector_remote_widget.h"
 #include "core/app_context.h"
-#include "view/worker_list_dialog.h"
+#include "view/dialogs/worker_list_dialog.h"
 
 #include <QFormLayout>
 #include <QHBoxLayout>

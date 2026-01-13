@@ -9,7 +9,7 @@
 
 #include "Item/rect_item.h"
 #include "Item/line_item.h"
-#include "view/canvasscene.h"
+#include "view/canvas/canvasscene.h"
 
 #include "Item/remote_rect_item.h"
 #include "Item/dag_rect_item.h"

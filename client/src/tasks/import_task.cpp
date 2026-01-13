@@ -7,8 +7,8 @@
 #include <QJsonArray>
 #include <QMessageBox>
 
-#include "view/canvasscene.h"
-#include "view/canvasview.h"
+#include "view/canvas/canvasscene.h"
+#include "view/canvas/canvasview.h"
 #include "commands/undostack.h"
 #include "tasks/layout_task.h"
 #include "Item/rect_item.h"
@@ -18,7 +18,7 @@
 #include "Item/node_type.h"
 #include "layout_task.h"
 #include "task_manager.h"
-#include "view/dag_loader.h"
+#include "view/utils/dag_loader.h"
 ImportTask::ImportTask(CanvasScene* scene, UndoStack* undo, CanvasView* view, QWidget* parentWidget, QObject* parent)
     : Task(200, parent), scene_(scene), undo_(undo), view_(view), parentWidget_(parentWidget) {}
 

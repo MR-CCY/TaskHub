@@ -8,8 +8,8 @@
 #include <QToolBar>
 #include <QVBoxLayout>
 
-#include "view/inspector_panel.h"
-#include "view/node_palette_widget.h"
+#include "view/inspector/inspector_panel.h"
+#include "view/canvas/node_palette_widget.h"
 #include "Item/node_type.h"
 #include "commands/undostack.h"
 

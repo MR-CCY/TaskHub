@@ -4,7 +4,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 
-#include "view/canvasscene.h"
+#include "view/canvas/canvasscene.h"
 #include "commands/undostack.h"
 #include "Item/rect_item.h"
 #include "Item/line_item.h"

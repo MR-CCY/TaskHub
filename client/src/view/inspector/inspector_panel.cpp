@@ -11,8 +11,8 @@
 #include <QMessageBox>
 #include <QVariant>
 
-#include "view/canvasscene.h"
-#include "view/canvasview.h"
+#include "view/canvas/canvasscene.h"
+#include "view/canvas/canvasview.h"
 #include "commands/undostack.h"
 #include "commands/command.h"
 #include <QSet>

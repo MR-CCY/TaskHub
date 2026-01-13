@@ -5,7 +5,7 @@
 #include <QPinchGesture>
 #include <QNativeGestureEvent>
 
-#include "view/canvasview.h"
+#include "view/canvas/canvasview.h"
 
 ZoomTask::ZoomTask(QObject* parent)
     : Task(15, parent) // 高于 SelectTask(10)

@@ -9,8 +9,8 @@
 #include "Item/line_item_factory.h"
 #include "Item/rect_item.h"
 #include "commands/command.h"
-#include "view/canvasview.h"
-#include "view/canvasscene.h"
+#include "view/canvas/canvasview.h"
+#include "view/canvas/canvasscene.h"
 
 namespace {
 QPointF projectToRectEdge(const QRectF& rect, const QPointF& target) {

@@ -8,15 +8,15 @@
 #include <QGraphicsView>
 #include <QVBoxLayout>
 
-#include "view/dag_loader.h"
+#include "view/utils/dag_loader.h"
 #include "Item/rect_item.h"
 #include "Item/line_item.h"
 #include "Item/line_item_factory.h"
 #include "Item/node_item_factory.h"
 #include "Item/node_type.h"
-#include "view/canvasscene.h"
+#include "view/canvas/canvasscene.h"
 #include "commands/undostack.h"
-#include "view/canvasview.h"
+#include "view/canvas/canvasview.h"
 #include <QDebug>
 
 DagRunViewerBench::DagRunViewerBench(QWidget* parent)

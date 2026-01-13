@@ -1,6 +1,6 @@
 #include "select_task.h"
 #include "move_task.h"       // 引入新任务
-#include "view/canvasview.h"
+#include "view/canvas/canvasview.h"
 #include "tasks/task_manager.h"
 #include <QMouseEvent>
 

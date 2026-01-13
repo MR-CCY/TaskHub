@@ -1,7 +1,7 @@
 // create_task.cpp
 #include "create_task.h"
-#include "view/canvasview.h"
-#include "view/canvasscene.h"
+#include "view/canvas/canvasview.h"
+#include "view/canvas/canvasscene.h"
 #include "Item/rect_item.h"
 #include "Item/node_item_factory.h"
 #include "Item/container_rect_item.h"

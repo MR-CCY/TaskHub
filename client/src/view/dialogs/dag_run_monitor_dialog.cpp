@@ -20,7 +20,7 @@
 
 #include "dag_run_viewer.h"
 #include "net/api_client.h"
-#include "view/inspector_panel.h"
+#include "view/inspector/inspector_panel.h"
 #include "ui/console_dock.h"
 #include "net/ws_client.h"
 #include <QDebug>

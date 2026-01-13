@@ -1,7 +1,7 @@
 // base_operator.h
 #pragma once
 #include <QList>
-#include "view/canvasview.h"
+#include "view/canvas/canvasview.h"
 
 class BaseOperator {
 public:

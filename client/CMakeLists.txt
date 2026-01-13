@@ -22,15 +22,16 @@ file(GLOB CLIENT_SOURCES CONFIGURE_DEPENDS
     src/net/*.cpp
     src/graph/*.cpp
     src/view/*.cpp
-    src/view/*.cpp
+    src/view/canvas/*.cpp
+    src/view/inspector/*.cpp
+    src/view/dialogs/*.cpp
+    src/view/widgets/*.cpp
+    src/view/utils/*.cpp
     src/commands/*.cpp
     src/operator/*.cpp
     src/Item/*.cpp
-    src/view/items/*.cpp
     src/tasks/*.cpp
     src/editor/*.cpp
-    src/view/dag_run_monitor_dialog.cpp
-    src/view/dag_run_viewer.cpp
     src/*.qrc
     src/resources/*.qrc
 )
@@ -43,14 +44,16 @@ file(GLOB CLIENT_HEADERS CONFIGURE_DEPENDS
     src/net/*.h
     src/graph/*.h
     src/view/*.h
+    src/view/canvas/*.h
+    src/view/inspector/*.h
+    src/view/dialogs/*.h
+    src/view/widgets/*.h
+    src/view/utils/*.h
     src/commands/*.h
     src/operator/*.h
     src/Item/*.h
-    src/view/items/*.h
     src/tasks/*.h
     src/editor/*.h
-    src/view/dag_run_monitor_dialog.h
-    src/view/dag_run_viewer.h
 )
 
 file(GLOB SCLIENT_UI
@@ -72,6 +75,11 @@ target_include_directories(TaskHubClient PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/models
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui
     ${CMAKE_CURRENT_SOURCE_DIR}/src/view
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/view/canvas
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/view/inspector
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/view/dialogs
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/view/widgets
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/view/utils
     ${CMAKE_CURRENT_SOURCE_DIR}/src/tasks
     ${CMAKE_CURRENT_SOURCE_DIR}/src/commands
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Item
