@@ -36,9 +36,8 @@ private:
     void showDag();
     void showNode(RectItem* node);
     void showLine(LineItem* line);
-    void createDagCron(const QString& spec);
+    void createDagCron(const int& spec);
     void createNodeCron(const QString& spec);
-
 private:
     CanvasScene* scene_;
     UndoStack* undo_;

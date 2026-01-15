@@ -1,5 +1,6 @@
 // create_task.h
 #pragma once
+#include <QJsonObject>
 #include <QString>
 
 #include "task.h"
@@ -8,10 +9,11 @@
 class CreateTask : public Task {
 public:
     explicit CreateTask(QObject* parent = nullptr);
-    CreateTask(NodeType type, const QString& templateId, QObject* parent = nullptr);
+    CreateTask(NodeType type, const QString& templateId, const QJsonObject& taskTemplate, QObject* parent = nullptr);
     bool dispatch(QEvent* e) override;
 private:
     bool useFactory_ = false;
     NodeType nodeType_ = NodeType::Local;
     QString templateId_;
+    QJsonObject taskTemplate_;
 };

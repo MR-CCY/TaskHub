@@ -13,11 +13,9 @@ class TaskManager {
 public:
     static TaskManager& instance();
 
-    Task::IdType add_task(const std::string& name,
-                          int type,
-                          const nlohmann::json& params);
+    Task::IdType add_task(const std::string& name,int type,const nlohmann::json& params);
 
-    std::vector<Task> list_tasks() const;
+    std::vector<Task> list_tasks(const QString& i) const;
     void load_from_db();
     std::optional<Task> get_task(Task::IdType id) const;
     TaskPtr get_task_ptr(Task::IdType id) const;

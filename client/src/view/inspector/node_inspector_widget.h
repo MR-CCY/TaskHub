@@ -48,6 +48,7 @@ public:
 
     QString templateIdValue() const;
     bool buildTemplateParamsPayload(QJsonObject& outParams);
+    bool buildLocalParamsPayload(QJsonObject& outParams);
     QString dagFailPolicyValue() const;
     int dagMaxParallelValue() const;
     QString cronSpecValue() const;

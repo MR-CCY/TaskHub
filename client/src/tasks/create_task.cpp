@@ -6,6 +6,9 @@
 #include "Item/node_item_factory.h"
 #include "Item/container_rect_item.h"
 #include "operator/create_rect_operator.h"
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonParseError>
 #include <QMouseEvent>
 #include <QDebug>
 
@@ -23,17 +26,35 @@ ContainerRectItem* findContainerAt(QGraphicsScene* scene, const QPointF& scenePo
     }
     return nullptr;
 }
+
+QJsonObject parseJsonObject(const QJsonValue& value) {
+    if (value.isObject()) return value.toObject();
+    if (value.isString()) {
+        QJsonParseError pe;
+        const auto doc = QJsonDocument::fromJson(value.toString().toUtf8(), &pe);
+        if (pe.error == QJsonParseError::NoError) {
+            if (doc.isObject()) return doc.object();
+            if (doc.isArray()) {
+                QJsonObject obj;
+                obj.insert("params", doc.array());
+                return obj;
+            }
+        }
+    }
+    return QJsonObject();
+}
 }
 
 CreateTask::CreateTask(QObject* parent) 
     : Task(200, parent) // Level 100, 假设比 SelectTask 高
 {}
 
-CreateTask::CreateTask(NodeType type, const QString& templateId, QObject* parent)
+CreateTask::CreateTask(NodeType type, const QString& templateId, const QJsonObject& taskTemplate, QObject* parent)
     : Task(200, parent),
       useFactory_(true),
       nodeType_(type),
-      templateId_(templateId.trimmed())
+      templateId_(templateId.trimmed()),
+      taskTemplate_(taskTemplate)
 {}
 
 bool CreateTask::dispatch(QEvent* e) {
@@ -65,6 +86,33 @@ bool CreateTask::dispatch(QEvent* e) {
             }
             if (useFactory_ && nodeType_ == NodeType::Template && !templateId_.isEmpty()) {
                 item->setProp("exec_params.template_id", templateId_);
+            } else if (useFactory_ && !taskTemplate_.isEmpty()
+                       && (nodeType_ == NodeType::Shell || nodeType_ == NodeType::Http || nodeType_ == NodeType::Local)) {
+                const QString execCommand = taskTemplate_.value("exec_command").toString();
+                if (!execCommand.isEmpty()) {
+                    item->setProp("exec_command", execCommand);
+                }
+
+                QJsonObject execParamsObj = parseJsonObject(taskTemplate_.value("exec_params"));
+                if (execParamsObj.isEmpty() && taskTemplate_.value("exec_params").isObject()) {
+                    execParamsObj = taskTemplate_.value("exec_params").toObject();
+                }
+                if (!execParamsObj.isEmpty()) {
+                    if (nodeType_ == NodeType::Shell && !execParamsObj.contains("cmd") && !execCommand.isEmpty()) {
+                        execParamsObj.insert("cmd", execCommand);
+                    }
+                    item->setProp("exec_params", execParamsObj.toVariantMap());
+                } else if (nodeType_ == NodeType::Shell && !execCommand.isEmpty()) {
+                    item->setProp("exec_params.cmd", execCommand);
+                }
+
+                QJsonObject schemaObj = parseJsonObject(taskTemplate_.value("schema"));
+                if (schemaObj.isEmpty()) {
+                    schemaObj = parseJsonObject(taskTemplate_.value("schema_json"));
+                }
+                if (!schemaObj.isEmpty()) {
+                    item->setProp("schema_json", schemaObj);
+                }
             }
 
             if (container) {

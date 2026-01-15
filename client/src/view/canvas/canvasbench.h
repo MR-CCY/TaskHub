@@ -1,4 +1,5 @@
 #pragma once
+#include <QJsonObject>
 #include <QString>
 #include <QWidget>
 #include "canvasview.h"
@@ -44,7 +45,9 @@ protected:
     TaskManager* taskManager() const { return taskMgr_; }
 
     void startSelectMode();
-    void startCreateNodeMode(NodeType type, const QString& templateId = QString());
+    void startCreateNodeMode(NodeType type,
+                             const QString& templateId = QString(),
+                             const QJsonObject& taskTemplate = QJsonObject());
 private:
     void buildCore(); // 初始化 STOC 核心对象
     void startZoomTask();

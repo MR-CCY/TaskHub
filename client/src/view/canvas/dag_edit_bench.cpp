@@ -3,6 +3,7 @@
 #include <QAction>
 #include <QKeySequence>
 #include <QIcon>
+#include <QJsonObject>
 #include <QSize>
 #include <QSplitter>
 #include <QToolBar>
@@ -80,7 +81,7 @@ void DagEditBench::wireUi()
 
     connect(actConnect_, &QAction::triggered, this, &DagEditBench::startConnectMode);
     connect(actDelete_, &QAction::triggered, this, &DagEditBench::deleteSelected);
-    connect(nodePanel_, &NodePaletteWidget::addNodeRequested, this, [this](NodeType type, const QString& templateId) {
-        startCreateNodeMode(type, templateId);
+    connect(nodePanel_, &NodePaletteWidget::addNodeRequested, this, [this](NodeType type, const QString& templateId, const QJsonObject& taskTemplate) {
+        startCreateNodeMode(type, templateId, taskTemplate);
     });
 }

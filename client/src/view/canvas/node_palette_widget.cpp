@@ -38,7 +38,9 @@ void NodePaletteWidget::setApiClient(ApiClient* api)
     api_ = api;
     if (api_) {
         connect(api_, &ApiClient::templatesOk, this, &NodePaletteWidget::onTemplates);
+        connect(api_, &ApiClient::taskTemplatesOk, this, &NodePaletteWidget::onTaskTemplates);
         api_->listTemplates();
+        api_->listTaskTemplates();
     }
 }
 
@@ -83,11 +85,16 @@ void NodePaletteWidget::buildUi()
         if (nodeList_->selectedItems().isEmpty()) return;
         const NodeType type = selectedNodeType();
         QString templateId;
+        QJsonObject taskTemplate;
         if (type == NodeType::Template) {
             templateId = selectedTemplateId();
             if (templateId.isEmpty()) return;
+        } else if (type == NodeType::Shell || type == NodeType::Http || type == NodeType::Local) {
+            taskTemplate = selectedTaskTemplate();
+            templateId = selectedTemplateId();
+            if (type == NodeType::Local && taskTemplate.isEmpty()) return;
         }
-        emit addNodeRequested(type, templateId);
+        emit addNodeRequested(type, templateId, taskTemplate);
     });
 
     // 默认选中第一个子节点
@@ -110,6 +117,20 @@ void NodePaletteWidget::populateTree()
         auto* item = new QTreeWidgetItem(root, QStringList() << def.text);
         item->setData(0, Qt::UserRole, static_cast<int>(def.type));
         item->setIcon(0, QIcon(def.icon));
+    }
+}
+
+QString NodePaletteWidget::nodeTypeToString(NodeType type) const
+{
+    switch (type) {
+    case NodeType::Shell:
+        return QStringLiteral("Shell");
+    case NodeType::Http:
+        return QStringLiteral("Http");
+    case NodeType::Local:
+        return QStringLiteral("Local");
+    default:
+        return QString();
     }
 }
 
@@ -137,6 +158,39 @@ void NodePaletteWidget::populateListForType(NodeType type, const QString& filter
             }
             auto* item = new QListWidgetItem(display, nodeList_);
             item->setData(Qt::UserRole, templateId);
+        }
+    } else if (type == NodeType::Shell || type == NodeType::Http || type == NodeType::Local) {
+        if (taskTemplates_.isEmpty() && api_ && !awaitingTaskTemplates_) {
+            awaitingTaskTemplates_ = true;
+            api_->listTaskTemplates();
+        }
+        const QString typeFilter = nodeTypeToString(type);
+        for (const auto& v : taskTemplates_) {
+            if (!v.isObject()) continue;
+            const QJsonObject obj = v.toObject();
+            const QString execType = obj.value("exec_type").toString();
+            if (!typeFilter.isEmpty() && execType.compare(typeFilter, Qt::CaseInsensitive) != 0) {
+                continue;
+            }
+            const QString templateId = obj.value("template_id").toString();
+            const QString name = obj.value("name").toString();
+            if (templateId.isEmpty()) continue;
+            QString display = name.isEmpty() ? templateId : QString("%1 (%2)").arg(name, templateId);
+            if (!filter.isEmpty()
+                && !display.contains(filter, Qt::CaseInsensitive)
+                && !templateId.contains(filter, Qt::CaseInsensitive)
+                && !name.contains(filter, Qt::CaseInsensitive)) {
+                continue;
+            }
+            auto* item = new QListWidgetItem(display, nodeList_);
+            item->setData(Qt::UserRole, templateId);
+            item->setData(Qt::UserRole + 1, obj);
+        }
+        if (type != NodeType::Local) {
+            const QString name = tr("<自定义节点>");
+            if (filter.isEmpty() || name.contains(filter, Qt::CaseInsensitive)) {
+                nodeList_->addItem(name);
+            }
         }
     } else {
         const QString name = tr("<自定义节点>");
@@ -172,11 +226,33 @@ QString NodePaletteWidget::selectedTemplateId() const
     return item ? item->data(Qt::UserRole).toString() : QString();
 }
 
+QJsonObject NodePaletteWidget::selectedTaskTemplate() const
+{
+    if (nodeList_->selectedItems().isEmpty()) return QJsonObject();
+    auto* item = nodeList_->selectedItems().first();
+    if (!item) return QJsonObject();
+    const QVariant v = item->data(Qt::UserRole + 1);
+    if (v.canConvert<QJsonObject>()) {
+        return v.toJsonObject();
+    }
+    return QJsonObject();
+}
+
 void NodePaletteWidget::onTemplates(const QJsonArray& items)
 {
     templates_ = items;
     awaitingTemplates_ = false;
     if (selectedNodeType() == NodeType::Template) {
         populateListForType(NodeType::Template, filterEdit_ ? filterEdit_->text() : QString());
+    }
+}
+
+void NodePaletteWidget::onTaskTemplates(const QJsonArray& items)
+{
+    taskTemplates_ = items;
+    awaitingTaskTemplates_ = false;
+    const NodeType type = selectedNodeType();
+    if (type == NodeType::Shell || type == NodeType::Http || type == NodeType::Local) {
+        populateListForType(type, filterEdit_ ? filterEdit_->text() : QString());
     }
 }

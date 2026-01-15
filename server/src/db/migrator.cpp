@@ -143,6 +143,8 @@ namespace taskhub {
                 exec_sql_file(db, migrations_dir + "/004_v1_0_3_add_run_tables.sql");
             }else if(v==5){
                 exec_sql_file(db, migrations_dir + "/005_v1_0_4_add_events_and_dag_name.sql");
+            }else if(v==6){
+                exec_sql_file(db, migrations_dir + "/006_v1_0_5_add_schema_to_task_template.sql");
             }else {
                 Logger::error("未知的迁移版本: " + std::to_string(v));
                 break;

@@ -86,7 +86,7 @@ void NodeInspectorWidget::buildUi()
 void NodeInspectorWidget::setValues(const QVariantMap& props, const QVariantMap& exec)
 {
     if (common_) common_->setValues(props);
-    if (local_) local_->setValues(exec);
+    if (local_) local_->setValues(props, exec);
     if (http_) http_->setValues(exec);
     if (shell_) shell_->setValues(exec);
     if (remote_) remote_->setValues(props, exec);
@@ -197,6 +197,10 @@ QString NodeInspectorWidget::templateIdValue() const {
 
 bool NodeInspectorWidget::buildTemplateParamsPayload(QJsonObject& outParams) {
     return template_ ? template_->buildParamsPayload(outParams) : false;
+}
+
+bool NodeInspectorWidget::buildLocalParamsPayload(QJsonObject& outParams) {
+    return local_ ? local_->buildParamsPayload(outParams) : false;
 }
 
 QString NodeInspectorWidget::cronSpecValue() const {

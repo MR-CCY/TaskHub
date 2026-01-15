@@ -197,7 +197,6 @@ void InspectorPanel::runDag() {
 
     api_->runDagAsync(mutableDag);
 }
-
 void InspectorPanel::createDagCron(const QString& spec)
 {
     if (!api_ || spec.isEmpty()) return;
@@ -269,8 +268,13 @@ void InspectorPanel::saveNodeEdits() {
     QVariantMap exec = props.value("exec_params").toMap();
     const QString execType = props.value("exec_type").toString().trimmed().toLower();
     QJsonObject templateParams;
+    QJsonObject localParams;
     if (execType == "template") {
         if (!nodeWidget_->buildTemplateParamsPayload(templateParams)) {
+            return;
+        }
+    } else if (execType == "local") {
+        if (!nodeWidget_->buildLocalParamsPayload(localParams)) {
             return;
         }
     }
@@ -340,12 +344,13 @@ void InspectorPanel::saveNodeEdits() {
     pushChange("exec_params.env", exec.value("env"), nodeWidget_->shellENVValue());
     pushChange("exec_params.cmd", exec.value("cmd"), nodeWidget_->shellCmdValue());
 
-    // Local 处理器
-    pushChange("exec_params.handler", exec.value("handler"), nodeWidget_->localHandlerValue());
-
     if (execType == "dag") {
         pushChange("exec_params.config.fail_policy", exec.value("config.fail_policy"), nodeWidget_->dagFailPolicyValue());
         pushChange("exec_params.config.max_parallel", exec.value("config.max_parallel"), nodeWidget_->dagMaxParallelValue());
+    } else if (execType == "local") {
+        for (auto it = localParams.begin(); it != localParams.end(); ++it) {
+            pushChange("exec_params." + it.key(), exec.value(it.key()), it.value().toVariant());
+        }
     } else if (execType == "template") {
         pushChange("exec_params.template_id", exec.value("template_id"), nodeWidget_->templateIdValue());
         pushChange("exec_params.params", exec.value("params"), templateParams.toVariantMap());
