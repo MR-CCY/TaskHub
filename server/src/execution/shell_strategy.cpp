@@ -27,6 +27,26 @@ static void set_nonblocking(int fd) {
 }
 
 /**
+ * @brief 判断字符串是否为空或仅包含空白字符
+ */
+static bool is_blank_string(const std::string& s) {
+    for (char ch : s) {
+        switch (ch) {
+        case ' ':
+        case '\t':
+        case '\n':
+        case '\r':
+        case '\f':
+        case '\v':
+            continue;
+        default:
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
  * @brief 从文件描述符中读取所有可用数据并追加到输出字符串中
  * 
  * 该函数会持续从指定的文件描述符读取数据，直到遇到EOF或读取错误。
@@ -139,6 +159,9 @@ core::TaskResult ShellExecutionStrategy::execute(core::ExecutionContext &ctx)
     // 2.1) 预先提取子进程需要的配置信息（fork 之后调用这些非异步信号安全函数是不稳妥的）
     std::string cwd = core::getParam(cfg.execParams, "cwd");
     std::string shellPath = core::getParam(cfg.execParams, "shell", "/bin/sh");
+    if (is_blank_string(shellPath)) {
+        shellPath = "/bin/sh";
+    }
     
     // 提取环境变量
     std::vector<std::pair<std::string, std::string>> envs;

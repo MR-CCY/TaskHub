@@ -292,15 +292,16 @@ void InspectorPanel::saveNodeEdits() {
     pushChange("queue", props.value("queue", "default"), nodeWidget_->queueValue());
     pushChange("capture_output", props.value("capture_output"), nodeWidget_->captureOutputValue());
 
-    pushChange("exec_params.method", exec.value("method"), nodeWidget_->httpMethodValue());
-    pushChange("exec_params.url", exec.value("url"), nodeWidget_->httpUrlValue());
-    pushChange("exec_params.body", exec.value("body"), nodeWidget_->httpBodyValue());
-    pushChange("exec_params.auth.user", exec.value("auth.user"), nodeWidget_->httpAuthUserValue());
-    pushChange("exec_params.auth.pass", exec.value("auth.pass"), nodeWidget_->httpAuthPassValue());
-    pushChange("exec_params.follow_redirects", exec.value("follow_redirects", "true"), nodeWidget_->httpFollowRedirectsValue() ? "true" : "false");
+    const bool isHttp = (execType == "httpcall" || execType == "http_call" || execType == "http");
+    if (isHttp) {
+        pushChange("exec_params.method", exec.value("method"), nodeWidget_->httpMethodValue());
+        pushChange("exec_params.url", exec.value("url"), nodeWidget_->httpUrlValue());
+        pushChange("exec_params.body", exec.value("body"), nodeWidget_->httpBodyValue());
+        pushChange("exec_params.auth.user", exec.value("auth.user"), nodeWidget_->httpAuthUserValue());
+        pushChange("exec_params.auth.pass", exec.value("auth.pass"), nodeWidget_->httpAuthPassValue());
+        pushChange("exec_params.follow_redirects", exec.value("follow_redirects", "true"), nodeWidget_->httpFollowRedirectsValue() ? "true" : "false");
 
-    // 处理 Headers (解析多行文本为多个 exec_params.header.XXX 项)
-    {
+        // 处理 Headers (解析多行文本为多个 exec_params.header.XXX 项)
         QString oldHeadersText;
         QStringList oldLines;
         for (auto it = exec.begin(); it != exec.end(); ++it) {
@@ -315,11 +316,11 @@ void InspectorPanel::saveNodeEdits() {
             // 简单处理：先移除旧的 header.*，再添加新的
             // 注意：这里需要 undo 系统支持批量或特殊处理
             // 为简化演示，我们对比后再分别 push
-            
+
             // 1) 找出所有旧键名并清空（防止残留）
             for (auto it = exec.begin(); it != exec.end(); ++it) {
                 if (it.key().startsWith("header.")) {
-                    pushChange("exec_params." + it.key(), it.value(), QVariant()); 
+                    pushChange("exec_params." + it.key(), it.value(), QVariant());
                 }
             }
 
@@ -338,11 +339,17 @@ void InspectorPanel::saveNodeEdits() {
         }
     }
 
-    //Shell参数包中的参数
-    pushChange("exec_params.cwd", exec.value("cwd"), nodeWidget_->shellCwdValue());
-    pushChange("exec_params.shell", exec.value("shell"), nodeWidget_->shellShellValue());
-    pushChange("exec_params.env", exec.value("env"), nodeWidget_->shellENVValue());
-    pushChange("exec_params.cmd", exec.value("cmd"), nodeWidget_->shellCmdValue());
+    if (execType == "shell") {
+        pushChange("exec_params.cwd", exec.value("cwd"), nodeWidget_->shellCwdValue());
+
+        QString shellValue = nodeWidget_->shellShellValue().trimmed();
+        if (shellValue.isEmpty()) {
+            shellValue = "/bin/sh";
+        }
+        pushChange("exec_params.shell", exec.value("shell"), shellValue);
+        pushChange("exec_params.env", exec.value("env"), nodeWidget_->shellENVValue());
+        pushChange("exec_params.cmd", exec.value("cmd"), nodeWidget_->shellCmdValue());
+    }
 
     if (execType == "dag") {
         pushChange("exec_params.config.fail_policy", exec.value("config.fail_policy"), nodeWidget_->dagFailPolicyValue());

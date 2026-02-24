@@ -59,7 +59,7 @@ namespace taskhub {
         return task->id;
     }
 
-    std::vector<Task> taskhub::TaskManager::list_tasks(const int& i) const
+    std::vector<Task> taskhub::TaskManager::list_tasks() const
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         std::vector<Task> res;

@@ -23,8 +23,9 @@ void ApiClient::setBaseUrl(const QString &baseUrl) {
 }
 
 void ApiClient::setToken(const QString &token) { token_ = token; }
-
 QNetworkRequest ApiClient::makeRequest(const QString &path) const {
+
+  
   QUrl url(baseUrl_ + path);
   QNetworkRequest req(url);
   req.setHeader(QNetworkRequest::ContentTypeHeader,

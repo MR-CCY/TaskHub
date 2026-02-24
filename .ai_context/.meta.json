@@ -1,0 +1,1497 @@
+{
+  "dag_abcd_test.sh": {
+    "hash": "33509ebdac1b9770be06b167b8947451ec20d2cd",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "docker_up.sh": {
+    "hash": "6ff58ccbcaeb103ddb30150c13ef7906815682b4",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "docker_up_all.sh": {
+    "hash": "c5780d0210f4bc2d30d196f7297435671711889f",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "docker_up_workers_host_master.sh": {
+    "hash": "9f7836c6b29b707312db801997efc2d53a78faf6",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "m10.sh": {
+    "hash": "28d0eeb1a07cf7bbaa3aee5d91977097d61a2adf",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "m11_3.sh": {
+    "hash": "6c4fb87709f01633922046da2344393d0d2b5940",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "m11_4.sh": {
+    "hash": "4e31a33524f1d50175847ffa6051b9dd142408d2",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "m11_7_dispatch_retry_check.sh": {
+    "hash": "36766d5bc6a13c576a2051e29aef780e4a5cb1ea",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "m13.sh": {
+    "hash": "9a5c8550f648e7fe5b258a7f8c96b8cbc1bb0f5d",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "m14_dag_template_worker_check.sh": {
+    "hash": "527322fd807f702890d27e1fe145ccf5ce9277a5",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "m7.sh": {
+    "hash": "3fd835306d704ef0b76f8855159842e57f6869a6",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "m7_min.sh": {
+    "hash": "6c697ef8122bbb86aae54321e640f1b44c2edcea",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "m8.sh": {
+    "hash": "842d3952c02d325ad3c1523c0343070d90ee1a6f",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "seed_templates.sh": {
+    "hash": "95dddd0c2d54be6fe85aeb4b8a7c817401396e64",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "testM13_1.cpp": {
+    "hash": "0460580380f98cc4ff2fb7511599d8259e4302c4",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "testM13_2.cpp": {
+    "hash": "de05f7a20769cf5cac95ccc7876038ae0129675d",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/main.cpp": {
+    "hash": "1279e57b51fb75651b25713f3371e4d0ca17edc6",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/main.cpp": {
+    "hash": "46e6e21f69f6565dafd90b32b21fd7bd04e26e9b",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/router.cpp": {
+    "hash": "bee5130619fd91d3ce0bce571bc6ef0e7ac63588",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/router.h": {
+    "hash": "4445bb69ca3877b817129e751eee6da66b5b0f87",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/server_app.cpp": {
+    "hash": "3636f60935f0a256ce6dd9689c9c37b80a615b48",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/server_app.h": {
+    "hash": "563731269be95b8c0843f5e58f42b25ee258b4a9",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/commands/command.cpp": {
+    "hash": "b55ffceaeda75a4ce9628e6562b490ab5a365bdc",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/commands/command.h": {
+    "hash": "55014ebd9ea7018f5cffb7016d66593f64526004",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/commands/create_command.cpp": {
+    "hash": "46b763449e96f129489de9eb8f1f55a4e809c2c7",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/commands/create_command.h": {
+    "hash": "c0b9631a8d346984a518d274ddee61eb1e9b4a3a",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/commands/undostack.cpp": {
+    "hash": "233880d542986e63904434be5f08cb01c0c4ce03",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/commands/undostack.h": {
+    "hash": "ceb6f259a3e538207e53cfb0910d5f060eea4e4d",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/arrow_line_item.cpp": {
+    "hash": "33eff4672c095cbfaeaeed02e7513c47fc1fad22",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/arrow_line_item.h": {
+    "hash": "deff6a5f2fa322778b19c4d1a40ff45a4e8d938c",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/base_item.cpp": {
+    "hash": "e503d3e00ec831ec98887fe63f7ed95ebcdedbae",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/base_item.h": {
+    "hash": "9ad9c3e25bd3464f2c4193176abf546d5da020eb",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/container_rect_item.cpp": {
+    "hash": "6465e35900de9aebcf9a735d81ecced89811e5c8",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/container_rect_item.h": {
+    "hash": "29f5f700a1883e649af467bd775adaf45eb7a79f",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/dag_rect_item.cpp": {
+    "hash": "06599eed4d355411102b2d44e5f54307e9f991fc",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/dag_rect_item.h": {
+    "hash": "d7fd12b76706fb4e5eca539cb58792fdaefa5692",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/http_rect_item.cpp": {
+    "hash": "c7c8cbd7f261e642f8dc2d63a757c658bd5aaad4",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/http_rect_item.h": {
+    "hash": "8a02f2e95cd4d4654726d768cc203c8888d760e9",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/line_item.cpp": {
+    "hash": "877b2bf123446e8133da63218f9ca2fff937b0f7",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/line_item.h": {
+    "hash": "20b92114d043e4704db284f8986833fc96b47820",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/line_item_factory.cpp": {
+    "hash": "215e973fe543631e68759a8a08a812c0db8275b8",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/line_item_factory.h": {
+    "hash": "f19ea1e09e8618e258dc9552f2265473e708c7c5",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/local_rect_item.cpp": {
+    "hash": "6664986ca8f3122ced35bd6117461b57e47edda6",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/local_rect_item.h": {
+    "hash": "e473cd45775d00aed46d8eebf51fde5b35c8fc79",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/node_item_factory.cpp": {
+    "hash": "138a5588d17234867dcb560cbc056861014feaee",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/node_item_factory.h": {
+    "hash": "c0ad91d368815dc2b32d84010e3e9e87b0973844",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/node_type.h": {
+    "hash": "351176c6bfb0692e2341c7bb11f91b67ea3abe34",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/rect_item.cpp": {
+    "hash": "2880818c6154790d1ac253f45ac6f0ab0948ed83",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/rect_item.h": {
+    "hash": "db916e262e45efd56a4b6aef249626696351f4a8",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/remote_rect_item.cpp": {
+    "hash": "682355ae70e85407d9b27d324e65cb560e9d2207",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/remote_rect_item.h": {
+    "hash": "50ba6a4127817f185390a9af009aa0690a6ba85d",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/shell_rect_item.cpp": {
+    "hash": "5eee6565df24891a45a94a409eefc2504a218f78",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/shell_rect_item.h": {
+    "hash": "ad691b1c06bcbe0a85beded9108c7283decdbef0",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/template_rect_item.cpp": {
+    "hash": "bceebbcc2f6800e40bcb9ca8f2b6587224435a02",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/Item/template_rect_item.h": {
+    "hash": "2e5ef47036209b7416a91fc8f88e9ec54a61ec34",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/core/app_context.cpp": {
+    "hash": "4f3c20ea8d0ca3a0a14f51456a5ca13b869c5df6",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/core/app_context.h": {
+    "hash": "ef10cc437433b79b2eda87c66c46b5ff087436c0",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/models/task_item.h": {
+    "hash": "609657a37b518facf0b319af9b31cf126152dabd",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/models/task_list_model.cpp": {
+    "hash": "7e923a3d9f4b04dca1845320eac71e6e9d7caad0",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/models/task_list_model.h": {
+    "hash": "837860257bff8938f6f6530edffb7b5780b81590",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/net/api_client.cpp": {
+    "hash": "9987540eb5f2658cc798cb16798d339632d29146",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/net/api_client.h": {
+    "hash": "4754412cd48160fa9bdc0b935ab8e437e5113918",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/net/ws_client.cpp": {
+    "hash": "42a9405b3c90a31719abf32a78762cc6b376433e",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/net/ws_client.h": {
+    "hash": "bfecd1ccdaa87846d7e810b5aa2b99c0535145f8",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/operator/base_operator.cpp": {
+    "hash": "1a3f3d0881bde4e52d52593bf7c5eaf41324ce86",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/operator/base_operator.h": {
+    "hash": "0d668bf98e32295a77d94e31cd065a342c0768a5",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/operator/create_rect_operator.h": {
+    "hash": "c0a91042c253bd0ab4f3e8336c6092f513e1b42f",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/ui/console_dock.cpp": {
+    "hash": "3284e90dff5246ef7b3ab091053845730e89c7a7",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/ui/console_dock.h": {
+    "hash": "72a046318fc76bce32b9b35e44f4d194c3b220c7",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/ui/login_dialog.cpp": {
+    "hash": "4d5820330fd1246404c346df5451e7b09ce593ef",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/ui/login_dialog.h": {
+    "hash": "43431f1a468daacb98eeee82cea9c225a14c6f60",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/ui/main_window.cpp": {
+    "hash": "0a9f3d7c81e0cfd4a30ce76a6c661fae4a5fd44c",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/ui/main_window.h": {
+    "hash": "b39baade11e182b0000a2cf971f0601ab393cb89",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/ui/new_task_dialog.cpp": {
+    "hash": "33dcf82de271516573da0370e9a4b216db39f2e4",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/ui/new_task_dialog.h": {
+    "hash": "bbb04237187daeb1ed7ad544ad66453b3ba8c710",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/ui/taskdetaildialog.cpp": {
+    "hash": "e9591c3a7a519cc4d42451dc5e84f03cd03f8311",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/ui/taskdetaildialog.h": {
+    "hash": "51a718eda539f016165665ef88395ccee1ae903f",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/ui/user_bar_widget.cpp": {
+    "hash": "0b5f97faa9f7663c04f723d630087d4d2e962a2b",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/ui/user_bar_widget.h": {
+    "hash": "582b592a091c3712d4e638c3fdd479d0e851dba8",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/utils/id_utils.h": {
+    "hash": "854a2389944a35f14e03b605d3f12bd56af87376",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/connect_task.cpp": {
+    "hash": "fcca3aa13eb11277d3722d53a781752d150783df",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/connect_task.h": {
+    "hash": "e69039152794254221ed94a3facf9a62a58e93a5",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/create_task.cpp": {
+    "hash": "5653e9aebe93103f1531070306b492872b57985c",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/create_task.h": {
+    "hash": "4401ca0fd5148de9216bb5256342cb8ff949ee2f",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/delete_task.cpp": {
+    "hash": "6526a9290dfb100d4f7a59785d4527a55944db64",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/delete_task.h": {
+    "hash": "d9130fcbc1e1b4d65c1ce4b1e1583a7f1b85fd1f",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/edit_node_task.cpp": {
+    "hash": "eccbef2f352bc604d394603bb8e7ab51c3f2eafa",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/edit_node_task.h": {
+    "hash": "cc416e970bf675cd1a6126142b6fbfab080ba238",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/import_task.cpp": {
+    "hash": "3c8a1390c232407e7568d0e7a09e9a73cb2d6caf",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/import_task.h": {
+    "hash": "ac42a7739f131e9f6c205f8fb63cfb88f9d31e1c",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/layout_task.cpp": {
+    "hash": "d992415dd82ff6e8f2176f7ecdc153586f032e28",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/layout_task.h": {
+    "hash": "0d87dbe673bbd0259cbd111642b67ee8f20b8379",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/main_task.cpp": {
+    "hash": "7bfbe563ea29c0a96227179d196f235ed5cc2147",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/main_task.h": {
+    "hash": "e8af9706b56037251b018a5797f172b503bcad23",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/move_task.cpp": {
+    "hash": "4b0da5bc9c3e1bf9ac4018fd1c43f1b644ebc62b",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/move_task.h": {
+    "hash": "7377eea9756b0597b8bf94265f78621b4999b733",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/select_task.cpp": {
+    "hash": "d63251e3cd339941b16bc0d0001b1e0a8a9c8652",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/select_task.h": {
+    "hash": "81dcf040d380783db2bf2fd983c606ae622dac00",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/straight_line_task.cpp": {
+    "hash": "1f97718d7f5a5644a4a833494744434917f62bb0",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/straight_line_task.h": {
+    "hash": "0e7784f1aaf9ea77076640a35899623223231b6a",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/task.cpp": {
+    "hash": "f4f3fada1cd2a296c69703f51021384641fde1c7",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/task.h": {
+    "hash": "86fb68b7bb982c043ab0f56b7a6ac3a9380e9d57",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/task_manager.cpp": {
+    "hash": "2997588f4b9da0292ebbdd02cd6302151bcb6844",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/task_manager.h": {
+    "hash": "19c2de8a9610aa7cebf5b86792518a870151dd08",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/zoom_task.cpp": {
+    "hash": "de4549f2b2a9944a79476b8487f15db96dfa28cd",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/tasks/zoom_task.h": {
+    "hash": "4bce3776497ea76f724c3cb9965399f290b54e4f",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/auth/auth_manager.cpp": {
+    "hash": "d7ce00db5325f146f0186c6abe33ec20e583c769",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/auth/auth_manager.h": {
+    "hash": "3bcf1ee2c168eea21f2cb38529ed00ae45f92a14",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/auth/user.h": {
+    "hash": "99972adb187a0cee1f51d161ebf4b14f51d4cd94",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/core/blocking_queue.h": {
+    "hash": "b6b344910fae4735091808ba8546ce2de7ac0b7c",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/core/config.cpp": {
+    "hash": "642eb3b342678f26939fa2f9ef663f01a5a8c740",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/core/config.h": {
+    "hash": "58bf7f932cfe4c7232c3d2a3000ce9c470d817c7",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/core/http_response.h": {
+    "hash": "31da2bdb898c99c3a25d9a6e7e76a540531c33cf",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/core/task.cpp": {
+    "hash": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/core/task.h": {
+    "hash": "674b5b74357ca7fa86246071a89b8452ad7abb9b",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/core/task_manager.cpp": {
+    "hash": "84bcf308fa5c3e5b330dcf8e3844211040125173",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/core/task_manager.h": {
+    "hash": "2e9fca91e4595adfbdb5b3efb20745c6619c6d2d",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/core/task_runner.cpp": {
+    "hash": "e3c8edf8b8f6da7310699c66cce9d5db92d7fb55",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/core/task_runner.h": {
+    "hash": "cafc61e8f17a488686974940df72a79500964736",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/core/worker_pool.cpp": {
+    "hash": "793ea5b1cba84f0ef6e644538e3a060d4f16d7cf",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/core/worker_pool.h": {
+    "hash": "45931def4e412a048487a40255ab5bc170070bc5",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/dag/dag_builder.cpp": {
+    "hash": "4c05f28af3fccefedea67663b27468d4789c043e",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/dag/dag_builder.h": {
+    "hash": "76ff57134ce172182d72c5185475e7676b82e92b",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/dag/dag_executor.cpp": {
+    "hash": "cdf613bcef4f21068b8c2ab99408895feaa71170",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/dag/dag_executor.h": {
+    "hash": "a124b3daa55549e50969a79881b69d01168be656",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/dag/dag_graph.cpp": {
+    "hash": "9dac8205325c4f9047e2f8d4b521b0f681af4d8c",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/dag/dag_graph.h": {
+    "hash": "06495c9d1c5206eab0490f607dc1f0cc085bf2b1",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/dag/dag_node.cpp": {
+    "hash": "3817a0e9c5a061ca6005136013ebcfc60c595494",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/dag/dag_node.h": {
+    "hash": "dd21aa9f1852b56736a06693a2a5001496b5865e",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/dag/dag_run_context.cpp": {
+    "hash": "204b0606b3932a2d0c6067d3bd73be183bdf6368",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/dag/dag_run_context.h": {
+    "hash": "bad83d95539738834aaddac3238de7f4ae1ada6b",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/dag/dag_run_utils.h": {
+    "hash": "a6c00628327a15d00aff73a80ea95f3dc8c7094f",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/dag/dag_service.cpp": {
+    "hash": "730e82f105178e6cce0cbbb397357f504c66dc24",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/dag/dag_service.h": {
+    "hash": "ad0fef61d2e45926ce3e5d9fdae0935d8df843ee",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/dag/dag_thread_pool.cpp": {
+    "hash": "91d6b5b0c707d4424b918e5d6e0db5e962937a02",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/dag/dag_thread_pool.h": {
+    "hash": "afe3324f1bbd72308522da5e1f2561b364f5d455",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/dag/dag_types.h": {
+    "hash": "422b19593f919e61a03dc156e1d5f407586b21fb",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/db/dag_run_repo.cpp": {
+    "hash": "601544b6ea9fbf8d218114eb4d02b7c54a70f29f",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/db/dag_run_repo.h": {
+    "hash": "85875575aa930c3123626283218d514a5d115945",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/db/db.cpp": {
+    "hash": "fa9745eb8aafd1a441ba3ce5fcb155d4a313a5c5",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/db/db.h": {
+    "hash": "831af4accdf2b92d6c1e2ac7c8a621d831ffdfc6",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/db/migrator.cpp": {
+    "hash": "38926630e603af547d3e0aab4cf728d75c73af1a",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/db/migrator.h": {
+    "hash": "ec198069205b64206c9d0323143bf7486f61190d",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/db/task_event_repo.cpp": {
+    "hash": "839cc28484d0363878ddbc4011c4d737aca5155a",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/db/task_event_repo.h": {
+    "hash": "d4b9e409200d655f91e3ad3ce998d3d503560297",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/db/task_run_repo.cpp": {
+    "hash": "1ff2025f8dc05f7d8d766998980b5c86c5a1ff8a",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/db/task_run_repo.h": {
+    "hash": "7fb72cd220e676ad919cb363e1a6e71fd4b83fd3",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/execution/dag_strategy.cpp": {
+    "hash": "903fd4be10c8ffaca9e777cbb7e1e394d07bb5a6",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/execution/dag_strategy.h": {
+    "hash": "4102a58e2dd79713dd36e2e09157df0ce9e042f0",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/execution/docker_strategy.cpp": {
+    "hash": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/execution/docker_strategy.h": {
+    "hash": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/execution/execution_registry.cpp": {
+    "hash": "2c78d96efa2f0ccb57ebe35dd02b43620ac6142b",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/execution/execution_registry.h": {
+    "hash": "556a49d449fdf30f7b70eb304cb18b05b68e7054",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/execution/execution_strategy.h": {
+    "hash": "7e266b81d3228c25a587c426a4df7ef49ffa0d86",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/execution/http_strategy.cpp": {
+    "hash": "3fbf3a83e95802770dc7a42a476541e1d9c7b104",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/execution/http_strategy.h": {
+    "hash": "cd81d8c08442bb3e56564d48c1f366cb25e9dc48",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/execution/local_strategy.cpp": {
+    "hash": "43b28e8c347214f9222b1df06dd7380c4a741752",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/execution/local_strategy.h": {
+    "hash": "cca2be0895abc6c459098247b116503ac32511c9",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/execution/remote_strategy.cpp": {
+    "hash": "9aed86a80f5fbd7b82ee4fd4b11a52f9a9dac830",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/execution/remote_strategy.h": {
+    "hash": "c313f724c04656077348bf41ab97f8b17fe9220a",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/execution/script_strategy.cpp": {
+    "hash": "79e94f6aa00ed6daf07963f39d4099870e011ae3",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/execution/script_strategy.h": {
+    "hash": "48b51a3507a4b4bba368dcb98a931691eb2d3927",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/execution/shell_strategy.cpp": {
+    "hash": "40422a581bd583bcb1ec735bcbfc2719203eed2c",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/execution/shell_strategy.h": {
+    "hash": "31b253633320af4c8cbf68d7fb774fd11a6d9aec",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/execution/template_strategy.cpp": {
+    "hash": "17f1cdec9903daddbdf2f04937d3f1f6f78aa10a",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/execution/template_strategy.h": {
+    "hash": "60b54b2b44443fcb80d3e4cfbccc3978ca4dfe73",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/handlers/auth_handler.cpp": {
+    "hash": "68fdbb5e11f82711e6044be7851a3976968cc13e",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/handlers/auth_handler.h": {
+    "hash": "0b66730d48d9f9a527350b9d8fae4c48fb0f72ce",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/handlers/cron_handler.cpp": {
+    "hash": "e968557c0dd3695cbdba03649226115b43026142",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/handlers/cron_handler.h": {
+    "hash": "a091eb18d65add84e6d9c5c02232e56ceb7a89e8",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/handlers/handlers.h": {
+    "hash": "bf00a51dba6464f73c7a22bb1fb461a2e15e8c4a",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/handlers/log_handler.cpp": {
+    "hash": "a1102147e1fa256b8c61e4d37d410827a54f1a74",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/handlers/log_handler.h": {
+    "hash": "ac55bb49f1b60f8180a264474392f35f7a7855a0",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/handlers/system_handler.cpp": {
+    "hash": "7d405f41e51633e3357afab8d1129b451a950c12",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/handlers/system_handler.h": {
+    "hash": "ef3f32d474fb1e8a5cd1dec3ac1160baa54bc223",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/handlers/task_handler.cpp": {
+    "hash": "4fb27427e7579065060e73709c12a5e2bee80d36",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/handlers/task_handler.h": {
+    "hash": "5d85258c6b0a90c88c3dbe9e3607692c3eecf20b",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/handlers/task_template_handler.cpp": {
+    "hash": "e300ee009defe362a6d3e50ebd620681db25e47c",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/handlers/task_template_handler.h": {
+    "hash": "a1b1f198032b92dd350d227b4f7a7bd51ae2acd4",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/handlers/template_handler.cpp": {
+    "hash": "996b6d58fac7e5f04cbb858c695e3655740b5361",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/handlers/template_handler.h": {
+    "hash": "e4f9aa170081036738b400e005e89984e4221fce",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/handlers/worker_handler.cpp": {
+    "hash": "56715bf5aaf3654f26095214f02f760c51382fd6",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/handlers/worker_handler.h": {
+    "hash": "dcce1afbaf3712dd5a857e5813b120ca367a211f",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/runner/local_task_registry.cpp": {
+    "hash": "37f66aeef57416f55c4bdb7ebfe8a9642cefbc41",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/runner/local_task_registry.h": {
+    "hash": "bc598eddaf9d6244dffb2bf4726b050212553b9a",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/runner/local_tasks.cpp": {
+    "hash": "2259c27dc2e92c123890b1885887d4fc5149e08f",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/runner/task_common.h": {
+    "hash": "a5717a9c974dcd7d5db830b4194f49450093e78d",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/runner/task_config.h": {
+    "hash": "eb69db0814ecb7575bdaef49354ef456e73d93d0",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/runner/task_result.h": {
+    "hash": "a0e67cd5671ed25e9fd5f4227b89b794f3bd37aa",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/runner/task_runner.cpp": {
+    "hash": "e91e7d486c456f469502264403e545f0819adceb",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/runner/task_runner.h": {
+    "hash": "182c1f1c8960487d97fed0442d7d949853ff2178",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/log/log_formatter.cpp": {
+    "hash": "ee23ef36e91f778b2d596de34e395d7701a8f547",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/log/log_formatter.h": {
+    "hash": "5985007a6b628a543624352a51c9483ee3051a6b",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/log/log_manager.cpp": {
+    "hash": "8ef23cae56958e0dbaf1feb9df04e04e8a50e8fe",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/log/log_manager.h": {
+    "hash": "d453b5e15f1a09c9c7a3650884b82a817b121c5e",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/log/log_record.h": {
+    "hash": "341b835deb963a9efee42291b685b3605171e1bf",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/log/log_rotation.cpp": {
+    "hash": "448767e92a1333dffc2458508fa72a9e5c4e56db",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/log/log_rotation.h": {
+    "hash": "6b2a419070f92e80bb49bd3e7c0f8045bcdd6777",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/log/log_sink.h": {
+    "hash": "33c51e6a1700b429cc8b739329b43c9b6d1c6700",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/log/log_sink_console.cpp": {
+    "hash": "974e6b6e41ea86eeeb6d7005a12566c35f699db5",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/log/log_sink_console.h": {
+    "hash": "aac7892e99c3db9dcd41833eb7352f53ae6f17d4",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/log/log_sink_file.cpp": {
+    "hash": "ee4b64bca2e1ff9fc282f66e9126d96cc4caaf2c",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/log/log_sink_file.h": {
+    "hash": "b0d14a4e524ac3c313137749cf6733fb9ce36a2e",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/log/logger.cpp": {
+    "hash": "934841e3fb684ef0aceddb6e05403d8dcdfd90f0",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/log/logger.h": {
+    "hash": "cf229b6294f035e6cc0011e786bc36ec3ccfaab6",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/log/task_log_buffer.cpp": {
+    "hash": "a3dacd82f9d9588a42741df2bc4e0e117e09de8b",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/log/task_log_buffer.h": {
+    "hash": "a08fdfa8b6adf8f43fd5d48879f4ab6dcf1afc4d",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/scheduler/cron_job.cpp": {
+    "hash": "1e45aab62a834bf0913c3a82e1297baddc07518e",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/scheduler/cron_job.h": {
+    "hash": "72c3d3525d2d96dd39087bdf27b39d2df2e2efd0",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/scheduler/cron_parser.cpp": {
+    "hash": "a0471d93383346d94610772f49d45e2dd9a42dbb",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/scheduler/cron_parser.h": {
+    "hash": "cbfb98ce7cc6ef1175b9acd4d718f777266ccec8",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/scheduler/cron_scheduler.cpp": {
+    "hash": "150a2279a7fd3fea1b091b22c8a7d76e561cbb58",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/scheduler/cron_scheduler.h": {
+    "hash": "54e7ef529e31b31db57a346178004531732529be",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/template/task_template.h": {
+    "hash": "7d51e64b490d92a4aceff25a052f1ba690329f6a",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/template/task_template_store.cpp": {
+    "hash": "30c0b6e6083c8450cf838c5ccaaa0a30a70c6f12",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/template/task_template_store.h": {
+    "hash": "712bb30ebe1702cd2dccb03d4f03dc0d8800fdae",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/template/template_renderer.cpp": {
+    "hash": "7d2509eb06d730cb0f409497012e5d45f5372532",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/template/template_renderer.h": {
+    "hash": "c85d20cbc0e14d9bde4028cfc8973f205951820d",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/template/template_store.cpp": {
+    "hash": "8b8e212f0974de6f447e0ff0270b16f6e0fa5ee5",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/template/template_store.h": {
+    "hash": "52a6a0870e0d99aee2ce733f40c605ac6182fcaf",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/template/template_types.h": {
+    "hash": "8eb48dd326e5fc950a66d14c088b84c073ca6163",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/template/template_validator.cpp": {
+    "hash": "f6e3cafe62f81156180a3ea0603e31482f8ec2b8",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/template/template_validator.h": {
+    "hash": "089203906449a6b305b837c4983ba65ad53e6e05",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/utils/http_params.h": {
+    "hash": "421b8b9f4a4acf1a9c76da041a269aeffdc1063b",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/utils/utils.cpp": {
+    "hash": "2bf31a89e9bb8719c050daa4cb7724172cc5e438",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/utils/utils.h": {
+    "hash": "034fa319c187c4e2952629f5afa7f8e6ba5b3ec4",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/utils/utils_exec.cpp": {
+    "hash": "9bc931a312758995defa412bdb0760adb7f8e476",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/utils/utils_exec.h": {
+    "hash": "f91be9ec984948922f16b5e60af1f59fc5a0b3cc",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/worker/server_worker_registry.cpp": {
+    "hash": "938274ab1aeaaeae68f7b7fa56887d7220f08bf9",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/worker/server_worker_registry.h": {
+    "hash": "6fee3877b4695babec1527f1990c16c3e77a2469",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/worker/worker_heartbeat_client.cpp": {
+    "hash": "7c1050d0edbbf4f3a85d31815a341bd93758f42f",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/worker/worker_heartbeat_client.h": {
+    "hash": "4dc2c777385fa01917ca1a59048ad79b4bb95615",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/worker/worker_info.h": {
+    "hash": "7eb51726a4e44d4a422ac1cb47efcad09398f092",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/worker/worker_selector.cpp": {
+    "hash": "5edae1c99d54cf62eb10f8ee77f4514ec3c025a9",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/worker/worker_selector.h": {
+    "hash": "07bfa97bf327caff9526791d40100d3915c69825",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/ws/ws_hub.cpp": {
+    "hash": "1ee16ac8c7b057bda4da7048338ac9abd2669b62",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/ws/ws_hub.h": {
+    "hash": "4b0dd74ed21e2c45b2647cb3291672e0f1a42791",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/ws/ws_log_streamer.cpp": {
+    "hash": "d6f95f4169b0cfbdf38f749c82f927f04d71493f",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/ws/ws_log_streamer.h": {
+    "hash": "a0a37b5f2606f07215e9f9ad2e10ee745d76fd1d",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/ws/ws_protocol.h": {
+    "hash": "3da6f2605e57453220fbc4470ad81f7d88f4de58",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/ws/ws_proxy_client.cpp": {
+    "hash": "abd5835115ee3d7d5e751b8f08d2a7e532ee68b1",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/ws/ws_proxy_client.h": {
+    "hash": "f9b6c917a8247bf5451bcbc194025105c18f0729",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/ws/ws_server_beast.cpp": {
+    "hash": "594245685cdc390f1798fada80f3d1440d9cb2a5",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/ws/ws_server_beast.h": {
+    "hash": "fa2f87fece1a335968e75617441d402d748eec48",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "server/src/ws/ws_task_events.h": {
+    "hash": "dd05d1dda438377284fca91ee0b7149b800c4520",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/canvas/canvasbench.cpp": {
+    "hash": "498f85a53c760bcceff60caa8fa4db070e12cf3a",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/canvas/canvasbench.h": {
+    "hash": "c967236b44e196716c3b73b94b8ba1cce3a3df20",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/canvas/canvasscene.cpp": {
+    "hash": "524042f360de50117325f9b60e237061395191f0",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/canvas/canvasscene.h": {
+    "hash": "3d55ea33dfd5b110f7be91513462a434fbad64ef",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/canvas/canvasview.cpp": {
+    "hash": "b270b6693366e39fe4baf41e540463b670085841",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/canvas/canvasview.h": {
+    "hash": "301acd15120462065f21c69a53af0faf0bd9e791",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/canvas/dag_edit_bench.cpp": {
+    "hash": "77684cd06699549bcc6050260cb1de17a2898084",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/canvas/dag_edit_bench.h": {
+    "hash": "d36359fd522ca73ffc79d958e8c0963c2118c599",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/canvas/node_palette_widget.cpp": {
+    "hash": "1ba0904e41f61b5e94283f0c33944f30b6d4affc",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/canvas/node_palette_widget.h": {
+    "hash": "48d87593a01703e61a03374fff17b49b4958b5cf",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/dialogs/body_editor_dialog.h": {
+    "hash": "302b9b6ec9a65d3dc08dd9cca456a110f05da25e",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/dialogs/dag_run_monitor_dialog.cpp": {
+    "hash": "212f46679ec17c432607902054cad98fa17b87f6",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/dialogs/dag_run_monitor_dialog.h": {
+    "hash": "9b4ef98b62d1ceadabd5c42eb07ac2a62362ffc0",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/dialogs/headers_editor_dialog.h": {
+    "hash": "3a95152a437be040fbac7f9518063cc42e5ba6d1",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/dialogs/worker_list_dialog.cpp": {
+    "hash": "c603a628e724f9a8e9cfaac285c8cb5ea302e4a4",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/dialogs/worker_list_dialog.h": {
+    "hash": "bc0d4fab075373a883ee9273adc9911d04c072f0",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/utils/dag_loader.cpp": {
+    "hash": "f8d8df26ba85a7cf974ef9d5143cbad2df55ce55",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/utils/dag_loader.h": {
+    "hash": "373dc069e5c173a6b5b92d20c0159bad0cfaf191",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/utils/dag_run_viewer.cpp": {
+    "hash": "622ff04c1129f9f09860c8cb6bc87be0aab247f9",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/utils/dag_run_viewer.h": {
+    "hash": "dccdb28452cdfd484aa8156240c2ddfda8de9a7c",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/utils/dag_serializer.cpp": {
+    "hash": "db6df6e1ea45b6802bc7bb0230eb88ba3d9c9436",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/utils/dag_serializer.h": {
+    "hash": "68764f46f6d469bd7b2280fecca4c457cf42a058",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/dag_inspector_widget.cpp": {
+    "hash": "ec032ff0a993f2b08d936f2427603a3da9b66702",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/dag_inspector_widget.h": {
+    "hash": "93d36b7a3d2fa903e3225561f85be918410e62cd",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/inspector_panel.cpp": {
+    "hash": "f90482d01d118c2e2b63ac1bc665602683bb2fe5",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/inspector_panel.h": {
+    "hash": "734a2efc81951f18385a4b0456b9588026721e12",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/line_inspector_widget.cpp": {
+    "hash": "f802698525b3cf5c345483e0596cdfb413b704f9",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/line_inspector_widget.h": {
+    "hash": "32bf044838642dac693fd185d91cf346e4af22ae",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/node_inspector_action_widget.cpp": {
+    "hash": "2698021a9ef1087e486a8c89849951c59eae44d2",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/node_inspector_action_widget.h": {
+    "hash": "985bcadbdc48d65fc82126b5b7167bbf49ff550b",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/node_inspector_common_widget.cpp": {
+    "hash": "d758651d1e318ab814cfa49757e22a5bc12ac306",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/node_inspector_common_widget.h": {
+    "hash": "835029576096cf85415b6b47da43734af13b1879",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/node_inspector_dag_widget.cpp": {
+    "hash": "8a7b7148a3204ea861971bf7917d3f739ef8b898",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/node_inspector_dag_widget.h": {
+    "hash": "f579164346c41a0c38e9baaabb9e47aadb4e86b9",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/node_inspector_http_widget.cpp": {
+    "hash": "3f8c207e1583aca1cd6c71631d01145d65df56bc",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/node_inspector_http_widget.h": {
+    "hash": "4ff3c0314f2ea6ea2dd1d126264761e8ab82854c",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/node_inspector_local_widget.cpp": {
+    "hash": "1e8cd32937edd4cd8c5b20410b2ddd21788715df",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/node_inspector_local_widget.h": {
+    "hash": "bfba462d647425464a31f2eb112ecd528a8c658a",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/node_inspector_remote_widget.cpp": {
+    "hash": "4148c52c9cffe608d33aa80cdd3285554b1ae59d",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/node_inspector_remote_widget.h": {
+    "hash": "d8ce640dab381c7d0203ae2d4a4584fa11961b21",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/node_inspector_runtime_widget.cpp": {
+    "hash": "34225ea937a23fa87ead55f8e8d4945afe55136b",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/node_inspector_runtime_widget.h": {
+    "hash": "d01407accf4af8eb16f85580ae34876f5723d8b7",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/node_inspector_shell_widget.cpp": {
+    "hash": "745fe610181f1f970d841365d4eaaf7e5804e85a",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/node_inspector_shell_widget.h": {
+    "hash": "69f79eee02f22dfa789e6ab933e508fceca559f3",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/node_inspector_template_widget.cpp": {
+    "hash": "64dce303ce4a3fb3d2a5f5e0f87af861710b112f",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/node_inspector_template_widget.h": {
+    "hash": "47e9c3301b7c83b47573b8ad4ed855b092490b4a",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/node_inspector_widget.cpp": {
+    "hash": "5ad9ae88855fe9b3fecd982787c03f2dc2f78864",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/inspector/node_inspector_widget.h": {
+    "hash": "a848f4e87aa381e117227404839cddf8ef9b1117",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/widgets/cron_jobs_widget.cpp": {
+    "hash": "e58f58f6cc655b8904bee88e595e739e088f0953",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/widgets/cron_jobs_widget.h": {
+    "hash": "5bc452f5acd94aa036477e8c413da5f514c7c0e2",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/widgets/dag_runs_widget.cpp": {
+    "hash": "098d71907c8bd97ad95b3100e2158525a4cee8d2",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/widgets/dag_runs_widget.h": {
+    "hash": "647626e13ad801a4673a394e4105b6d3e3451da6",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/widgets/template_manager_widget.cpp": {
+    "hash": "d739fab0c2c5ed356577fea916aafaf2f2781e53",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  },
+  "client/src/view/widgets/template_manager_widget.h": {
+    "hash": "30082ed3c9dd1ec8b3bd4623c6ad33b2ae704064",
+    "skillDoc": "",
+    "lastUpdated": "2026-01-20T12:55:42.238Z"
+  }
+}
