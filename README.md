@@ -227,3 +227,6 @@ docker compose up --build
 ## 备注
 - WebSocket 监听端口：`8090`
 - SQLite migrations 会在构建阶段复制到构建产物并打包进镜像
+## 演示demo
+
+[打开演示视频](./docs/demo/演示demo.mp4)

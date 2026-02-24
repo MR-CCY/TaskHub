@@ -3,22 +3,23 @@
 
 class QJsonObject;
 class QLabel;
+class QPlainTextEdit;
 
 class NodeInspectorRuntimeWidget : public QWidget {
 public:
-    explicit NodeInspectorRuntimeWidget(QWidget* parent = nullptr);
+  explicit NodeInspectorRuntimeWidget(QWidget *parent = nullptr);
 
-    void setRuntimeValues(const QVariantMap& obj);
+  void setRuntimeValues(const QVariantMap &obj);
 
 private:
-    QLabel* runtimeStatusLabel_ = nullptr;
-    QLabel* runtimeDurationLabel_ = nullptr;
-    QLabel* runtimeExitLabel_ = nullptr;
-    QLabel* runtimeAttemptLabel_ = nullptr;
-    QLabel* runtimeWorkerLabel_ = nullptr;
-    QLabel* runtimeMessageLabel_ = nullptr;
-    QLabel* runtimeStdoutLabel_ = nullptr;
-    QLabel* runtimeStderrLabel_ = nullptr;
-    QLabel* runtimeStartTimeLabel_ = nullptr;
-    QLabel* runtimeEndTimeLabel_ = nullptr;
+  QLabel *runtimeStatusLabel_ = nullptr;
+  QLabel *runtimeDurationLabel_ = nullptr;
+  QLabel *runtimeExitLabel_ = nullptr;
+  QLabel *runtimeAttemptLabel_ = nullptr;
+  QLabel *runtimeWorkerLabel_ = nullptr;
+  QLabel *runtimeMessageLabel_ = nullptr;
+  QPlainTextEdit *runtimeStdoutEdit_ = nullptr;
+  QPlainTextEdit *runtimeStderrEdit_ = nullptr;
+  QLabel *runtimeStartTimeLabel_ = nullptr;
+  QLabel *runtimeEndTimeLabel_ = nullptr;
 };
