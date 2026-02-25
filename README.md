@@ -229,5 +229,5 @@ docker compose up --build
 - SQLite migrations 会在构建阶段复制到构建产物并打包进镜像
 ## 演示demo
 
-[打开演示视频](./docs/demo/演示demo.mp4)
-<video src="./docs/demo/演示demo.mp4" controls poster="./cover-image.png" width="100%" autoplay loop muted></video>
+[打开演示 GIF](./docs/demo/演示demo.gif)
+![演示demo](./docs/demo/演示demo.gif)
