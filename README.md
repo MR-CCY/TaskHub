@@ -230,3 +230,4 @@ docker compose up --build
 ## 演示demo
 
 [打开演示视频](./docs/demo/演示demo.mp4)
+<video src="./docs/demo/演示demo.mp4" controls poster="./cover-image.png" width="100%" autoplay loop muted></video>
