@@ -19,6 +19,7 @@ public:
     };
 
     explicit FileLogSink(Options opt);
+    ~FileLogSink() override;
     void consume(const LogRecord& rec) override;
 
 private:

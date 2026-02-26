@@ -16,6 +16,8 @@ FileLogSink::FileLogSink(Options opt) : _opt(std::move(opt)) {
     _rot=std::make_unique<LogRotation>(p);
 }
 
+FileLogSink::~FileLogSink() = default;
+
 void FileLogSink::ensureOpen_() {
     if (_ofs.is_open()) return;
     if (_opt.path.empty()) return;
